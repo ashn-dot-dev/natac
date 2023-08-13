@@ -65,6 +65,26 @@ struct hex {
     }
 }
 
+struct hex_functions {
+    var point_to_hex: typeof(point_to_pointy_hex);
+    var hex_to_point: typeof(pointy_hex_to_point);
+    var draw_hexagon: typeof(draw_pointy_hexagon);
+    var draw_hexagon_outline: typeof(draw_pointy_hexagon_outline);
+}
+
+let FLAT_HEX_FUNCTINONS = (:hex_functions){
+    .point_to_hex = point_to_flat_hex,
+    .hex_to_point = flat_hex_to_point,
+    .draw_hexagon = draw_flat_hexagon,
+    .draw_hexagon_outline = draw_flat_hexagon_outline,
+};
+let POINTY_HEX_FUNCTIONS = (:hex_functions){
+    .point_to_hex = point_to_pointy_hex,
+    .hex_to_point = pointy_hex_to_point,
+    .draw_hexagon = draw_pointy_hexagon,
+    .draw_hexagon_outline = draw_pointy_hexagon_outline,
+};
+
 func point_to_flat_hex(point: Vector2, radius: f32) hex {
     var q = (+2.0/3.0 * point.x) / radius;
     var r = (-1.0/3.0 * point.x  +  f32::sqrt(3.0)/3.0 * point.y) / radius;
@@ -73,9 +93,23 @@ func point_to_flat_hex(point: Vector2, radius: f32) hex {
     return hex::init_round(q, r, s);
 }
 
+func point_to_pointy_hex(point: Vector2, radius: f32) hex {
+    var q = (f32::sqrt(3.0)/3.0 * point.x - 1.0/3.0 * point.y) / radius;
+    var r = (2.0/3.0 * point.y) / radius;
+    var s = -q - r;
+
+    return hex::init_round(q, r, s);
+}
+
 func flat_hex_to_point(hex: hex, radius: f32) Vector2 {
     var x = radius * (3.0/2.0 * (:f32)hex.q);
     var y = radius * (f32::sqrt(3.0)/2.0 * (:f32)hex.q + f32::sqrt(3.0) * (:f32)hex.r);
+    return (:Vector2){.x = x, .y = y};
+}
+
+func pointy_hex_to_point(hex: hex, radius: f32) Vector2 {
+    var x = radius * (f32::sqrt(3.0) * (:f32)hex.q + f32::sqrt(3.0)/2.0 * (:f32)hex.r);
+    var y = radius * (3.0/2.0 * (:f32)hex.r);
     return (:Vector2){.x = x, .y = y};
 }
 
@@ -88,6 +122,18 @@ func draw_flat_hexagon(center: Vector2, radius: f32, color: Color) void {
 func draw_flat_hexagon_outline(center: Vector2, radius: f32, color: Color) void {
     let SIDES: sint = 6;
     let ANGLE: f32 = 0.0; # flat-top orientation
+    DrawPolyLinesEx(center, SIDES, radius, ANGLE, radius / 8.0, color);
+}
+
+func draw_pointy_hexagon(center: Vector2, radius: f32, color: Color) void {
+    let SIDES: sint = 6;
+    let ANGLE: f32 = 30.0; # pointy-top orientation
+    DrawPoly(center, SIDES, radius, ANGLE, color);
+}
+
+func draw_pointy_hexagon_outline(center: Vector2, radius: f32, color: Color) void {
+    let SIDES: sint = 6;
+    let ANGLE: f32 = 30.0; # pointy-top orientation
     DrawPolyLinesEx(center, SIDES, radius, ANGLE, radius / 8.0, color);
 }
 
@@ -161,7 +207,19 @@ func main() void {
     tiles.insert(hex::init(+2, -1, -1));
     tiles.insert(hex::init(+2, +0, -2));
 
+    var hex_functions = POINTY_HEX_FUNCTIONS;
+
     for not WindowShouldClose() {
+        if IsKeyPressed(KEY_F11) {
+            ToggleFullscreen();
+        }
+        if IsKeyPressed(KEY_ONE) {
+            hex_functions = POINTY_HEX_FUNCTIONS;
+        }
+        if IsKeyPressed(KEY_TWO) {
+            hex_functions = FLAT_HEX_FUNCTINONS;
+        }
+
         BeginDrawing();
         ClearBackground(SKYBLUE);
 
@@ -174,7 +232,7 @@ func main() void {
 
         var iter = std::hash_set_iterator[[hex]]::init(&tiles);
         for iter.advance() {
-            var point = flat_hex_to_point(*iter.current(), RADIUS);
+            var point = hex_functions.hex_to_point(*iter.current(), RADIUS);
             var point = (:Vector2){
                 .x = point.x + render_center.x,
                 .y = point.y + render_center.y
@@ -185,7 +243,7 @@ func main() void {
                 .b = (:u8)iter.current().*.s *% 0x33 +% 0x66,
                 .a = 0xFF,
             };
-            draw_flat_hexagon(point, RADIUS, color);
+            hex_functions.draw_hexagon(point, RADIUS, color);
         }
 
         var fps = GetFPS();
@@ -200,8 +258,8 @@ func main() void {
             .x = mouse.x - render_center.x,
             .y = mouse.y - render_center.y,
         };
-        var mouse_hex = point_to_flat_hex(world, RADIUS);
-        var mouse_hex_center = flat_hex_to_point(mouse_hex, RADIUS);
+        var mouse_hex = hex_functions.point_to_hex(world, RADIUS);
+        var mouse_hex_center = hex_functions.hex_to_point(mouse_hex, RADIUS);
         var mouse_hex_center = (:Vector2){
             .x = mouse_hex_center.x + render_center.x,
             .y = mouse_hex_center.y + render_center.y
@@ -229,7 +287,7 @@ func main() void {
 
         draw_circle(mouse_hex_center, 4.0, ORANGE);
         if tiles.contains(mouse_hex) {
-            draw_flat_hexagon_outline(mouse_hex_center, RADIUS, ORANGE);
+            hex_functions.draw_hexagon_outline(mouse_hex_center, RADIUS, ORANGE);
         }
 
         EndDrawing();
