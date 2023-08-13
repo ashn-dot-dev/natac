@@ -1,0 +1,237 @@
+import "c";
+import "raylib";
+import "std";
+
+let RADIUS = 48.0f32;
+
+# Hex position using the hex coordinate system satisfying q + r + s == 0.
+struct hex {
+    var q: sint;
+    var r: sint;
+    var s: sint;
+
+    func init(q: sint, r: sint, s: sint) hex {
+        assert q + r + s == 0;
+        return (:hex){.q = q, .r = r, .s = s};
+    }
+
+    func init_round(q_fractional: f32, r_fractional: f32, s_fractional: f32) hex {
+        var q_rounded = f32::round(q_fractional);
+        var r_rounded = f32::round(r_fractional);
+        var s_rounded = f32::round(s_fractional);
+
+        var q_diff = f32::abs(q_rounded - q_fractional);
+        var r_diff = f32::abs(r_rounded - r_fractional);
+        var s_diff = f32::abs(s_rounded - s_fractional);
+
+        var q = (:sint)q_rounded;
+        var r = (:sint)r_rounded;
+        var s = (:sint)s_rounded;
+        if q_diff > r_diff and q_diff > s_diff {
+            q = (:sint)-r_rounded - (:sint)s_rounded;
+        }
+        elif r_diff > s_diff {
+            r = (:sint)-q_rounded - (:sint)s_rounded;
+        }
+        else {
+            s = (:sint)-q_rounded - (:sint)r_rounded;
+        }
+
+        return hex::init(q, r, s);
+    }
+
+    func hash(self: *hex) usize {
+        var h = self.*.q.hash() +% self.*.q.hash() +% self.*.s.hash();
+        return h *% h;
+    }
+
+    func compare(lhs: *hex, rhs: *hex) ssize {
+        var cmp = sint::cmp(lhs.*.q, rhs.*.q);
+        if cmp != 0 {
+            return cmp;
+        }
+
+        var cmp = sint::cmp(lhs.*.r, rhs.*.r);
+        if cmp != 0 {
+            return cmp;
+        }
+
+        var cmp = sint::cmp(lhs.*.s, rhs.*.s);
+        if cmp != 0 {
+            return cmp;
+        }
+
+        return 0;
+    }
+}
+
+func point_to_flat_hex(point: Vector2, radius: f32) hex {
+    var q = (+2.0/3.0 * point.x) / radius;
+    var r = (-1.0/3.0 * point.x  +  f32::sqrt(3.0)/3.0 * point.y) / radius;
+    var s = -q - r;
+
+    return hex::init_round(q, r, s);
+}
+
+func flat_hex_to_point(hex: hex, radius: f32) Vector2 {
+    var x = radius * (3.0/2.0 * (:f32)hex.q);
+    var y = radius * (f32::sqrt(3.0)/2.0 * (:f32)hex.q + f32::sqrt(3.0) * (:f32)hex.r);
+    return (:Vector2){.x = x, .y = y};
+}
+
+func draw_flat_hexagon(center: Vector2, radius: f32, color: Color) void {
+    let SIDES: sint = 6;
+    let ANGLE: f32 = 0.0; # flat-top orientation
+    DrawPoly(center, SIDES, radius, ANGLE, color);
+}
+
+func draw_flat_hexagon_outline(center: Vector2, radius: f32, color: Color) void {
+    let SIDES: sint = 6;
+    let ANGLE: f32 = 0.0; # flat-top orientation
+    DrawPolyLinesEx(center, SIDES, radius, ANGLE, radius / 8.0, color);
+}
+
+func draw_circle(center: Vector2, radius: f32, color: Color) void {
+    # NOTE: DrawCircle and DrawCircleV, which forward to DrawCircleSector with
+    # 36 segments, will produce a circle with holes for small (less than ~18.0)
+    # radii when using FLAG_MSAA_4X_HINT. Higher segment counts seem to cause
+    # more holes to appear in the drawn circle.
+
+    # Draw the circle once with DrawCircleV in order to create an outline with
+    # proper anti-aliasing.
+    DrawCircleV(center, radius, color);
+
+    # Draw the circle again with DrawCircleSector using a segment count that
+    # will be lower for smaller radii in order to fill in the circle.
+    var segments = (:sint)radius;
+    DrawCircleSector(center, radius, 0.0, 360.0, segments, color);
+}
+
+func draw_text_format(font: Font, size: f32, color: Color, position: Vector2, format: []byte, args: []std::formatter) void {
+    var s = std::string::init_from_format(format, args);
+    defer s.fini();
+
+    let SPACING = 0.0f32;
+    DrawTextEx(font, s.cstr(), position, size, SPACING, color);
+}
+
+func main() void {
+    SetTraceLogLevel(LOG_WARNING);
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    InitWindow(800, 600, startof("NATAC"));
+    defer CloseWindow();
+    SetTargetFPS(60);
+
+    let PUBLIC_PIXEL_TTF = embed("assets/PublicPixel.ttf");
+    let FONT_SIZE = 16.0f32;
+    let FONT_NUMCHARS: sint = '~' - ' ' + 1; # Printable ASCII
+    var font = LoadFontFromMemory(
+        startof(".ttf"),
+        (:*u8)startof(PUBLIC_PIXEL_TTF),
+        (:sint)countof(PUBLIC_PIXEL_TTF),
+        (:sint)FONT_SIZE,
+        std::ptr[[sint]]::NULL,
+        FONT_NUMCHARS);
+    defer UnloadFont(font);
+
+    var tiles = std::hash_set[[hex]]::init();
+    defer tiles.fini();
+    # left
+    tiles.insert(hex::init(-2, +0, +2));
+    tiles.insert(hex::init(-2, +1, +1));
+    tiles.insert(hex::init(-2, +2, +0));
+    # left-middle
+    tiles.insert(hex::init(-1, -1, +2));
+    tiles.insert(hex::init(-1, +0, +1));
+    tiles.insert(hex::init(-1, +1, +0));
+    tiles.insert(hex::init(-1, +2, -1));
+    # middle
+    tiles.insert(hex::init(+0, +0, +0));
+    tiles.insert(hex::init(+0, -1, +1));
+    tiles.insert(hex::init(+0, +1, -1));
+    tiles.insert(hex::init(+0, -2, +2));
+    tiles.insert(hex::init(+0, +2, -2));
+    # middle-right
+    tiles.insert(hex::init(+1, -2, +1));
+    tiles.insert(hex::init(+1, -1, +0));
+    tiles.insert(hex::init(+1, +0, -1));
+    tiles.insert(hex::init(+1, +1, -2));
+    # right
+    tiles.insert(hex::init(+2, -2, +0));
+    tiles.insert(hex::init(+2, -1, -1));
+    tiles.insert(hex::init(+2, +0, -2));
+
+    for not WindowShouldClose() {
+        BeginDrawing();
+        ClearBackground(SKYBLUE);
+
+        var render_w = GetRenderWidth();
+        var render_h = GetRenderHeight();
+        var render_center = (:Vector2){
+            .x = (:f32)render_w / 2.0,
+            .y = (:f32)render_h / 2.0,
+        };
+
+        var iter = std::hash_set_iterator[[hex]]::init(&tiles);
+        for iter.advance() {
+            var point = flat_hex_to_point(*iter.current(), RADIUS);
+            var point = (:Vector2){
+                .x = point.x + render_center.x,
+                .y = point.y + render_center.y
+            };
+            var color = (:Color){
+                .r = (:u8)iter.current().*.q *% 0x33 +% 0x66,
+                .g = (:u8)iter.current().*.r *% 0x33 +% 0x66,
+                .b = (:u8)iter.current().*.s *% 0x33 +% 0x66,
+                .a = 0xFF,
+            };
+            draw_flat_hexagon(point, RADIUS, color);
+        }
+
+        var fps = GetFPS();
+        draw_text_format(font, FONT_SIZE, BLACK,
+            (:Vector2){.x = 2.0, .y = 0.0},
+            "FPS {}",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(fps)]](&fps)]);
+
+        var mouse = GetMousePosition();
+        var world = (:Vector2){
+            .x = mouse.x - render_center.x,
+            .y = mouse.y - render_center.y,
+        };
+        var mouse_hex = point_to_flat_hex(world, RADIUS);
+        var mouse_hex_center = flat_hex_to_point(mouse_hex, RADIUS);
+        var mouse_hex_center = (:Vector2){
+            .x = mouse_hex_center.x + render_center.x,
+            .y = mouse_hex_center.y + render_center.y
+        };
+
+        draw_text_format(font, FONT_SIZE, BLACK,
+            (:Vector2){.x = 2.0, .y = 1.0 * FONT_SIZE},
+            "MOUSE: x={.0}, y={.0}",
+            (:[]std::formatter)[
+                std::formatter::init[[f32]](&mouse.x),
+                std::formatter::init[[f32]](&mouse.y)]);
+        draw_text_format(font, FONT_SIZE, BLACK,
+            (:Vector2){.x = 2.0, .y = 2.0 * FONT_SIZE},
+            "MOUSE->HEX: q={}, r={}, s={}",
+            (:[]std::formatter)[
+                std::formatter::init[[sint]](&mouse_hex.q),
+                std::formatter::init[[sint]](&mouse_hex.r),
+                std::formatter::init[[sint]](&mouse_hex.s)]);
+        draw_text_format(font, FONT_SIZE, BLACK,
+            (:Vector2){.x = 2.0, .y = 3.0 * FONT_SIZE},
+            "MOUSE->HEX->POINT: x={.0}, y={.0}",
+            (:[]std::formatter)[
+                std::formatter::init[[f32]](&mouse_hex_center.x),
+                std::formatter::init[[f32]](&mouse_hex_center.y)]);
+
+        draw_circle(mouse_hex_center, 4.0, ORANGE);
+        if tiles.contains(mouse_hex) {
+            draw_flat_hexagon_outline(mouse_hex_center, RADIUS, ORANGE);
+        }
+
+        EndDrawing();
+    }
+}
