@@ -208,6 +208,7 @@ func main() void {
     tiles.insert(hex::init(+2, +0, -2));
 
     var hex_functions = POINTY_HEX_FUNCTIONS;
+    var camera_rotation = 0.0f32;
 
     for not WindowShouldClose() {
         if IsKeyPressed(KEY_F11) {
@@ -219,6 +220,15 @@ func main() void {
         if IsKeyPressed(KEY_TWO) {
             hex_functions = FLAT_HEX_FUNCTINONS;
         }
+        if IsKeyDown(KEY_Q) {
+            camera_rotation = camera_rotation - 1.0;
+        }
+        if IsKeyDown(KEY_E) {
+            camera_rotation = camera_rotation + 1.0;
+        }
+        if IsKeyDown(KEY_R) {
+            camera_rotation = 0.0f32;
+        }
 
         BeginDrawing();
         ClearBackground(SKYBLUE);
@@ -229,14 +239,21 @@ func main() void {
             .x = (:f32)render_w / 2.0,
             .y = (:f32)render_h / 2.0,
         };
+        var camera = (:Camera2D){
+            .target = (:Vector2){
+                .x = 0.0f32,
+                .y = 0.0f32
+            },
+            .offset = render_center,
+            .rotation = camera_rotation,
+            .zoom = 1.0f32,
+        };
+
+        BeginMode2D(camera);
 
         var iter = std::hash_set_iterator[[hex]]::init(&tiles);
         for iter.advance() {
             var point = hex_functions.hex_to_point(*iter.current(), RADIUS);
-            var point = (:Vector2){
-                .x = point.x + render_center.x,
-                .y = point.y + render_center.y
-            };
             var color = (:Color){
                 .r = (:u8)iter.current().*.q *% 0x33 +% 0x66,
                 .g = (:u8)iter.current().*.r *% 0x33 +% 0x66,
@@ -246,25 +263,23 @@ func main() void {
             hex_functions.draw_hexagon(point, RADIUS, color);
         }
 
+        var mouse = GetMousePosition();
+        var world = GetScreenToWorld2D(mouse, camera);
+        var world_hex = hex_functions.point_to_hex(world, RADIUS);
+        var world_hex_center = hex_functions.hex_to_point(world_hex, RADIUS);
+        draw_circle(world_hex_center, 4.0, ORANGE);
+        if tiles.contains(world_hex) {
+            hex_functions.draw_hexagon_outline(world_hex_center, RADIUS, ORANGE);
+        }
+
+        EndMode2D();
+
         var fps = GetFPS();
         draw_text_format(font, FONT_SIZE, BLACK,
             (:Vector2){.x = 2.0, .y = 0.0},
             "FPS {}",
             (:[]std::formatter)[
                 std::formatter::init[[typeof(fps)]](&fps)]);
-
-        var mouse = GetMousePosition();
-        var world = (:Vector2){
-            .x = mouse.x - render_center.x,
-            .y = mouse.y - render_center.y,
-        };
-        var mouse_hex = hex_functions.point_to_hex(world, RADIUS);
-        var mouse_hex_center = hex_functions.hex_to_point(mouse_hex, RADIUS);
-        var mouse_hex_center = (:Vector2){
-            .x = mouse_hex_center.x + render_center.x,
-            .y = mouse_hex_center.y + render_center.y
-        };
-
         draw_text_format(font, FONT_SIZE, BLACK,
             (:Vector2){.x = 2.0, .y = 1.0 * FONT_SIZE},
             "MOUSE: x={.0}, y={.0}",
@@ -273,22 +288,23 @@ func main() void {
                 std::formatter::init[[f32]](&mouse.y)]);
         draw_text_format(font, FONT_SIZE, BLACK,
             (:Vector2){.x = 2.0, .y = 2.0 * FONT_SIZE},
-            "MOUSE->HEX: q={}, r={}, s={}",
+            "WORLD: x={.0}, y={.0}",
             (:[]std::formatter)[
-                std::formatter::init[[sint]](&mouse_hex.q),
-                std::formatter::init[[sint]](&mouse_hex.r),
-                std::formatter::init[[sint]](&mouse_hex.s)]);
+                std::formatter::init[[f32]](&world.x),
+                std::formatter::init[[f32]](&world.y)]);
         draw_text_format(font, FONT_SIZE, BLACK,
             (:Vector2){.x = 2.0, .y = 3.0 * FONT_SIZE},
-            "MOUSE->HEX->POINT: x={.0}, y={.0}",
+            "WORLD->HEX: q={}, r={}, s={}",
             (:[]std::formatter)[
-                std::formatter::init[[f32]](&mouse_hex_center.x),
-                std::formatter::init[[f32]](&mouse_hex_center.y)]);
-
-        draw_circle(mouse_hex_center, 4.0, ORANGE);
-        if tiles.contains(mouse_hex) {
-            hex_functions.draw_hexagon_outline(mouse_hex_center, RADIUS, ORANGE);
-        }
+                std::formatter::init[[sint]](&world_hex.q),
+                std::formatter::init[[sint]](&world_hex.r),
+                std::formatter::init[[sint]](&world_hex.s)]);
+        draw_text_format(font, FONT_SIZE, BLACK,
+            (:Vector2){.x = 2.0, .y = 4.0 * FONT_SIZE},
+            "WORLD->HEX->WORLD: x={.0}, y={.0}",
+            (:[]std::formatter)[
+                std::formatter::init[[f32]](&world_hex_center.x),
+                std::formatter::init[[f32]](&world_hex_center.y)]);
 
         EndDrawing();
     }
