@@ -4,7 +4,7 @@ import "std";
 
 let RADIUS = 48.0f32;
 
-# Hex position using the hex coordinate system satisfying q + r + s == 0.
+# Hex position using the cube coordinate system satisfying q + r + s == 0.
 struct hex {
     var q: sint;
     var r: sint;
@@ -180,32 +180,34 @@ func main() void {
         FONT_NUMCHARS);
     defer UnloadFont(font);
 
+    # Canonical set of resource tiles, inserted by row from top to bottom and
+    # by column from left to right using pointy-top orientation.
     var tiles = std::hash_set[[hex]]::init();
     defer tiles.fini();
-    # left
-    tiles.insert(hex::init(-2, +0, +2));
-    tiles.insert(hex::init(-2, +1, +1));
-    tiles.insert(hex::init(-2, +2, +0));
-    # left-middle
-    tiles.insert(hex::init(-1, -1, +2));
-    tiles.insert(hex::init(-1, +0, +1));
-    tiles.insert(hex::init(-1, +1, +0));
-    tiles.insert(hex::init(-1, +2, -1));
-    # middle
-    tiles.insert(hex::init(+0, +0, +0));
-    tiles.insert(hex::init(+0, -1, +1));
-    tiles.insert(hex::init(+0, +1, -1));
+    # top row
     tiles.insert(hex::init(+0, -2, +2));
-    tiles.insert(hex::init(+0, +2, -2));
-    # middle-right
     tiles.insert(hex::init(+1, -2, +1));
-    tiles.insert(hex::init(+1, -1, +0));
-    tiles.insert(hex::init(+1, +0, -1));
-    tiles.insert(hex::init(+1, +1, -2));
-    # right
     tiles.insert(hex::init(+2, -2, +0));
+    # top-middle row
+    tiles.insert(hex::init(-1, -1, +2));
+    tiles.insert(hex::init(+0, -1, +1));
+    tiles.insert(hex::init(+1, -1, +0));
     tiles.insert(hex::init(+2, -1, -1));
+    # middle row
+    tiles.insert(hex::init(-2, +0, +2));
+    tiles.insert(hex::init(-1, +0, +1));
+    tiles.insert(hex::init(+0, +0, +0));
+    tiles.insert(hex::init(+1, +0, -1));
     tiles.insert(hex::init(+2, +0, -2));
+    # bottom-middle row
+    tiles.insert(hex::init(-2, +1, +1));
+    tiles.insert(hex::init(-1, +1, +0));
+    tiles.insert(hex::init(+0, +1, -1));
+    tiles.insert(hex::init(+1, +1, -2));
+    # bottom row
+    tiles.insert(hex::init(-2, +2, +0));
+    tiles.insert(hex::init(-1, +2, -1));
+    tiles.insert(hex::init(+0, +2, -2));
 
     var hex_functions = POINTY_HEX_FUNCTIONS;
     var camera_rotation = 0.0f32;
