@@ -10,7 +10,7 @@ TARGET=natac
 
 EMCC = emcc
 EMCFLAGS = \
-	$(CFLAGS) \
+	$(SUNDER_CFLAGS) \
 	$$($(SUNDER_HOME)/lib/raylib/raylib-config web --cflags) \
 	-sSINGLE_FILE=1 \
 	--shell-file $(SUNDER_HOME)/lib/raylib/emscripten-shell.html
@@ -18,7 +18,7 @@ EMCFLAGS = \
 all: build-desktop build-web
 
 build-desktop:
-	SUNDER_CFLAGS="$(CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --cflags)" \
+	SUNDER_CFLAGS="$(SUNDER_CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --cflags)"
 	sunder-compile \
 		-o $(TARGET) \
 		$$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --libs) \
