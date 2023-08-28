@@ -1,2 +1,6 @@
 natac
 natac.html
+
+*.wasm
+*.o
+*.c
