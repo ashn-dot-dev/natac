@@ -130,13 +130,39 @@ func draw_text_format(font: Font, size: f32, color: Color, position: Vector2, fo
     DrawTextEx(font, s.cstr(), position, size, SPACING, color);
 }
 
+struct resource {
+    var kind: *struct { var data: []byte; };
+
+    let BRICK = (:resource){.kind = (:*struct { var data: []byte; })&"brick"};
+    let ORE   = (:resource){.kind = (:*struct { var data: []byte; })&"ore"};
+    let SHEEP = (:resource){.kind = (:*struct { var data: []byte; })&"sheep"};
+    let WHEAT = (:resource){.kind = (:*struct { var data: []byte; })&"wheat"};
+    let WOOD  = (:resource){.kind = (:*struct { var data: []byte; })&"wood"};
+
+    func data(self: *resource) []byte {
+        return self.*.kind.*.data;
+    }
+
+    func cstr(self: *resource) *byte {
+        return startof(self.*.kind.*.data);
+    }
+
+    func format(self: *resource, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
+        if std::str::eq(fmt, "") {
+            return std::write_all(writer, self.*.data());
+        }
+
+        return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
+    }
+}
+
 struct tile {
     let DESERT   = &"desert";
-    let FOREST   = &"forest (wood)";
-    let FIELD    = &"field (wheat)";
-    let HILL     = &"hill (brick)";
-    let MOUNTAIN = &"mountain (ore)";
-    let PASTURE  = &"pasture (sheep)";
+    let FOREST   = &"forest";
+    let FIELD    = &"field";
+    let HILL     = &"hill";
+    let MOUNTAIN = &"mountain";
+    let PASTURE  = &"pasture";
 
     var position: hex;
     var kind: *[]byte;
@@ -154,6 +180,30 @@ struct tile {
 
     func compare(lhs: *tile, rhs: *tile) ssize {
         return std::compare[[hex]](&lhs.*.position, &rhs.*.position);
+    }
+
+    func resource(self: *tile) std::optional[[::resource]] {
+        if self.*.kind == tile::DESERT {
+            return std::optional[[::resource]]::EMPTY;
+        }
+        if self.*.kind == tile::FOREST {
+            return std::optional[[::resource]]::init_value(::resource::WOOD);
+        }
+        if self.*.kind == tile::FIELD {
+            return std::optional[[::resource]]::init_value(::resource::WHEAT);
+        }
+        if self.*.kind == tile::HILL {
+            return std::optional[[::resource]]::init_value(::resource::BRICK);
+        }
+        if self.*.kind == tile::MOUNTAIN {
+            return std::optional[[::resource]]::init_value(::resource::ORE);
+        }
+        if self.*.kind == tile::PASTURE {
+            return std::optional[[::resource]]::init_value(::resource::SHEEP);
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[std::optional[[::resource]]]]();
     }
 
     func color(self: *tile) Color {
@@ -178,6 +228,29 @@ struct tile {
 
         std::unreachable(fileof(), lineof());
         return std::zeroed[[Color]]();
+    }
+
+    func format(self: *tile, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
+        if std::str::eq(fmt, "") {
+            return std::write_all(writer, *self.*.kind);
+        }
+
+        if std::str::eq(fmt, "full") {
+            var resource = self.*.resource();
+            if resource.is_empty() {
+                return std::write_all(writer, *self.*.kind);
+            }
+
+            var resource = resource.value();
+            return std::write_format(
+                writer,
+                "{} ({})",
+                (:[]std::formatter)[
+                    std::formatter::init[[[]byte]](self.*.kind),
+                    std::formatter::init[[::resource]](&resource)]);
+        }
+
+        return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
     }
 }
 
@@ -347,9 +420,9 @@ func main() void {
         if world_tile != std::ptr[[tile]]::NULL {
             draw_text_format(font, FONT_SIZE, BLACK,
                 (:Vector2){.x = 2.0, .y = 5.0 * FONT_SIZE},
-                "TILE: {}",
+                "TILE: {full}",
                 (:[]std::formatter)[
-                    std::formatter::init[[[]byte]](world_tile.*.kind)]);
+                    std::formatter::init[[tile]](world_tile)]);
         }
         else {
             draw_text(font, FONT_SIZE, BLACK,
