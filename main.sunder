@@ -63,71 +63,29 @@ struct hex {
 
         return 0;
     }
-}
 
-func point_to_pointy_hex(point: Vector2, radius: f32) hex {
-    var q = (f32::sqrt(3.0)/3.0 * point.x - 1.0/3.0 * point.y) / radius;
-    var r = (2.0/3.0 * point.y) / radius;
-    var s = -q - r;
+    func format(self: *hex, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
+        if std::str::eq(fmt, "") {
+            return std::write_format(
+                    writer,
+                    "(q={}, r={}, s={})",
+                    (:[]std::formatter)[
+                        std::formatter::init[[sint]](&self.*.q),
+                        std::formatter::init[[sint]](&self.*.r),
+                        std::formatter::init[[sint]](&self.*.s)]);
+        }
 
-    return hex::init_round(q, r, s);
-}
+        return std::result[[void, std::error]]::init_value(void::VALUE);
+    }
 
-func pointy_hex_to_point(hex: hex, radius: f32) Vector2 {
-    var x = radius * (f32::sqrt(3.0) * (:f32)hex.q + f32::sqrt(3.0)/2.0 * (:f32)hex.r);
-    var y = radius * (3.0/2.0 * (:f32)hex.r);
-    return (:Vector2){.x = x, .y = y};
-}
+    func subtract(lhs: hex, rhs: hex) hex {
+        return hex::init(lhs.q - rhs.q, lhs.r - rhs.r, lhs.s - rhs.s);
+    }
 
-func draw_pointy_hexagon(center: Vector2, radius: f32, color: Color) void {
-    let SIDES: sint = 6;
-    let ANGLE: f32 = 30.0; # pointy-top orientation
-    DrawPoly(center, SIDES, radius, ANGLE, color);
-}
-
-func draw_pointy_hexagon_outline(center: Vector2, radius: f32, color: Color) void {
-    let SIDES: sint = 6;
-    let ANGLE: f32 = 30.0; # pointy-top orientation
-    DrawPolyLinesEx(center, SIDES, radius, ANGLE, radius / 8.0, color);
-}
-
-func draw_pointy_hexagon_border(center: Vector2, radius: f32, color: Color) void {
-    let SIDES: sint = 6;
-    let ANGLE: f32 = 30.0; # pointy-top orientation
-    var thick: f32 = radius / 16.0;
-    DrawPolyLinesEx(center, SIDES, radius + thick / 2.0, ANGLE, thick, color);
-}
-
-func draw_circle(center: Vector2, radius: f32, color: Color) void {
-    # NOTE: DrawCircle and DrawCircleV, which forward to DrawCircleSector with
-    # 36 segments, will produce a circle with holes for small (less than ~18.0)
-    # radii when using FLAG_MSAA_4X_HINT. Higher segment counts seem to cause
-    # more holes to appear in the drawn circle.
-
-    # Draw the circle once with DrawCircleV in order to create an outline with
-    # proper anti-aliasing.
-    DrawCircleV(center, radius, color);
-
-    # Draw the circle again with DrawCircleSector using a segment count that
-    # will be lower for smaller radii in order to fill in the circle.
-    var segments = (:sint)radius;
-    DrawCircleSector(center, radius, 0.0, 360.0, segments, color);
-}
-
-func draw_text(font: Font, size: f32, color: Color, position: Vector2, text: []byte) void {
-    var s = std::string::init_from_str(text);
-    defer s.fini();
-
-    let SPACING = 0.0f32;
-    DrawTextEx(font, s.cstr(), position, size, SPACING, color);
-}
-
-func draw_text_format(font: Font, size: f32, color: Color, position: Vector2, format: []byte, args: []std::formatter) void {
-    var s = std::string::init_from_format(format, args);
-    defer s.fini();
-
-    let SPACING = 0.0f32;
-    DrawTextEx(font, s.cstr(), position, size, SPACING, color);
+    func distance(a: hex, b: hex) sint {
+        var vec = hex::subtract(a, b);
+        return (sint::abs(vec.q) + sint::abs(vec.r) + sint::abs(vec.s)) / 2;
+    }
 }
 
 struct resource {
@@ -158,32 +116,37 @@ struct resource {
 
 struct tile {
     let DESERT   = &"desert";
+    let OCEAN    = &"ocean";
+
     let FOREST   = &"forest";
     let FIELD    = &"field";
     let HILL     = &"hill";
     let MOUNTAIN = &"mountain";
     let PASTURE  = &"pasture";
 
-    var position: hex;
+    var hex: hex;
     var kind: *[]byte;
 
-    func init(position: hex, kind: typeof(tile::DESERT)) tile {
+    func init(hex: hex, kind: typeof(tile::DESERT)) tile {
         return (:tile){
-            .position = position,
+            .hex = hex,
             .kind = kind,
         };
     }
 
     func hash(self: *tile) usize {
-        return self.*.position.hash();
+        return self.*.hex.hash();
     }
 
     func compare(lhs: *tile, rhs: *tile) ssize {
-        return std::compare[[hex]](&lhs.*.position, &rhs.*.position);
+        return std::compare[[hex]](&lhs.*.hex, &rhs.*.hex);
     }
 
     func resource(self: *tile) std::optional[[::resource]] {
         if self.*.kind == tile::DESERT {
+            return std::optional[[::resource]]::EMPTY;
+        }
+        if self.*.kind == tile::OCEAN {
             return std::optional[[::resource]]::EMPTY;
         }
         if self.*.kind == tile::FOREST {
@@ -209,6 +172,9 @@ struct tile {
     func color(self: *tile) Color {
         if self.*.kind == tile::DESERT {
             return (:Color){.r = 0xEE, .g = 0xCC, .b = 0x88, .a = 0xFF};
+        }
+        if self.*.kind == tile::OCEAN {
+            return (:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF};
         }
         if self.*.kind == tile::FOREST {
             return (:Color){.r = 0x11, .g = 0x55, .b = 0x11, .a = 0xFF};
@@ -252,6 +218,145 @@ struct tile {
 
         return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
     }
+}
+
+struct node {
+    var tiles: [3]tile;
+
+    func init(a: tile, b: tile, c: tile) node {
+        assert hex::distance(a.hex, b.hex) == 1;
+        assert hex::distance(b.hex, c.hex) == 1;
+        assert hex::distance(c.hex, a.hex) == 1;
+
+        var tiles = (:[3]tile)[a, b, c];
+        std::sort[[tile]](tiles[0:countof(tiles)]);
+
+        return (:node){
+            .tiles = tiles,
+        };
+    }
+
+    func hash(self: *node) usize {
+        var hash = 0u;
+        for i in countof(self.*.tiles) {
+            hash = hash +% self.*.tiles[i].hash();
+        }
+        return hash;
+    }
+
+    func compare(lhs: *node, rhs: *node) ssize {
+        var cmp = tile::compare(&lhs.*.tiles[0], &rhs.*.tiles[0]);
+        if cmp != 0 {
+            return cmp;
+        }
+
+        var cmp = tile::compare(&lhs.*.tiles[1], &rhs.*.tiles[1]);
+        if cmp != 0 {
+            return cmp;
+        }
+
+        var cmp = tile::compare(&lhs.*.tiles[2], &rhs.*.tiles[2]);
+        if cmp != 0 {
+            return cmp;
+        }
+
+        return 0;
+    }
+
+    func format(self: *node, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
+        if std::str::eq(fmt, "") {
+            for i in countof(self.*.tiles) {
+                if i != 0 {
+                    std::print(writer, ", ");
+                }
+                std::print_format(
+                    writer,
+                    "{}",
+                    (:[]std::formatter)[
+                        std::formatter::init[[hex]](&self.*.tiles[i].hex)]);
+            }
+
+            return std::result[[void, std::error]]::init_value(void::VALUE);
+        }
+
+        return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
+    }
+}
+
+func point_to_pointy_hex(point: Vector2, radius: f32) hex {
+    var q = (f32::sqrt(3.0)/3.0 * point.x - 1.0/3.0 * point.y) / radius;
+    var r = (2.0/3.0 * point.y) / radius;
+    var s = -q - r;
+
+    return hex::init_round(q, r, s);
+}
+
+func pointy_hex_to_point(hex: hex, radius: f32) Vector2 {
+    var x = radius * (f32::sqrt(3.0) * (:f32)hex.q + f32::sqrt(3.0)/2.0 * (:f32)hex.r);
+    var y = radius * (3.0/2.0 * (:f32)hex.r);
+    return (:Vector2){.x = x, .y = y};
+}
+
+func draw_pointy_hexagon(center: Vector2, radius: f32, color: Color) void {
+    let SIDES: sint = 6;
+    let ANGLE: f32 = 30.0; # pointy-top orientation
+    DrawPoly(center, SIDES, radius, ANGLE, color);
+}
+
+func draw_pointy_hexagon_outline(center: Vector2, radius: f32, color: Color) void {
+    let SIDES: sint = 6;
+    let ANGLE: f32 = 30.0; # pointy-top orientation
+    DrawPolyLinesEx(center, SIDES, radius, ANGLE, radius / 8.0, color);
+}
+
+func draw_pointy_hexagon_border(center: Vector2, radius: f32, color: Color) void {
+    let SIDES: sint = 6;
+    let ANGLE: f32 = 30.0; # pointy-top orientation
+    var thick: f32 = radius / 16.0;
+    DrawPolyLinesEx(center, SIDES, radius + thick / 2.0, ANGLE, thick, color);
+}
+
+func distance(a: Vector2, b: Vector2) f32 {
+    var x_dist = a.x - b.x;
+    var y_dist = a.y - b.y;
+    return f32::sqrt(x_dist * x_dist + y_dist * y_dist);
+}
+
+func draw_circle(center: Vector2, radius: f32, color: Color) void {
+    # NOTE: DrawCircle and DrawCircleV, which forward to DrawCircleSector with
+    # 36 segments, will produce a circle with holes for small (less than ~18.0)
+    # radii when using FLAG_MSAA_4X_HINT. Higher segment counts seem to cause
+    # more holes to appear in the drawn circle.
+
+    # Draw the circle once with DrawCircleV in order to create an outline with
+    # proper anti-aliasing.
+    DrawCircleV(center, radius, color);
+
+    # Draw the circle again with DrawCircleSector using a segment count that
+    # will be lower for smaller radii in order to fill in the circle.
+    var segments = (:sint)radius;
+    DrawCircleSector(center, radius, 0.0, 360.0, segments, color);
+}
+
+func draw_text(font: Font, size: f32, color: Color, position: Vector2, text: []byte) void {
+    var s = std::string::init_from_str(text);
+    defer s.fini();
+
+    let SPACING = 0.0f32;
+    DrawTextEx(font, s.cstr(), position, size, SPACING, color);
+}
+
+func draw_text_cstr(font: Font, size: f32, color: Color, position: Vector2, text: *byte) void {
+    let SPACING = 0.0f32;
+    DrawTextEx(font, text, position, size, SPACING, color);
+}
+
+func draw_text_format(font: Font, size: f32, color: Color, position: Vector2, format: []byte, args: []std::formatter) void {
+    var s = std::string::init_from_format(format, args);
+    defer s.fini();
+
+    let SPACING = 0.0f32;
+    DrawTextEx(font, s.cstr(), position, size, SPACING, color);
 }
 
 func main() void {
@@ -299,6 +404,51 @@ func main() void {
     tiles.insert(tile::init(hex::init(-2, +2, +0), tile::HILL));
     tiles.insert(tile::init(hex::init(-1, +2, -1), tile::FIELD));
     tiles.insert(tile::init(hex::init(+0, +2, -2), tile::PASTURE));
+    # ocean
+    tiles.insert(tile::init(hex::init(+0, -3, +3), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(+1, -3, +2), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(+2, -3, +1), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(+3, -3, +0), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(-1, -2, +3), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(+3, -2, -1), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(-2, -1, +3), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(+3, -1, -2), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(-3, +0, +3), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(+3, +0, -3), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(-3, +1, +2), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(+2, +1, -3), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(-3, +2, +1), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(+1, +2, -3), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(-3, +3, +0), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(-2, +3, -1), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(-1, +3, -2), tile::OCEAN));
+    tiles.insert(tile::init(hex::init(+0, +3, -3), tile::OCEAN));
+
+    var nodes = std::hash_set[[node]]::init();
+    defer nodes.fini();
+    var iter_i = std::hash_set_iterator[[tile]]::init(&tiles);
+    for iter_i.advance() {
+        var iter_j = std::hash_set_iterator[[tile]]::init(&tiles);
+        for iter_j.advance() {
+            var iter_k = std::hash_set_iterator[[tile]]::init(&tiles);
+            for iter_k.advance() {
+                if hex::distance(iter_i.current().*.hex, iter_j.current().*.hex) != 1 {
+                    continue;
+                }
+                if hex::distance(iter_j.current().*.hex, iter_k.current().*.hex) != 1 {
+                    continue;
+                }
+                if hex::distance(iter_k.current().*.hex, iter_i.current().*.hex) != 1 {
+                    continue;
+                }
+                var node = node::init(
+                    *iter_i.current(),
+                    *iter_j.current(),
+                    *iter_k.current());
+                nodes.insert(node);
+            }
+        }
+    }
 
     var camera_rotation = 0.0f32;
     var camera_zoom = 1.0f32;
@@ -333,7 +483,7 @@ func main() void {
         }
 
         BeginDrawing();
-        ClearBackground(SKYBLUE);
+        ClearBackground((:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF});
 
         var render_w = GetRenderWidth();
         var render_h = GetRenderHeight();
@@ -356,7 +506,7 @@ func main() void {
         var iter = std::hash_set_iterator[[tile]]::init(&tiles);
         for iter.advance() {
             var tile = iter.current();
-            var point = pointy_hex_to_point(tile.*.position, RADIUS);
+            var point = pointy_hex_to_point(tile.*.hex, RADIUS);
             draw_pointy_hexagon(point, RADIUS, tile.*.color());
         }
 
@@ -365,11 +515,10 @@ func main() void {
         var world_hex = point_to_pointy_hex(world, RADIUS);
         var world_hex_center = pointy_hex_to_point(world_hex, RADIUS);
 
-
         var world_tile: *tile = uninit;
         var iter = std::hash_set_iterator[[tile]]::init(&tiles);
         for iter.advance() {
-            if std::eq[[hex]](&iter.current().*.position, &world_hex) {
+            if std::eq[[hex]](&iter.current().*.hex, &world_hex) {
                 world_tile = iter.current();
                 draw_pointy_hexagon_outline(world_hex_center, RADIUS, PURPLE);
                 break;
@@ -380,8 +529,35 @@ func main() void {
         var iter = std::hash_set_iterator[[tile]]::init(&tiles);
         for iter.advance() {
             var tile = iter.current();
-            var point = pointy_hex_to_point(tile.*.position, RADIUS);
+            if tile.*.kind == ::tile::OCEAN {
+                continue;
+            }
+            var point = pointy_hex_to_point(tile.*.hex, RADIUS);
             draw_pointy_hexagon_border(point, RADIUS, BLACK);
+        }
+
+        var world_node: *node = uninit;
+        var iter = std::hash_set_iterator[[node]]::init(&nodes);
+        for iter.advance() {
+            var node = iter.current();
+            var found = true;
+            for i in countof(node.*.tiles) {
+                let DISTANCE = RADIUS * 1.25;
+                var hex = node.*.tiles[i].hex;
+                if distance(world, pointy_hex_to_point(hex, RADIUS)) > DISTANCE {
+                    found = false;
+                    break;
+                }
+            }
+
+            if found {
+                world_node = iter.current();
+                for i in countof(world_node.*.tiles) {
+                    var point = pointy_hex_to_point(world_node.*.tiles[i].hex, RADIUS);
+                    draw_pointy_hexagon_outline(point, RADIUS, ORANGE);
+                }
+                break;
+            }
         }
 
         EndMode2D();
@@ -392,18 +568,21 @@ func main() void {
             "FPS {}",
             (:[]std::formatter)[
                 std::formatter::init[[typeof(fps)]](&fps)]);
+
         draw_text_format(font, FONT_SIZE, BLACK,
             (:Vector2){.x = 2.0, .y = 1.0 * FONT_SIZE},
             "MOUSE: x={.0}, y={.0}",
             (:[]std::formatter)[
                 std::formatter::init[[f32]](&mouse.x),
                 std::formatter::init[[f32]](&mouse.y)]);
+
         draw_text_format(font, FONT_SIZE, BLACK,
             (:Vector2){.x = 2.0, .y = 2.0 * FONT_SIZE},
             "WORLD: x={.0}, y={.0}",
             (:[]std::formatter)[
                 std::formatter::init[[f32]](&world.x),
                 std::formatter::init[[f32]](&world.y)]);
+
         draw_text_format(font, FONT_SIZE, BLACK,
             (:Vector2){.x = 2.0, .y = 3.0 * FONT_SIZE},
             "WORLD->HEX: q={}, r={}, s={}",
@@ -411,23 +590,39 @@ func main() void {
                 std::formatter::init[[sint]](&world_hex.q),
                 std::formatter::init[[sint]](&world_hex.r),
                 std::formatter::init[[sint]](&world_hex.s)]);
+
         draw_text_format(font, FONT_SIZE, BLACK,
             (:Vector2){.x = 2.0, .y = 4.0 * FONT_SIZE},
             "WORLD->HEX->WORLD: x={.0}, y={.0}",
             (:[]std::formatter)[
                 std::formatter::init[[f32]](&world_hex_center.x),
                 std::formatter::init[[f32]](&world_hex_center.y)]);
+
         if world_tile != std::ptr[[tile]]::NULL {
             draw_text_format(font, FONT_SIZE, BLACK,
                 (:Vector2){.x = 2.0, .y = 5.0 * FONT_SIZE},
-                "TILE: {full}",
+                "TILE: {} {full}",
                 (:[]std::formatter)[
+                    std::formatter::init[[hex]](&world_tile.*.hex),
                     std::formatter::init[[tile]](world_tile)]);
         }
         else {
             draw_text(font, FONT_SIZE, BLACK,
                 (:Vector2){.x = 2.0, .y = 5.0 * FONT_SIZE},
                 "TILE: ocean");
+        }
+
+        if world_node != std::ptr[[node]]::NULL {
+            draw_text_format(font, FONT_SIZE, BLACK,
+                (:Vector2){.x = 2.0, .y = 6.0 * FONT_SIZE},
+                "NODE: {}",
+                (:[]std::formatter)[
+                    std::formatter::init[[node]](world_node)]);
+        }
+        else {
+            draw_text(font, FONT_SIZE, BLACK,
+                (:Vector2){.x = 2.0, .y = 6.0 * FONT_SIZE},
+                "NODE: none");
         }
 
         EndDrawing();
