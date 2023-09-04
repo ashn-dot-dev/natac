@@ -351,6 +351,17 @@ func pointy_hex_to_point(hex: hex, radius: f32) Vector2 {
     return (:Vector2){.x = x, .y = y};
 }
 
+func pointy_hex_vertices(hex: hex, radius: f32) [6]Vector2 {
+    var result: [6]Vector2 = uninit;
+    var center = pointy_hex_to_point(hex, radius);
+    for i in 6 {
+        var x = center.x + f32::cos(f32::degrees_to_radians((:f32)i * 360.0 / 6.0 + 30.0)) * radius;
+        var y = center.y + f32::sin(f32::degrees_to_radians((:f32)i * 360.0 / 6.0 + 30.0)) * radius;
+        result[i] = (:Vector2){.x = x, .y = y};
+    }
+    return result;
+}
+
 func draw_pointy_hexagon(center: Vector2, radius: f32, color: Color) void {
     let SIDES: sint = 6;
     let ANGLE: f32 = 30.0; # pointy-top orientation
@@ -370,7 +381,16 @@ func draw_pointy_hexagon_border(center: Vector2, radius: f32, color: Color) void
     DrawPolyLinesEx(center, SIDES, radius + thick / 2.0, ANGLE, thick, color);
 }
 
-func distance(a: Vector2, b: Vector2) f32 {
+func feq(a: f32, b: f32) bool {
+    let THRESHOLD: f32 = 0.0001;
+    return f32::abs(a - b) < THRESHOLD;
+}
+
+func vec2_feq(a: Vector2, b: Vector2) bool {
+    return feq(a.x, b.x) and feq(a.y, b.y);
+}
+
+func vec2_distance(a: Vector2, b: Vector2) f32 {
     var x_dist = a.x - b.x;
     var y_dist = a.y - b.y;
     return f32::sqrt(x_dist * x_dist + y_dist * y_dist);
@@ -390,6 +410,13 @@ func draw_circle(center: Vector2, radius: f32, color: Color) void {
     # will be lower for smaller radii in order to fill in the circle.
     var segments = (:sint)radius;
     DrawCircleSector(center, radius, 0.0, 360.0, segments, color);
+
+}
+
+func draw_circle_outline(center: Vector2, radius: f32, color: Color) void {
+    let SIDES: sint = 36;
+    let ANGLE: f32 = 0.0;
+    DrawPolyLinesEx(center, SIDES, radius, ANGLE, radius / 6.0, color);
 }
 
 func draw_text(font: Font, size: f32, color: Color, position: Vector2, text: []byte) void {
@@ -615,7 +642,6 @@ func main() void {
                 break;
             }
         }
-        draw_circle(world_hex_center, 4.0, YELLOW);
 
         var world_edge = std::optional[[edge]]::EMPTY;
         var iter = std::hash_set_iterator[[edge]]::init(&edges);
@@ -624,7 +650,7 @@ func main() void {
             for i in countof(iter.current().*.tiles) {
                 let DISTANCE = RADIUS * 1.2;
                 var hex = iter.current().*.tiles[i].hex;
-                if distance(world, pointy_hex_to_point(hex, RADIUS)) > DISTANCE {
+                if vec2_distance(world, pointy_hex_to_point(hex, RADIUS)) > DISTANCE {
                     found = false;
                     break;
                 }
@@ -647,7 +673,7 @@ func main() void {
             for i in countof(iter.current().*.tiles) {
                 let DISTANCE = RADIUS * 1.2;
                 var hex = iter.current().*.tiles[i].hex;
-                if distance(world, pointy_hex_to_point(hex, RADIUS)) > DISTANCE {
+                if vec2_distance(world, pointy_hex_to_point(hex, RADIUS)) > DISTANCE {
                     found = false;
                     break;
                 }
@@ -671,6 +697,38 @@ func main() void {
             }
             var point = pointy_hex_to_point(tile.*.hex, RADIUS);
             draw_pointy_hexagon_border(point, RADIUS, BLACK);
+        }
+
+        draw_circle(world_hex_center, 6.0, YELLOW);
+        draw_circle_outline(world_hex_center, 6.0, BLACK);
+        if world_edge.is_value() {
+            var world_edge = world_edge.value();
+            var vertices_a = pointy_hex_vertices(world_edge.tiles[0].hex, RADIUS);
+            var vertices_b = pointy_hex_vertices(world_edge.tiles[1].hex, RADIUS);
+            for i in countof(vertices_a) {
+                for j in countof(vertices_b) {
+                    if vec2_feq(vertices_a[i], vertices_b[j]) {
+                        draw_circle(vertices_a[i], 6.0, ORANGE);
+                        draw_circle_outline(vertices_a[i], 6.0, BLACK);
+                    }
+                }
+            }
+        }
+        if world_node.is_value() {
+            var world_node = world_node.value();
+            var vertices_a = pointy_hex_vertices(world_node.tiles[0].hex, RADIUS);
+            var vertices_b = pointy_hex_vertices(world_node.tiles[1].hex, RADIUS);
+            var vertices_c = pointy_hex_vertices(world_node.tiles[2].hex, RADIUS);
+            for i in countof(vertices_a) {
+                for j in countof(vertices_b) {
+                    for k in countof(vertices_c) {
+                        if vec2_feq(vertices_a[i], vertices_b[j]) and vec2_feq(vertices_b[j], vertices_c[k]) {
+                            draw_circle(vertices_a[i], 6.0, RED);
+                            draw_circle_outline(vertices_a[i], 6.0, BLACK);
+                        }
+                    }
+                }
+            }
         }
 
         EndMode2D();
