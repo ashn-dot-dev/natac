@@ -413,8 +413,8 @@ func draw_text_format(font: Font, size: f32, color: Color, position: Vector2, fo
     DrawTextEx(font, s.cstr(), position, size, SPACING, color);
 }
 
-func default_camera_zoom(radius: f32, h: f32) f32 {
-    # Default the camera zoom so that the board and board-adjacent ocean tiles
+func camera_zoom(radius: f32, h: f32) f32 {
+    # Return a camera zoom such that the board and board-adjacent ocean tiles
     # fit on the screen. Approximate the length of the board and board-adjacent
     # ocean tiles as six tile diameters (five board tiles plus two ocean tiles
     # on either side minus one tile to somewhat account for radius overlap).
@@ -558,10 +558,6 @@ func main() void {
     defer edges.fini();
 
     var camera_rotation = 0.0f32;
-    var camera_zoom = default_camera_zoom(RADIUS, (:f32)GetRenderHeight());
-    if opt_fullscreen {
-        camera_zoom = default_camera_zoom(RADIUS, (:f32)GetMonitorHeight(GetCurrentMonitor()));
-    }
 
     for not WindowShouldClose() {
         if IsKeyPressed(KEY_F11) {
@@ -575,15 +571,6 @@ func main() void {
         }
         if IsKeyDown(KEY_R) {
             camera_rotation = 0.0f32;
-            camera_zoom = default_camera_zoom(RADIUS, (:f32)GetRenderHeight());
-        }
-
-        var mouse_wheel_y = GetMouseWheelMoveV().y;
-        if mouse_wheel_y > 0.0 and camera_zoom < 2.0 {
-            camera_zoom = camera_zoom + 0.1;
-        }
-        if mouse_wheel_y < 0.0 and camera_zoom > 0.5{
-            camera_zoom = camera_zoom - 0.1;
         }
 
         BeginDrawing();
@@ -602,7 +589,7 @@ func main() void {
             },
             .offset = render_center,
             .rotation = camera_rotation,
-            .zoom = camera_zoom,
+            .zoom = camera_zoom(RADIUS, (:f32)render_h),
         };
 
         BeginMode2D(camera);
