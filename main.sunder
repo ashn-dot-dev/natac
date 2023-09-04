@@ -2,8 +2,6 @@ import "c";
 import "raylib";
 import "std";
 
-let RADIUS = 48.0f32;
-
 # Hex position using the cube coordinate system satisfying q + r + s == 0.
 struct hex {
     var q: sint;
@@ -415,12 +413,35 @@ func draw_text_format(font: Font, size: f32, color: Color, position: Vector2, fo
     DrawTextEx(font, s.cstr(), position, size, SPACING, color);
 }
 
+func default_camera_zoom(radius: f32, h: f32) f32 {
+    # Default the camera zoom so that the board and board-adjacent ocean tiles
+    # fit on the screen. Approximate the length of the board and board-adjacent
+    # ocean tiles as six tile diameters (five board tiles plus two ocean tiles
+    # on either side minus one tile to somewhat account for radius overlap).
+    return h / (6.0 * 2.0 * radius);
+}
+
 func main() void {
+    var argparser = std::argument_parser::init((:[][]byte)[
+        "fullscreen"
+    ]);
+    var opt_fullscreen = false;
+    for argparser.advance() {
+        if argparser.check_option("fullscreen") {
+            opt_fullscreen = true;
+        }
+    }
+
     SetTraceLogLevel(LOG_WARNING);
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(800, 600, startof("NATAC"));
     defer CloseWindow();
     SetTargetFPS(60);
+    if (opt_fullscreen) {
+        ToggleFullscreen();
+    }
+
+    let RADIUS = 48.0f32;
 
     let PUBLIC_PIXEL_TTF = embed("assets/PublicPixel.ttf");
     let FONT_SIZE = 16.0f32;
@@ -518,7 +539,10 @@ func main() void {
     }
 
     var camera_rotation = 0.0f32;
-    var camera_zoom = 1.0f32;
+    var camera_zoom = default_camera_zoom(RADIUS, (:f32)GetRenderHeight());
+    if opt_fullscreen {
+        camera_zoom = default_camera_zoom(RADIUS, (:f32)GetMonitorHeight(GetCurrentMonitor()));
+    }
 
     for not WindowShouldClose() {
         if IsKeyPressed(KEY_F11) {
@@ -532,21 +556,15 @@ func main() void {
         }
         if IsKeyDown(KEY_R) {
             camera_rotation = 0.0f32;
-            camera_zoom = 1.0;
+            camera_zoom = default_camera_zoom(RADIUS, (:f32)GetRenderHeight());
         }
 
         var mouse_wheel_y = GetMouseWheelMoveV().y;
-        if mouse_wheel_y > 0.0 {
+        if mouse_wheel_y > 0.0 and camera_zoom < 2.0 {
             camera_zoom = camera_zoom + 0.1;
         }
-        if mouse_wheel_y < 0.0 {
+        if mouse_wheel_y < 0.0 and camera_zoom > 0.5{
             camera_zoom = camera_zoom - 0.1;
-        }
-        if camera_zoom < 0.5 {
-            camera_zoom = 0.5;
-        }
-        if camera_zoom > 2.0 {
-            camera_zoom = 2.0;
         }
 
         BeginDrawing();
