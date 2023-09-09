@@ -86,21 +86,36 @@ struct hex {
     }
 }
 
-struct resource {
-    var kind: *struct { var data: []byte; };
-
-    let BRICK = (:resource){.kind = (:*struct { var data: []byte; })&"brick"};
-    let ORE   = (:resource){.kind = (:*struct { var data: []byte; })&"ore"};
-    let SHEEP = (:resource){.kind = (:*struct { var data: []byte; })&"sheep"};
-    let WHEAT = (:resource){.kind = (:*struct { var data: []byte; })&"wheat"};
-    let WOOD  = (:resource){.kind = (:*struct { var data: []byte; })&"wood"};
+enum resource {
+    BRICK;
+    ORE;
+    SHEEP;
+    WHEAT;
+    WOOD;
 
     func data(self: *resource) []byte {
-        return self.*.kind.*.data;
+        if *self == BRICK {
+            return "brick";
+        }
+        if *self == ORE {
+            return "ore";
+        }
+        if *self == SHEEP {
+            return "sheep";
+        }
+        if *self == WHEAT {
+            return "wheat";
+        }
+        if *self == WOOD {
+            return "wood";
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[[]byte]]();
     }
 
     func cstr(self: *resource) *byte {
-        return startof(self.*.kind.*.data);
+        return startof(self.*.data());
     }
 
     func format(self: *resource, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
@@ -113,19 +128,21 @@ struct resource {
 }
 
 struct tile {
-    let DESERT   = &"desert";
-    let OCEAN    = &"ocean";
-
-    let FOREST   = &"forest";
-    let FIELD    = &"field";
-    let HILL     = &"hill";
-    let MOUNTAIN = &"mountain";
-    let PASTURE  = &"pasture";
-
     var hex: hex;
-    var kind: *[]byte;
+    var kind: enum {
+        DESERT;
+        OCEAN;
 
-    func init(hex: hex, kind: typeof(tile::DESERT)) tile {
+        FOREST;
+        FIELD;
+        HILL;
+        MOUNTAIN;
+        PASTURE;
+    };
+
+    let SELF: tile = uninit;
+
+    func init(hex: hex, kind: typeof(SELF.kind)) tile {
         return (:tile){
             .hex = hex,
             .kind = kind,
@@ -195,14 +212,37 @@ struct tile {
     }
 
     func format(self: *tile, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
-        if std::str::eq(fmt, "") {
-            return std::write_all(writer, *self.*.kind);
+        var kind: []byte = "<error>";
+        if self.*.kind == tile::DESERT {
+            kind = "desert";
+        }
+        elif self.*.kind == tile::OCEAN {
+            kind = "ocean";
+        }
+        elif self.*.kind == tile::FOREST {
+            kind = "forest";
+        }
+        elif self.*.kind == tile::FIELD {
+            kind = "field";
+        }
+        elif self.*.kind == tile::HILL {
+            kind = "hill";
+        }
+        elif self.*.kind == tile::MOUNTAIN {
+            kind = "mountain";
+        }
+        elif self.*.kind == tile::PASTURE {
+            kind = "pasture";
         }
 
-        if std::str::eq(fmt, "full") {
+        if std::str::eq(fmt, "") {
+            return std::write_all(writer, kind);
+        }
+
+        if std::str::eq(fmt, "verbose") {
             var resource = self.*.resource();
             if resource.is_empty() {
-                return std::write_all(writer, *self.*.kind);
+                return std::write_all(writer, kind);
             }
 
             var resource = resource.value();
@@ -210,7 +250,7 @@ struct tile {
                 writer,
                 "{} ({})",
                 (:[]std::formatter)[
-                    std::formatter::init[[[]byte]](self.*.kind),
+                    std::formatter::init[[[]byte]](&kind),
                     std::formatter::init[[::resource]](&resource)]);
         }
 
@@ -773,7 +813,7 @@ func main() void {
             var world_tile = world_tile.value();
             draw_text_format(font, FONT_SIZE, BLACK,
                 (:Vector2){.x = 2.0, .y = 5.0 * FONT_SIZE},
-                "TILE: {} {full}",
+                "TILE: {} {verbose}",
                 (:[]std::formatter)[
                     std::formatter::init[[hex]](&world_tile.hex),
                     std::formatter::init[[tile]](&world_tile)]);
