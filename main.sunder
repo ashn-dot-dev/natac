@@ -622,7 +622,7 @@ func main() void {
     InitWindow(800, 600, startof("NATAC"));
     defer CloseWindow();
     SetTargetFPS(60);
-    if (opt_fullscreen) {
+    if opt_fullscreen {
         ToggleFullscreen();
     }
 
@@ -819,7 +819,7 @@ func main() void {
 
         EndMode2D();
 
-        if (debug) {
+        if debug {
             var fps = GetFPS();
             draw_text_format(font, FONT_SIZE, BLACK,
                 (:Vector2){.x = 2.0, .y = 0.0},
