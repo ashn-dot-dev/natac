@@ -141,15 +141,15 @@ struct tile {
         MOUNTAIN;
         PASTURE;
     };
-    var token: sint;
+    var number_token: sint;
 
     let SELF: tile = uninit;
 
-    func init(hex: hex, kind: typeof(SELF.kind), token: sint) tile {
+    func init(hex: hex, kind: typeof(SELF.kind), number_token: sint) tile {
         return (:tile){
             .hex = hex,
             .kind = kind,
-            .token = token,
+            .number_token = number_token,
         };
     }
 
@@ -259,7 +259,7 @@ struct tile {
                 (:[]std::formatter)[
                     std::formatter::init[[[]byte]](&kind),
                     std::formatter::init[[::resource]](&resource),
-                    std::formatter::init[[sint]](&self.*.token)]);
+                    std::formatter::init[[sint]](&self.*.number_token)]);
         }
 
         return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
@@ -699,14 +699,14 @@ func main() void {
                 let TAN = (:Color){.r = 0xDD, .g = 0xBB, .b = 0x88, .a = 0xFF};
                 draw_circle(point, CIRCLE_RADIUS, TAN);
                 # Need a little bit extra radius so that all pixels of the
-                # outline will cover up the token circle.
+                # outline will cover up the number token circle.
                 let CIRCLE_OUTLINE_RADIUS = CIRCLE_RADIUS + 1.0;
                 let CIRCLE_OUTLINE_THICKNESS = CIRCLE_RADIUS / 8.0;
                 draw_circle_outline(point, CIRCLE_OUTLINE_RADIUS, CIRCLE_OUTLINE_THICKNESS, BLACK);
                 var size = measure_text_format(font, FONT_SIZE,
                     "{}",
                     (:[]std::formatter)[
-                        std::formatter::init[[sint]](&tile.*.token)]);
+                        std::formatter::init[[sint]](&tile.*.number_token)]);
                 draw_text_format(font, FONT_SIZE, BLACK,
                     (:Vector2){
                         .x = point.x - size.x / 2.0,
@@ -714,7 +714,7 @@ func main() void {
                     },
                     "{}",
                     (:[]std::formatter)[
-                        std::formatter::init[[sint]](&tile.*.token)]);
+                        std::formatter::init[[sint]](&tile.*.number_token)]);
             }
         }
 
