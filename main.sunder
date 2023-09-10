@@ -94,20 +94,22 @@ enum resource {
     WOOD;
 
     func data(self: *resource) []byte {
-        if *self == BRICK {
+        switch *self {
+        BRICK {
             return "brick";
         }
-        if *self == ORE {
+        ORE {
             return "ore";
         }
-        if *self == SHEEP {
+        SHEEP {
             return "sheep";
         }
-        if *self == WHEAT {
+        WHEAT {
             return "wheat";
         }
-        if *self == WOOD {
+        WOOD {
             return "wood";
+        }
         }
 
         std::unreachable(fileof(), lineof());
@@ -160,26 +162,25 @@ struct tile {
     }
 
     func resource(self: *tile) std::optional[[::resource]] {
-        if self.*.kind == tile::DESERT {
+        switch self.*.kind {
+        tile::DESERT or tile::OCEAN {
             return std::optional[[::resource]]::EMPTY;
         }
-        if self.*.kind == tile::OCEAN {
-            return std::optional[[::resource]]::EMPTY;
-        }
-        if self.*.kind == tile::FOREST {
+        tile::FOREST {
             return std::optional[[::resource]]::init_value(::resource::WOOD);
         }
-        if self.*.kind == tile::FIELD {
+        tile::FIELD {
             return std::optional[[::resource]]::init_value(::resource::WHEAT);
         }
-        if self.*.kind == tile::HILL {
+        tile::HILL {
             return std::optional[[::resource]]::init_value(::resource::BRICK);
         }
-        if self.*.kind == tile::MOUNTAIN {
+        tile::MOUNTAIN {
             return std::optional[[::resource]]::init_value(::resource::ORE);
         }
-        if self.*.kind == tile::PASTURE {
+        tile::PASTURE {
             return std::optional[[::resource]]::init_value(::resource::SHEEP);
+        }
         }
 
         std::unreachable(fileof(), lineof());
@@ -187,26 +188,28 @@ struct tile {
     }
 
     func color(self: *tile) Color {
-        if self.*.kind == tile::DESERT {
+        switch self.*.kind {
+        tile::DESERT {
             return (:Color){.r = 0xEE, .g = 0xCC, .b = 0x88, .a = 0xFF};
         }
-        if self.*.kind == tile::OCEAN {
+        tile::OCEAN {
             return (:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF};
         }
-        if self.*.kind == tile::FOREST {
+        tile::FOREST {
             return (:Color){.r = 0x11, .g = 0x55, .b = 0x11, .a = 0xFF};
         }
-        if self.*.kind == tile::FIELD {
+        tile::FIELD {
             return (:Color){.r = 0xDD, .g = 0xAA, .b = 0x22, .a = 0xFF};
         }
-        if self.*.kind == tile::HILL {
+        tile::HILL {
             return (:Color){.r = 0xCC, .g = 0x55, .b = 0x44, .a = 0xFF};
         }
-        if self.*.kind == tile::MOUNTAIN {
+        tile::MOUNTAIN {
             return (:Color){.r = 0x88, .g = 0x88, .b = 0x88, .a = 0xFF};
         }
-        if self.*.kind == tile::PASTURE {
+        tile::PASTURE {
             return (:Color){.r = 0x66, .g = 0xAA, .b = 0x66, .a = 0xFF};
+        }
         }
 
         std::unreachable(fileof(), lineof());
@@ -215,26 +218,28 @@ struct tile {
 
     func format(self: *tile, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
         var kind: []byte = "<error>";
-        if self.*.kind == tile::DESERT {
+        switch self.*.kind {
+        tile::DESERT {
             kind = "desert";
         }
-        elif self.*.kind == tile::OCEAN {
+        tile::OCEAN {
             kind = "ocean";
         }
-        elif self.*.kind == tile::FOREST {
+        tile::FOREST {
             kind = "forest";
         }
-        elif self.*.kind == tile::FIELD {
+        tile::FIELD {
             kind = "field";
         }
-        elif self.*.kind == tile::HILL {
+        tile::HILL {
             kind = "hill";
         }
-        elif self.*.kind == tile::MOUNTAIN {
+        tile::MOUNTAIN {
             kind = "mountain";
         }
-        elif self.*.kind == tile::PASTURE {
+        tile::PASTURE {
             kind = "pasture";
+        }
         }
 
         if std::str::eq(fmt, "") {
