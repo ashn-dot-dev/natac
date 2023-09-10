@@ -698,7 +698,11 @@ func main() void {
                 let CIRCLE_RADIUS = RADIUS / 2.0;
                 let TAN = (:Color){.r = 0xDD, .g = 0xBB, .b = 0x88, .a = 0xFF};
                 draw_circle(point, CIRCLE_RADIUS, TAN);
-                draw_circle_outline(point, CIRCLE_RADIUS, CIRCLE_RADIUS / 8.0, BLACK);
+                # Need a little bit extra radius so that all pixels of the
+                # outline will cover up the token circle.
+                let CIRCLE_OUTLINE_RADIUS = CIRCLE_RADIUS + 1.0;
+                let CIRCLE_OUTLINE_THICKNESS = CIRCLE_RADIUS / 8.0;
+                draw_circle_outline(point, CIRCLE_OUTLINE_RADIUS, CIRCLE_OUTLINE_THICKNESS, BLACK);
                 var size = measure_text_format(font, FONT_SIZE,
                     "{}",
                     (:[]std::formatter)[
