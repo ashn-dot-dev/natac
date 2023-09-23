@@ -707,7 +707,11 @@ func main() void {
                     "{}",
                     (:[]std::formatter)[
                         std::formatter::init[[sint]](&tile.*.number_token)]);
-                draw_text_format(font, FONT_SIZE, BLACK,
+                var number_color = BLACK;
+                if tile.*.number_token == 6 or tile.*.number_token == 8 {
+                    number_color = RED;
+                }
+                draw_text_format(font, FONT_SIZE, number_color,
                     (:Vector2){
                         .x = point.x - size.x / 2.0,
                         .y = point.y - size.y / 2.0
