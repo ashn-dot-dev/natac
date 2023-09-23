@@ -65,12 +65,12 @@ struct hex {
     func format(self: *hex, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
         if std::str::eq(fmt, "") {
             return std::write_format(
-                    writer,
-                    "(q={}, r={}, s={})",
-                    (:[]std::formatter)[
-                        std::formatter::init[[sint]](&self.*.q),
-                        std::formatter::init[[sint]](&self.*.r),
-                        std::formatter::init[[sint]](&self.*.s)]);
+                writer,
+                "(q={}, r={}, s={})",
+                (:[]std::formatter)[
+                    std::formatter::init[[sint]](&self.*.q),
+                    std::formatter::init[[sint]](&self.*.r),
+                    std::formatter::init[[sint]](&self.*.s)]);
         }
 
         return std::result[[void, std::error]]::init_value(void::VALUE);
