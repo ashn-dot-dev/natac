@@ -648,7 +648,6 @@ func main() void {
     defer edges.fini();
 
     var debug = opt_debug;
-    var camera_rotation = 0.0f32;
 
     for not WindowShouldClose() {
         if IsKeyPressed(KEY_F3) {
@@ -656,15 +655,6 @@ func main() void {
         }
         if IsKeyPressed(KEY_F11) {
             ToggleFullscreen();
-        }
-        if IsKeyDown(KEY_Q) {
-            camera_rotation = camera_rotation - 1.0;
-        }
-        if IsKeyDown(KEY_E) {
-            camera_rotation = camera_rotation + 1.0;
-        }
-        if IsKeyDown(KEY_R) {
-            camera_rotation = 0.0f32;
         }
 
         BeginDrawing();
@@ -682,7 +672,7 @@ func main() void {
                 .y = 0.0f32
             },
             .offset = render_center,
-            .rotation = camera_rotation,
+            .rotation = 0.0f32,
             .zoom = camera_zoom(RADIUS, (:f32)render_h),
         };
 
