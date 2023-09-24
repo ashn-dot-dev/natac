@@ -555,7 +555,8 @@ func draw_circle_outline(center: Vector2, radius: f32, thickness: f32, color: Co
 }
 
 func draw_road(a: Vector2, b: Vector2, radius: f32, color: Color) void {
-    DrawLineEx(a, b, radius / 7.5, color);
+    var thick: f32 = radius / 7.5;
+    DrawLineEx(a, b, thick, color);
 }
 
 func draw_settlement(center: Vector2, radius: f32, color: Color) void {
@@ -567,6 +568,17 @@ func draw_settlement(center: Vector2, radius: f32, color: Color) void {
         .x = radius / 3.0,
         .y = radius / 4.0,
     };
+
+    DrawRectangleV(
+        (:Vector2){.x = center.x - size.x / 2.0 - 1.0, .y = center.y},
+        (:Vector2){.x = size.x + 2.0, .y = size.y + 1.0},
+        BLACK);
+    DrawTriangle(
+        (:Vector2){.x = center.x - size.x / 2.0 - 1.0, .y = center.y},
+        (:Vector2){.x = center.x + size.x / 2.0 + 1.0, .y = center.y},
+        (:Vector2){.x = center.x, .y = center.y - size.y / 2.0 - 1.0},
+        BLACK);
+
     DrawRectangleV(
         (:Vector2){.x = center.x - size.x / 2.0, .y = center.y},
         (:Vector2){.x = size.x, .y = size.y},
@@ -587,6 +599,21 @@ func draw_city(center: Vector2, radius: f32, color: Color) void {
         .x = radius / 2.2,
         .y = radius / 4.0,
     };
+
+    DrawRectangleV(
+        (:Vector2){.x = center.x - size.x / 2.0 - 1.0, .y = center.y - 1.0},
+        (:Vector2){.x = size.x + 2.0, .y = size.y + 2.0},
+        BLACK);
+    DrawRectangleV(
+        (:Vector2){.x = center.x - size.x / 2.0 - 1.0, .y = center.y - size.y / 2.0},
+        (:Vector2){.x = size.x / 2.0 + 2.0, .y = size.y / 2.0 + 1.0},
+        BLACK);
+    DrawTriangle(
+        (:Vector2){.x = center.x - size.x / 2.0 - 1.0, .y = center.y - size.y / 2.0},
+        (:Vector2){.x = center.x + 1.0, .y = center.y - size.y / 2.0},
+        (:Vector2){.x = center.x - size.x / 4.0, .y = center.y - size.y - 1.0},
+        BLACK);
+
     DrawRectangleV(
         (:Vector2){.x = center.x - size.x / 2.0, .y = center.y},
         (:Vector2){.x = size.x, .y = size.y},
@@ -990,7 +1017,7 @@ func main() void {
             var town = iter.current();
             switch town.*.kind {
             ::town::SETTLEMENT {
-                draw_city(node_to_point(town.*.node, RADIUS), RADIUS, player_color(town.*.player));
+                draw_settlement(node_to_point(town.*.node, RADIUS), RADIUS, player_color(town.*.player));
             }
             ::town::CITY {
                 draw_city(node_to_point(town.*.node, RADIUS), RADIUS, player_color(town.*.player));
