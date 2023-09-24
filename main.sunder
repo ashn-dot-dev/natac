@@ -385,6 +385,53 @@ struct node {
     }
 }
 
+struct road {
+    var player: uint;
+    var edge: edge;
+
+    func init(player: uint, edge: edge) road {
+        return (:road){
+            .edge = edge,
+            .player = player,
+        };
+    }
+
+    func hash(self: *road) usize {
+        return self.*.edge.hash();
+    }
+
+    func compare(lhs: *road, rhs: *road) ssize {
+        return std::compare[[edge]](&lhs.*.edge, &rhs.*.edge);
+    }
+}
+
+struct town {
+    var player: uint;
+    var node: node;
+    var kind: enum {
+        SETTLEMENT;
+        CITY;
+    };
+
+    let SELF: town = uninit;
+
+    func init(player: uint, node: node, kind: typeof(SELF.kind)) town {
+        return (:town){
+            .player = player,
+            .node = node,
+            .kind = kind,
+        };
+    }
+
+    func hash(self: *town) usize {
+        return self.*.node.hash();
+    }
+
+    func compare(lhs: *town, rhs: *town) ssize {
+        return std::compare[[node]](&lhs.*.node, &rhs.*.node);
+    }
+}
+
 func feq(a: f32, b: f32) bool {
     let THRESHOLD: f32 = 0.0001;
     return f32::abs(a - b) < THRESHOLD;
@@ -398,6 +445,21 @@ func vec2_distance(a: Vector2, b: Vector2) f32 {
     var x_dist = a.x - b.x;
     var y_dist = a.y - b.y;
     return f32::sqrt(x_dist * x_dist + y_dist * y_dist);
+}
+
+let PLAYER_RED: uint = 1;
+let PLAYER_BLUE: uint = 2;
+let PLAYER_WHITE: uint = 3;
+let PLAYER_ORANGE: uint = 4;
+
+func player_color(player: uint) Color {
+    assert 1 <= player and player <= 4;
+    return (:[4]Color)[
+        RED,
+        BLUE,
+        WHITE,
+        ORANGE,
+    ][(:usize)player-1];
 }
 
 func point_to_pointy_hex(point: Vector2, radius: f32) hex {
@@ -423,6 +485,44 @@ func pointy_hex_vertices(hex: hex, radius: f32) [6]Vector2 {
         result[i] = (:Vector2){.x = x, .y = y};
     }
     return result;
+}
+
+func edge_to_points(edge: edge, radius: f32) [2]Vector2 {
+    var ret: [2]Vector2 = uninit;
+    var cur = 0u;
+
+    var vertices_a = pointy_hex_vertices(edge.hexes[0], radius);
+    var vertices_b = pointy_hex_vertices(edge.hexes[1], radius);
+    for i in countof(vertices_a) {
+        for j in countof(vertices_b) {
+            if vec2_feq(vertices_a[i], vertices_b[j]) {
+                ret[cur] = vertices_a[i];
+                cur = cur + 1;
+            }
+        }
+    }
+
+    return ret;
+}
+
+func node_to_point(node: node, radius: f32) Vector2 {
+    var ret: Vector2 = uninit;
+
+    var vertices_a = pointy_hex_vertices(node.hexes[0], radius);
+    var vertices_b = pointy_hex_vertices(node.hexes[1], radius);
+    var vertices_c = pointy_hex_vertices(node.hexes[2], radius);
+    for i in countof(vertices_a) {
+        for j in countof(vertices_b) {
+            for k in countof(vertices_c) {
+                if vec2_feq(vertices_a[i], vertices_b[j]) and vec2_feq(vertices_b[j], vertices_c[k]) {
+                    ret = vertices_a[i];
+                    break;
+                }
+            }
+        }
+    }
+
+    return ret;
 }
 
 func draw_pointy_hexagon(center: Vector2, radius: f32, color: Color) void {
@@ -459,6 +559,10 @@ func draw_road(a: Vector2, b: Vector2, radius: f32, color: Color) void {
 }
 
 func draw_settlement(center: Vector2, radius: f32, color: Color) void {
+    var center = (:Vector2){
+        .x = center.x,
+        .y = center.y - radius / 8.0f32, # y-offset
+    };
     var size = (:Vector2){
         .x = radius / 3.0,
         .y = radius / 4.0,
@@ -475,6 +579,10 @@ func draw_settlement(center: Vector2, radius: f32, color: Color) void {
 }
 
 func draw_city(center: Vector2, radius: f32, color: Color) void {
+    var center = (:Vector2){
+        .x = center.x,
+        .y = center.y - radius / 8.0f32, # y-offset
+    };
     var size = (:Vector2){
         .x = radius / 2.2,
         .y = radius / 4.0,
@@ -703,6 +811,37 @@ func main() void {
     var edges = init_edges(&tiles);
     defer edges.fini();
 
+    var roads = std::vector[[road]]::init();
+    defer roads.fini();
+    var towns = std::vector[[town]]::init();
+    defer towns.fini();
+
+    # Red starting position.
+    towns.push(town::init(
+        PLAYER_RED,
+        node::init(
+            hex::init(+0, -2 , +2),
+            hex::init(+0, -1 , +1),
+            hex::init(+1, -2 , +1)),
+        town::SETTLEMENT));
+    roads.push(road::init(
+        PLAYER_RED,
+        edge::init(
+            hex::init(+0, -1 , +1),
+            hex::init(+1, -2 , +1))));
+    towns.push(town::init(
+        PLAYER_RED,
+        node::init(
+            hex::init(-2, +0 , +2),
+            hex::init(-2, +1 , +1),
+            hex::init(-1, +0, +1)),
+        town::SETTLEMENT));
+    roads.push(road::init(
+        PLAYER_RED,
+        edge::init(
+            hex::init(-2, +1 , +1),
+            hex::init(-1, +0 , +1))));
+
     var debug = opt_debug;
 
     for not WindowShouldClose() {
@@ -839,36 +978,41 @@ func main() void {
             draw_pointy_hexagon_border(point, RADIUS, BLACK);
         }
 
+        var iter = std::slice_iterator[[road]]::init(roads.data());
+        for iter.advance() {
+            var road = iter.current();
+            var points = edge_to_points(road.*.edge, RADIUS);
+            draw_road(points[0], points[1], RADIUS, player_color(road.*.player));
+        }
+
+        var iter = std::slice_iterator[[town]]::init(towns.data());
+        for iter.advance() {
+            var town = iter.current();
+            switch town.*.kind {
+            ::town::SETTLEMENT {
+                draw_city(node_to_point(town.*.node, RADIUS), RADIUS, player_color(town.*.player));
+            }
+            ::town::CITY {
+                draw_city(node_to_point(town.*.node, RADIUS), RADIUS, player_color(town.*.player));
+            }
+            }
+        }
+
         draw_circle(world_hex_center, 6.0, YELLOW);
         draw_circle_outline(world_hex_center, 6.0, 1.0, BLACK);
         if world_edge.is_value() {
             var world_edge = world_edge.value();
-            var vertices_a = pointy_hex_vertices(world_edge.hexes[0], RADIUS);
-            var vertices_b = pointy_hex_vertices(world_edge.hexes[1], RADIUS);
-            for i in countof(vertices_a) {
-                for j in countof(vertices_b) {
-                    if vec2_feq(vertices_a[i], vertices_b[j]) {
-                        draw_circle(vertices_a[i], 6.0, ORANGE);
-                        draw_circle_outline(vertices_a[i], 6.0, 1.0, BLACK);
-                    }
-                }
-            }
+            var points = edge_to_points(world_edge, RADIUS);
+            draw_circle(points[0], 6.0, ORANGE);
+            draw_circle(points[1], 6.0, ORANGE);
+            draw_circle_outline(points[0], 6.0, 1.0, BLACK);
+            draw_circle_outline(points[1], 6.0, 1.0, BLACK);
         }
         if world_node.is_value() {
             var world_node = world_node.value();
-            var vertices_a = pointy_hex_vertices(world_node.hexes[0], RADIUS);
-            var vertices_b = pointy_hex_vertices(world_node.hexes[1], RADIUS);
-            var vertices_c = pointy_hex_vertices(world_node.hexes[2], RADIUS);
-            for i in countof(vertices_a) {
-                for j in countof(vertices_b) {
-                    for k in countof(vertices_c) {
-                        if vec2_feq(vertices_a[i], vertices_b[j]) and vec2_feq(vertices_b[j], vertices_c[k]) {
-                            draw_circle(vertices_a[i], 6.0, RED);
-                            draw_circle_outline(vertices_a[i], 6.0, 1.0, BLACK);
-                        }
-                    }
-                }
-            }
+            var world_node_point = node_to_point(world_node, RADIUS);
+            draw_circle(world_node_point, 6.0, RED);
+            draw_circle_outline(world_node_point, 6.0, 1.0, BLACK);
         }
 
         draw_robber((:Vector2){.x = +0.0, .y = +0.0}, RADIUS);
