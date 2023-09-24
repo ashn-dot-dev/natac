@@ -217,7 +217,7 @@ struct tile {
     }
 
     func format(self: *tile, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
-        var kind: []byte = "<error>";
+        var kind = "<error>";
         switch self.*.kind {
         tile::DESERT {
             kind = "desert";
@@ -382,6 +382,47 @@ struct node {
         }
 
         return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
+    }
+}
+
+struct port {
+    var hex: hex;
+    var nodes: [2]node;
+    var kind: enum {
+        ANY;
+        ORE;
+        SHEEP;
+        WHEAT;
+        WOOD;
+    };
+
+    let SELF: port = uninit;
+
+    func init(hex: hex, a: node, b: node, kind: typeof(SELF.kind)) port {
+        assert std::eq[[::hex]](&hex, &a.hexes[0])
+            or std::eq[[::hex]](&hex, &a.hexes[1])
+            or std::eq[[::hex]](&hex, &a.hexes[2]);
+        assert std::eq[[::hex]](&hex, &b.hexes[0])
+            or std::eq[[::hex]](&hex, &b.hexes[1])
+            or std::eq[[::hex]](&hex, &b.hexes[2]);
+        assert std::ne[[node]](&a, &b);
+
+        var nodes = (:[2]node)[a, b];
+        std::sort[[node]](nodes[0:countof(nodes)]);
+
+        return (:port){
+            .hex = hex,
+            .nodes = nodes,
+            .kind = kind,
+        };
+    }
+
+    func hash(self: *port) usize {
+        return self.*.hex.hash();
+    }
+
+    func compare(lhs: *port, rhs: *port) ssize {
+        return std::compare[[hex]](&lhs.*.hex, &rhs.*.hex);
     }
 }
 
@@ -565,12 +606,6 @@ func draw_circle_outline(center: Vector2, radius: f32, thickness: f32, color: Co
     DrawPolyLinesEx(center, SIDES, radius, ANGLE, thickness, color);
 }
 
-func draw_road(a: Vector2, b: Vector2, radius: f32, color: Color) void {
-    var thick: f32 = radius / 8.0;
-    DrawLineEx(vec2_lerp(a, b, 0.09), vec2_lerp(a, b, 0.91), thick + 1.0, BLACK);
-    DrawLineEx(vec2_lerp(a, b, 0.10), vec2_lerp(a, b, 0.90), thick, color);
-}
-
 func draw_number_token(center: Vector2, number: sint, radius: f32, font: Font) void {
     var CIRCLE_RADIUS = radius / 2.0;
     let TAN = (:Color){.r = 0xDD, .g = 0xBB, .b = 0x88, .a = 0xFF};
@@ -624,6 +659,47 @@ func draw_number_token(center: Vector2, number: sint, radius: f32, font: Font) v
         };
         draw_circle(position, distance / 4.0, color);
     }
+}
+
+func draw_port(port: port, radius: f32, font: Font) void {
+    var center = pointy_hex_to_point(port.hex, radius);
+
+    var a = node_to_point(port.nodes[0], radius);
+    var b = node_to_point(port.nodes[1], radius);
+    var thick: f32 = radius / 8.0;
+    DrawLineEx(vec2_lerp(center, a, 0.49), vec2_lerp(center, a, 0.91), thick + 1.0, BLACK);
+    DrawLineEx(vec2_lerp(center, a, 0.50), vec2_lerp(center, a, 0.90), thick, BROWN);
+    DrawLineEx(vec2_lerp(center, b, 0.49), vec2_lerp(center, b, 0.91), thick + 1.0, BLACK);
+    DrawLineEx(vec2_lerp(center, b, 0.50), vec2_lerp(center, b, 0.90), thick, BROWN);
+
+    var text = "<error>";
+    switch port.kind {
+    ::port::ANY {
+        text = "any 3:1";
+    }
+    ::port::ORE {
+        text = "ore 2:1";
+    }
+    ::port::SHEEP {
+        text = "sheep 2:1";
+    }
+    ::port::WHEAT {
+        text = "wheat 2:1";
+    }
+    ::port::WOOD {
+        text = "wood 2:1";
+    }
+    }
+    var font_size = radius / 6.0;
+    var size = measure_text_cstr(font, font_size, startof(text));
+    var position = (:Vector2){.x = center.x - size.x / 2.0, .y = center.y - size.y / 2.0};
+    draw_text_cstr(font, font_size, BLACK, position, startof(text));
+}
+
+func draw_road(a: Vector2, b: Vector2, radius: f32, color: Color) void {
+    var thick: f32 = radius / 8.0;
+    DrawLineEx(vec2_lerp(a, b, 0.09), vec2_lerp(a, b, 0.91), thick + 1.0, BLACK);
+    DrawLineEx(vec2_lerp(a, b, 0.10), vec2_lerp(a, b, 0.90), thick, color);
 }
 
 func draw_settlement(center: Vector2, radius: f32, color: Color) void {
@@ -720,12 +796,25 @@ func draw_robber(center: Vector2, radius: f32) void {
         COLOR);
 }
 
+func measure_text(font: Font, size: f32, text: []byte) Vector2 {
+    var s = std::string::init_from_str(text);
+    defer s.fini();
+
+    let SPACING = 0.0f32;
+    return MeasureTextEx(font, s.cstr(), size, SPACING);
+}
+
 func draw_text(font: Font, size: f32, color: Color, position: Vector2, text: []byte) void {
     var s = std::string::init_from_str(text);
     defer s.fini();
 
     let SPACING = 0.0f32;
     DrawTextEx(font, s.cstr(), position, size, SPACING, color);
+}
+
+func measure_text_cstr(font: Font, size: f32, text: *byte) Vector2 {
+    let SPACING = 0.0f32;
+    return MeasureTextEx(font, text, size, SPACING);
 }
 
 func draw_text_cstr(font: Font, size: f32, color: Color, position: Vector2, text: *byte) void {
@@ -857,6 +946,24 @@ func init_edges(tiles: *std::hash_set[[tile]]) std::hash_set[[edge]] {
     return edges;
 }
 
+func init_ports() std::hash_set[[port]] {
+    var ports = std::hash_set[[port]]::init();
+
+    ports.insert(port::init(
+        hex::init(+0, -3, +3),
+        node::init(
+            hex::init(+0, -3, +3),
+            hex::init(+0, -2, +2),
+            hex::init(+1, -3, +2)),
+        node::init(
+            hex::init(-1, -2, +3),
+            hex::init(+0, -3, +3),
+            hex::init(+0, -2, +2)),
+        port::ANY));
+
+    return ports;
+}
+
 func main() void {
     var argparser = std::argument_parser::init((:[][]byte)[
         "debug",
@@ -904,6 +1011,8 @@ func main() void {
     defer nodes.fini();
     var edges = init_edges(&tiles);
     defer edges.fini();
+    var ports = init_ports();
+    defer ports.fini();
 
     var roads = std::vector[[road]]::init();
     defer roads.fini();
@@ -1047,6 +1156,12 @@ func main() void {
             }
             var point = pointy_hex_to_point(tile.*.hex, RADIUS);
             draw_pointy_hexagon_border(point, RADIUS, BLACK);
+        }
+
+        var iter = std::hash_set_iterator[[port]]::init(&ports);
+        for iter.advance() {
+            var port = iter.current();
+            draw_port(*port, RADIUS, font);
         }
 
         var iter = std::slice_iterator[[road]]::init(roads.data());
