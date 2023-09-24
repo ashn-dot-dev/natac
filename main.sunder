@@ -445,20 +445,7 @@ func draw_pointy_hexagon_border(center: Vector2, radius: f32, color: Color) void
 }
 
 func draw_circle(center: Vector2, radius: f32, color: Color) void {
-    # NOTE: DrawCircle and DrawCircleV, which forward to DrawCircleSector with
-    # 36 segments, will produce a circle with holes for small (less than ~18.0)
-    # radii when using FLAG_MSAA_4X_HINT. Higher segment counts seem to cause
-    # more holes to appear in the drawn circle.
-
-    # Draw the circle once with DrawCircleV in order to create an outline with
-    # proper anti-aliasing.
     DrawCircleV(center, radius, color);
-
-    # Draw the circle again with DrawCircleSector using a segment count that
-    # will be lower for smaller radii in order to fill in the circle.
-    var segments = (:sint)radius;
-    DrawCircleSector(center, radius, 0.0, 360.0, segments, color);
-
 }
 
 func draw_circle_outline(center: Vector2, radius: f32, thickness: f32, color: Color) void {
