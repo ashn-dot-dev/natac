@@ -437,8 +437,19 @@ func feq(a: f32, b: f32) bool {
     return f32::abs(a - b) < THRESHOLD;
 }
 
+func lerp(a: f32, b: f32, t: f32) f32 {
+    return a * (1.0 - t) + (b * t);
+}
+
 func vec2_feq(a: Vector2, b: Vector2) bool {
     return feq(a.x, b.x) and feq(a.y, b.y);
+}
+
+func vec2_lerp(a: Vector2, b: Vector2, t: f32) Vector2 {
+    return (:Vector2){
+        .x = lerp(a.x, b.x, t),
+        .y = lerp(a.y, b.y, t),
+    };
 }
 
 func vec2_distance(a: Vector2, b: Vector2) f32 {
@@ -556,7 +567,9 @@ func draw_circle_outline(center: Vector2, radius: f32, thickness: f32, color: Co
 
 func draw_road(a: Vector2, b: Vector2, radius: f32, color: Color) void {
     var thick: f32 = radius / 7.5;
-    DrawLineEx(a, b, thick, color);
+    var a_lerp = vec2_lerp(a, b, 0.1);
+    var b_lerp = vec2_lerp(a, b, 0.9);
+    DrawLineEx(a_lerp, b_lerp, thick, color);
 }
 
 func draw_number_token(center: Vector2, number: sint, radius: f32, font: Font) void {
