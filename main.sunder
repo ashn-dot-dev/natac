@@ -559,7 +559,7 @@ func draw_road(a: Vector2, b: Vector2, radius: f32, color: Color) void {
     DrawLineEx(a, b, thick, color);
 }
 
-func draw_number_token(center: Vector2, font: Font, font_size: f32, number: sint, radius: f32) void {
+func draw_number_token(center: Vector2, number: sint, radius: f32, font: Font) void {
     var CIRCLE_RADIUS = radius / 2.0;
     let TAN = (:Color){.r = 0xDD, .g = 0xBB, .b = 0x88, .a = 0xFF};
     draw_circle(center, CIRCLE_RADIUS, TAN);
@@ -569,6 +569,7 @@ func draw_number_token(center: Vector2, font: Font, font_size: f32, number: sint
     var CIRCLE_OUTLINE_THICKNESS = CIRCLE_RADIUS / 8.0;
     draw_circle_outline(center, CIRCLE_OUTLINE_RADIUS, CIRCLE_OUTLINE_THICKNESS, BLACK);
 
+    var font_size = radius / 3.0;
     var size = measure_text_format(font, font_size,
         "{}",
         (:[]std::formatter)[
@@ -602,7 +603,7 @@ func draw_number_token(center: Vector2, font: Font, font_size: f32, number: sint
         2, # 11
         1, # 12
     ];
-    var distance = CIRCLE_RADIUS / 4.0;
+    var distance = CIRCLE_RADIUS / 3.6;
     var width = (:f32)DOTS[(:usize)number] * distance;
     for i in DOTS[(:usize)number] {
         var position = (:Vector2){
@@ -961,7 +962,7 @@ func main() void {
             draw_pointy_hexagon(point, RADIUS, tile.*.color());
             var resource = tile.*.resource();
             if resource.is_value() {
-                draw_number_token(point, font, FONT_SIZE, tile.*.number_token, RADIUS);
+                draw_number_token(point, tile.*.number_token, RADIUS, font);
             }
         }
 
