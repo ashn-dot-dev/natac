@@ -559,6 +559,60 @@ func draw_road(a: Vector2, b: Vector2, radius: f32, color: Color) void {
     DrawLineEx(a, b, thick, color);
 }
 
+func draw_number_token(center: Vector2, font: Font, font_size: f32, number: sint, radius: f32) void {
+    var CIRCLE_RADIUS = radius / 2.0;
+    let TAN = (:Color){.r = 0xDD, .g = 0xBB, .b = 0x88, .a = 0xFF};
+    draw_circle(center, CIRCLE_RADIUS, TAN);
+    # Need a little bit extra radius so that all pixels of the
+    # outline will cover up the number token circle.
+    var CIRCLE_OUTLINE_RADIUS = CIRCLE_RADIUS + 1.0;
+    var CIRCLE_OUTLINE_THICKNESS = CIRCLE_RADIUS / 8.0;
+    draw_circle_outline(center, CIRCLE_OUTLINE_RADIUS, CIRCLE_OUTLINE_THICKNESS, BLACK);
+
+    var size = measure_text_format(font, font_size,
+        "{}",
+        (:[]std::formatter)[
+            std::formatter::init[[sint]](&number)]);
+    var color = BLACK;
+    if number == 6 or number == 8 {
+        color = RED;
+    }
+    draw_text_format(font, font_size, color,
+        (:Vector2){
+            .x = center.x - size.x / 2.0,
+            .y = center.y - size.y / 2.0,
+        },
+        "{}",
+        (:[]std::formatter)[
+            std::formatter::init[[sint]](&number)]);
+
+    assert 2 <= number and number <= 12;
+    let DOTS = (:[]usize)[
+        0, # 0 (invalid)
+        0, # 1 (invalid)
+        1, # 2
+        2, # 3
+        3, # 4
+        4, # 5
+        5, # 6
+        0, # 7 (invalid)
+        5, # 8
+        4, # 9
+        3, # 10
+        2, # 11
+        1, # 12
+    ];
+    var distance = CIRCLE_RADIUS / 4.0;
+    var width = (:f32)DOTS[(:usize)number] * distance;
+    for i in DOTS[(:usize)number] {
+        var position = (:Vector2){
+            .x = center.x - width / 2.0 + distance * ((:f32)i + 0.5),
+            .y = center.y + CIRCLE_RADIUS / 2.0,
+        };
+        draw_circle(position, distance / 4.0, color);
+    }
+}
+
 func draw_settlement(center: Vector2, radius: f32, color: Color) void {
     var center = (:Vector2){
         .x = center.x,
@@ -907,30 +961,7 @@ func main() void {
             draw_pointy_hexagon(point, RADIUS, tile.*.color());
             var resource = tile.*.resource();
             if resource.is_value() {
-                let CIRCLE_RADIUS = RADIUS / 2.0;
-                let TAN = (:Color){.r = 0xDD, .g = 0xBB, .b = 0x88, .a = 0xFF};
-                draw_circle(point, CIRCLE_RADIUS, TAN);
-                # Need a little bit extra radius so that all pixels of the
-                # outline will cover up the number token circle.
-                let CIRCLE_OUTLINE_RADIUS = CIRCLE_RADIUS + 1.0;
-                let CIRCLE_OUTLINE_THICKNESS = CIRCLE_RADIUS / 8.0;
-                draw_circle_outline(point, CIRCLE_OUTLINE_RADIUS, CIRCLE_OUTLINE_THICKNESS, BLACK);
-                var size = measure_text_format(font, FONT_SIZE,
-                    "{}",
-                    (:[]std::formatter)[
-                        std::formatter::init[[sint]](&tile.*.number_token)]);
-                var number_color = BLACK;
-                if tile.*.number_token == 6 or tile.*.number_token == 8 {
-                    number_color = RED;
-                }
-                draw_text_format(font, FONT_SIZE, number_color,
-                    (:Vector2){
-                        .x = point.x - size.x / 2.0,
-                        .y = point.y - size.y / 2.0
-                    },
-                    "{}",
-                    (:[]std::formatter)[
-                        std::formatter::init[[sint]](&tile.*.number_token)]);
+                draw_number_token(point, font, FONT_SIZE, tile.*.number_token, RADIUS);
             }
         }
 
