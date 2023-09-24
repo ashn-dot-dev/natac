@@ -267,34 +267,34 @@ struct tile {
 }
 
 struct edge {
-    var tiles: [2]tile;
+    var hexes: [2]hex;
 
-    func init(a: tile, b: tile) edge {
-        assert hex::distance(a.hex, b.hex) == 1;
+    func init(a: hex, b: hex) edge {
+        assert hex::distance(a, b) == 1;
 
-        var tiles = (:[2]tile)[a, b];
-        std::sort[[tile]](tiles[0:countof(tiles)]);
+        var hexes = (:[2]hex)[a, b];
+        std::sort[[hex]](hexes[0:countof(hexes)]);
 
         return (:edge){
-            .tiles = tiles,
+            .hexes = hexes,
         };
     }
 
     func hash(self: *edge) usize {
         var hash = 0u;
-        for i in countof(self.*.tiles) {
-            hash = hash +% self.*.tiles[i].hash();
+        for i in countof(self.*.hexes) {
+            hash = hash +% self.*.hexes[i].hash();
         }
         return hash;
     }
 
     func compare(lhs: *edge, rhs: *edge) ssize {
-        var cmp = tile::compare(&lhs.*.tiles[0], &rhs.*.tiles[0]);
+        var cmp = hex::compare(&lhs.*.hexes[0], &rhs.*.hexes[0]);
         if cmp != 0 {
             return cmp;
         }
 
-        var cmp = tile::compare(&lhs.*.tiles[1], &rhs.*.tiles[1]);
+        var cmp = hex::compare(&lhs.*.hexes[1], &rhs.*.hexes[1]);
         if cmp != 0 {
             return cmp;
         }
@@ -304,7 +304,7 @@ struct edge {
 
     func format(self: *edge, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
         if std::str::eq(fmt, "") {
-            for i in countof(self.*.tiles) {
+            for i in countof(self.*.hexes) {
                 if i != 0 {
                     std::print(writer, ", ");
                 }
@@ -312,7 +312,7 @@ struct edge {
                     writer,
                     "{}",
                     (:[]std::formatter)[
-                        std::formatter::init[[hex]](&self.*.tiles[i].hex)]);
+                        std::formatter::init[[hex]](&self.*.hexes[i])]);
             }
 
             return std::result[[void, std::error]]::init_value(void::VALUE);
@@ -323,41 +323,41 @@ struct edge {
 }
 
 struct node {
-    var tiles: [3]tile;
+    var hexes: [3]hex;
 
-    func init(a: tile, b: tile, c: tile) node {
-        assert hex::distance(a.hex, b.hex) == 1;
-        assert hex::distance(b.hex, c.hex) == 1;
-        assert hex::distance(c.hex, a.hex) == 1;
+    func init(a: hex, b: hex, c: hex) node {
+        assert hex::distance(a, b) == 1;
+        assert hex::distance(b, c) == 1;
+        assert hex::distance(c, a) == 1;
 
-        var tiles = (:[3]tile)[a, b, c];
-        std::sort[[tile]](tiles[0:countof(tiles)]);
+        var hexes = (:[3]hex)[a, b, c];
+        std::sort[[hex]](hexes[0:countof(hexes)]);
 
         return (:node){
-            .tiles = tiles,
+            .hexes = hexes,
         };
     }
 
     func hash(self: *node) usize {
         var hash = 0u;
-        for i in countof(self.*.tiles) {
-            hash = hash +% self.*.tiles[i].hash();
+        for i in countof(self.*.hexes) {
+            hash = hash +% self.*.hexes[i].hash();
         }
         return hash;
     }
 
     func compare(lhs: *node, rhs: *node) ssize {
-        var cmp = tile::compare(&lhs.*.tiles[0], &rhs.*.tiles[0]);
+        var cmp = hex::compare(&lhs.*.hexes[0], &rhs.*.hexes[0]);
         if cmp != 0 {
             return cmp;
         }
 
-        var cmp = tile::compare(&lhs.*.tiles[1], &rhs.*.tiles[1]);
+        var cmp = hex::compare(&lhs.*.hexes[1], &rhs.*.hexes[1]);
         if cmp != 0 {
             return cmp;
         }
 
-        var cmp = tile::compare(&lhs.*.tiles[2], &rhs.*.tiles[2]);
+        var cmp = hex::compare(&lhs.*.hexes[2], &rhs.*.hexes[2]);
         if cmp != 0 {
             return cmp;
         }
@@ -367,7 +367,7 @@ struct node {
 
     func format(self: *node, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
         if std::str::eq(fmt, "") {
-            for i in countof(self.*.tiles) {
+            for i in countof(self.*.hexes) {
                 if i != 0 {
                     std::print(writer, ", ");
                 }
@@ -375,7 +375,7 @@ struct node {
                     writer,
                     "{}",
                     (:[]std::formatter)[
-                        std::formatter::init[[hex]](&self.*.tiles[i].hex)]);
+                        std::formatter::init[[hex]](&self.*.hexes[i])]);
             }
 
             return std::result[[void, std::error]]::init_value(void::VALUE);
@@ -636,7 +636,10 @@ func init_nodes(tiles: *std::hash_set[[tile]]) std::hash_set[[node]] {
                 if hex::distance(iter_k.current().*.hex, iter_i.current().*.hex) != 1 {
                     continue;
                 }
-                var node = node::init(*iter_i.current(), *iter_j.current(), *iter_k.current());
+                var node = node::init(
+                    iter_i.current().*.hex,
+                    iter_j.current().*.hex,
+                    iter_k.current().*.hex);
                 nodes.insert(node);
             }
         }
@@ -655,7 +658,9 @@ func init_edges(tiles: *std::hash_set[[tile]]) std::hash_set[[edge]] {
             if hex::distance(iter_i.current().*.hex, iter_j.current().*.hex) != 1 {
                 continue;
             }
-            var edge = edge::init(*iter_i.current(), *iter_j.current());
+            var edge = edge::init(
+                iter_i.current().*.hex,
+                iter_j.current().*.hex);
             edges.insert(edge);
         }
     }
@@ -795,9 +800,9 @@ func main() void {
         var iter = std::hash_set_iterator[[edge]]::init(&edges);
         for iter.advance() {
             var found = true;
-            for i in countof(iter.current().*.tiles) {
+            for i in countof(iter.current().*.hexes) {
                 let DISTANCE = RADIUS * 1.2;
-                var hex = iter.current().*.tiles[i].hex;
+                var hex = iter.current().*.hexes[i];
                 if vec2_distance(world, pointy_hex_to_point(hex, RADIUS)) > DISTANCE {
                     found = false;
                     break;
@@ -806,8 +811,8 @@ func main() void {
 
             if found {
                 world_edge = std::optional[[edge]]::init_value(*iter.current());
-                for i in countof(iter.current().*.tiles) {
-                    var point = pointy_hex_to_point(iter.current().*.tiles[i].hex, RADIUS);
+                for i in countof(iter.current().*.hexes) {
+                    var point = pointy_hex_to_point(iter.current().*.hexes[i], RADIUS);
                     draw_pointy_hexagon_outline(point, RADIUS, ORANGE);
                 }
                 break;
@@ -818,9 +823,9 @@ func main() void {
         var iter = std::hash_set_iterator[[node]]::init(&nodes);
         for iter.advance() {
             var found = true;
-            for i in countof(iter.current().*.tiles) {
+            for i in countof(iter.current().*.hexes) {
                 let DISTANCE = RADIUS * 1.2;
-                var hex = iter.current().*.tiles[i].hex;
+                var hex = iter.current().*.hexes[i];
                 if vec2_distance(world, pointy_hex_to_point(hex, RADIUS)) > DISTANCE {
                     found = false;
                     break;
@@ -829,8 +834,8 @@ func main() void {
 
             if found {
                 world_node = std::optional[[node]]::init_value(*iter.current());
-                for i in countof(iter.current().*.tiles) {
-                    var point = pointy_hex_to_point(iter.current().*.tiles[i].hex, RADIUS);
+                for i in countof(iter.current().*.hexes) {
+                    var point = pointy_hex_to_point(iter.current().*.hexes[i], RADIUS);
                     draw_pointy_hexagon_outline(point, RADIUS, RED);
                 }
                 break;
@@ -851,8 +856,8 @@ func main() void {
         draw_circle_outline(world_hex_center, 6.0, 1.0, BLACK);
         if world_edge.is_value() {
             var world_edge = world_edge.value();
-            var vertices_a = pointy_hex_vertices(world_edge.tiles[0].hex, RADIUS);
-            var vertices_b = pointy_hex_vertices(world_edge.tiles[1].hex, RADIUS);
+            var vertices_a = pointy_hex_vertices(world_edge.hexes[0], RADIUS);
+            var vertices_b = pointy_hex_vertices(world_edge.hexes[1], RADIUS);
             for i in countof(vertices_a) {
                 for j in countof(vertices_b) {
                     if vec2_feq(vertices_a[i], vertices_b[j]) {
@@ -864,9 +869,9 @@ func main() void {
         }
         if world_node.is_value() {
             var world_node = world_node.value();
-            var vertices_a = pointy_hex_vertices(world_node.tiles[0].hex, RADIUS);
-            var vertices_b = pointy_hex_vertices(world_node.tiles[1].hex, RADIUS);
-            var vertices_c = pointy_hex_vertices(world_node.tiles[2].hex, RADIUS);
+            var vertices_a = pointy_hex_vertices(world_node.hexes[0], RADIUS);
+            var vertices_b = pointy_hex_vertices(world_node.hexes[1], RADIUS);
+            var vertices_c = pointy_hex_vertices(world_node.hexes[2], RADIUS);
             for i in countof(vertices_a) {
                 for j in countof(vertices_b) {
                     for k in countof(vertices_c) {
