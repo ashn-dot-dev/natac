@@ -566,10 +566,9 @@ func draw_circle_outline(center: Vector2, radius: f32, thickness: f32, color: Co
 }
 
 func draw_road(a: Vector2, b: Vector2, radius: f32, color: Color) void {
-    var thick: f32 = radius / 7.5;
-    var a_lerp = vec2_lerp(a, b, 0.1);
-    var b_lerp = vec2_lerp(a, b, 0.9);
-    DrawLineEx(a_lerp, b_lerp, thick, color);
+    var thick: f32 = radius / 8.0;
+    DrawLineEx(vec2_lerp(a, b, 0.09), vec2_lerp(a, b, 0.91), thick + 1.0, BLACK);
+    DrawLineEx(vec2_lerp(a, b, 0.10), vec2_lerp(a, b, 0.90), thick, color);
 }
 
 func draw_number_token(center: Vector2, number: sint, radius: f32, font: Font) void {
