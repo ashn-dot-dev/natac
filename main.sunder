@@ -503,6 +503,30 @@ func draw_city(center: Vector2, radius: f32, color: Color) void {
         color);
 }
 
+func draw_robber(center: Vector2, radius: f32) void {
+    let COLOR = GRAY;
+    var radius_h = radius / 6.0;
+    var radius_v = radius / 3.0;
+    DrawEllipse(
+        (:sint)center.x,
+        (:sint)center.y,
+        radius_h,
+        radius_v,
+        COLOR);
+    var size = (:Vector2){
+        .x = radius_h * 2.0,
+        .y = radius_v / 2.0,
+    };
+    DrawRectangleV(
+        (:Vector2){.x = center.x - size.x / 2.0, .y = center.y + radius_v - size.y / 2.0},
+        (:Vector2){.x = size.x, .y = size.y},
+        COLOR);
+    DrawCircleV(
+        (:Vector2){.x = center.x, .y = center.y - radius_v},
+        radius_h * 0.9,
+        COLOR);
+}
+
 func draw_text(font: Font, size: f32, color: Color, position: Vector2, text: []byte) void {
     var s = std::string::init_from_str(text);
     defer s.fini();
@@ -851,8 +875,9 @@ func main() void {
             }
         }
 
-        draw_settlement((:Vector2){.x = 0.0, .y = -20.0}, RADIUS, RED);
-        draw_city((:Vector2){.x = 0.0, .y = +20.0}, RADIUS, RED);
+        draw_robber((:Vector2){.x = +00.0, .y = +0.0}, RADIUS);
+        draw_settlement((:Vector2){.x = -20.0, .y = +0.0}, RADIUS, RED);
+        draw_city((:Vector2){.x = +20.0, .y = +0.0}, RADIUS, RED);
 
         EndMode2D();
 
