@@ -390,6 +390,7 @@ struct port {
     var nodes: [2]node;
     var kind: enum {
         ANY;
+        BRICK;
         ORE;
         SHEEP;
         WHEAT;
@@ -677,6 +678,9 @@ func draw_port(port: port, radius: f32, font: Font) void {
     ::port::ANY {
         text = "any 3:1";
     }
+    ::port::BRICK {
+        text = "brick 2:1";
+    }
     ::port::ORE {
         text = "ore 2:1";
     }
@@ -950,16 +954,112 @@ func init_ports() std::hash_set[[port]] {
     var ports = std::hash_set[[port]]::init();
 
     ports.insert(port::init(
-        hex::init(+0, -3, +3),
+        hex::init(+3, +0, -3),
         node::init(
-            hex::init(+0, -3, +3),
-            hex::init(+0, -2, +2),
-            hex::init(+1, -3, +2)),
+            hex::init(+2, +0, -2),
+            hex::init(+2, +1, -3),
+            hex::init(+3, +0, -3)),
+        node::init(
+            hex::init(+2, +0, -2),
+            hex::init(+3, -1, -2),
+            hex::init(+3, +0, -3)),
+        port::ANY));
+
+    ports.insert(port::init(
+        hex::init(+3, -2, -1),
+        node::init(
+            hex::init(+2, -2, +0),
+            hex::init(+2, -1, -1),
+            hex::init(+3, -2, -1)),
+        node::init(
+            hex::init(+2, -1, -1),
+            hex::init(+3, -2, -1),
+            hex::init(+3, -1, -2)),
+        port::ORE));
+
+    ports.insert(port::init(
+        hex::init(+2, -3, +1),
+        node::init(
+            hex::init(+1, -3, +2),
+            hex::init(+1, -2, +1),
+            hex::init(+2, -3, +1)),
+        node::init(
+            hex::init(+1, -2, +1),
+            hex::init(+2, -3, +1),
+            hex::init(+2, -2, +0)),
+        port::WHEAT));
+
+    ports.insert(port::init(
+        hex::init(+0, -3, +3),
         node::init(
             hex::init(-1, -2, +3),
             hex::init(+0, -3, +3),
             hex::init(+0, -2, +2)),
+        node::init(
+            hex::init(+0, -3, +3),
+            hex::init(+0, -2, +2),
+            hex::init(+1, -3, +2)),
         port::ANY));
+
+    ports.insert(port::init(
+        hex::init(-2, -1, +3),
+        node::init(
+            hex::init(-2, -1, +3),
+            hex::init(-2, +0, +2),
+            hex::init(-1, -1, +2)),
+        node::init(
+            hex::init(-2, -1, +3),
+            hex::init(-1, -2, +3),
+            hex::init(-1, -1, +2)),
+        port::WOOD));
+
+    ports.insert(port::init(
+        hex::init(-3, +1, +2),
+        node::init(
+            hex::init(-3, +1, +2),
+            hex::init(-3, +2, +1),
+            hex::init(-2, +1, +1)),
+        node::init(
+            hex::init(-3, +1, +2),
+            hex::init(-2, +0, +2),
+            hex::init(-2, +1, +1)),
+        port::BRICK));
+
+    ports.insert(port::init(
+        hex::init(-3, +3, +0),
+        node::init(
+            hex::init(-3, +2, +1),
+            hex::init(-3, +3, +0),
+            hex::init(-2, +2, +0)),
+        node::init(
+            hex::init(-3, +3, +0),
+            hex::init(-2, +2, +0),
+            hex::init(-2, +3, -1)),
+        port::ANY));
+
+    ports.insert(port::init(
+        hex::init(-1, +3, -2),
+        node::init(
+            hex::init(-2, +3, -1),
+            hex::init(-1, +2, -1),
+            hex::init(-1, +3, -2)),
+        node::init(
+            hex::init(-1, +2, -1),
+            hex::init(-1, +3, -2),
+            hex::init(+0, +2, -2)),
+        port::ANY));
+
+    ports.insert(port::init(
+        hex::init(+1, +2, -3),
+        node::init(
+            hex::init(+0, +2, -2),
+            hex::init(+1, +1, -2),
+            hex::init(+1, +2, -3)),
+        node::init(
+            hex::init(+1, +1, -2),
+            hex::init(+1, +2, -3),
+            hex::init(+2, +1, -3)),
+        port::SHEEP));
 
     return ports;
 }
