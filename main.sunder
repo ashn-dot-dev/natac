@@ -1302,9 +1302,6 @@ func main() void {
         }
 
         draw_robber((:Vector2){.x = +0.0, .y = +0.0}, RADIUS);
-        draw_road((:Vector2){.x = -20.0, .y = -30.0}, (:Vector2){.x = +20.0, .y = -30.0}, RADIUS, RED);
-        draw_settlement((:Vector2){.x = -20.0, .y = +0.0}, RADIUS, RED);
-        draw_city((:Vector2){.x = +20.0, .y = +0.0}, RADIUS, RED);
 
         EndMode2D();
 
