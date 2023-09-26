@@ -676,7 +676,7 @@ func draw_port(port: port, radius: f32, font: Font) void {
     var text = "<error>";
     switch port.kind {
     ::port::ANY {
-        text = "any 3:1";
+        text = "3:1";
     }
     ::port::BRICK {
         text = "brick 2:1";
