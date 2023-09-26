@@ -1118,6 +1118,7 @@ func main() void {
     defer roads.fini();
     var towns = std::vector[[town]]::init();
     defer towns.fini();
+    var robber = hex::init(+0, +0, +0);
 
     # Red starting position.
     towns.push(town::init(
@@ -1301,7 +1302,7 @@ func main() void {
             draw_circle_outline(world_node_point, 6.0, 1.0, BLACK);
         }
 
-        draw_robber((:Vector2){.x = +0.0, .y = +0.0}, RADIUS);
+        draw_robber(pointy_hex_to_point(robber, RADIUS), RADIUS);
 
         EndMode2D();
 
