@@ -1131,37 +1131,112 @@ func main() void {
     var ports = init_ports();
     defer ports.fini();
 
+    var robber = hex::init(+0, +0, +0);
     var roads = std::vector[[road]]::init();
     defer roads.fini();
     var towns = std::vector[[town]]::init();
     defer towns.fini();
-    var robber = hex::init(+0, +0, +0);
 
     # Red starting position.
     towns.push(town::init(
         PLAYER_RED,
         node::init(
-            hex::init(+0, -2 , +2),
-            hex::init(+0, -1 , +1),
-            hex::init(+1, -2 , +1)),
-        town::SETTLEMENT));
-    roads.push(road::init(
-        PLAYER_RED,
-        edge::init(
-            hex::init(+0, -1 , +1),
-            hex::init(+1, -2 , +1))));
-    towns.push(town::init(
-        PLAYER_RED,
-        node::init(
-            hex::init(-2, +0 , +2),
-            hex::init(-2, +1 , +1),
+            hex::init(-2, +0, +2),
+            hex::init(-2, +1, +1),
             hex::init(-1, +0, +1)),
         town::SETTLEMENT));
     roads.push(road::init(
         PLAYER_RED,
         edge::init(
-            hex::init(-2, +1 , +1),
-            hex::init(-1, +0 , +1))));
+            hex::init(-2, +1, +1),
+            hex::init(-1, +0, +1))));
+    towns.push(town::init(
+        PLAYER_RED,
+        node::init(
+            hex::init(+0, -2, +2),
+            hex::init(+0, -1, +1),
+            hex::init(+1, -2, +1)),
+        town::SETTLEMENT));
+    roads.push(road::init(
+        PLAYER_RED,
+        edge::init(
+            hex::init(+0, -1, +1),
+            hex::init(+1, -2, +1))));
+    # Blue starting position.
+    towns.push(town::init(
+        PLAYER_BLUE,
+        node::init(
+            hex::init(-2, +1, +1),
+            hex::init(-2, +2, +0),
+            hex::init(-1, +1, +0)),
+        town::SETTLEMENT));
+    roads.push(road::init(
+        PLAYER_BLUE,
+        edge::init(
+            hex::init(-2, +2, +0),
+            hex::init(-1, +1, +0))));
+    towns.push(town::init(
+        PLAYER_BLUE,
+        node::init(
+            hex::init(+0, +1, -1),
+            hex::init(+0, +2, -2),
+            hex::init(+1, +1, -2)),
+        town::SETTLEMENT));
+    roads.push(road::init(
+        PLAYER_BLUE,
+        edge::init(
+            hex::init(+0, +1, -1),
+            hex::init(+1, +1, -2))));
+    # White starting position.
+    towns.push(town::init(
+        PLAYER_WHITE,
+        node::init(
+            hex::init(-1, -1, +2),
+            hex::init(-1, +0, +1),
+            hex::init(+0, -1, +1)),
+        town::SETTLEMENT));
+    roads.push(road::init(
+        PLAYER_WHITE,
+        edge::init(
+            hex::init(-1, -1, +2),
+            hex::init(-1, +0, +1))));
+    towns.push(town::init(
+        PLAYER_WHITE,
+        node::init(
+            hex::init(+1, +0, -1),
+            hex::init(+1, +1, -2),
+            hex::init(+2, +0, -2)),
+        town::SETTLEMENT));
+    roads.push(road::init(
+        PLAYER_WHITE,
+        edge::init(
+            hex::init(+1, +0, -1),
+            hex::init(+2, +0, -2))));
+    # Orange starting position.
+    towns.push(town::init(
+        PLAYER_ORANGE,
+        node::init(
+            hex::init(-1, +1, +0),
+            hex::init(-1, +2, -1),
+            hex::init(+0, +1, -1)),
+        town::SETTLEMENT));
+    roads.push(road::init(
+        PLAYER_ORANGE,
+        edge::init(
+            hex::init(-1, +2, -1),
+            hex::init(+0, +1, -1))));
+    towns.push(town::init(
+        PLAYER_ORANGE,
+        node::init(
+            hex::init(+1, -1, +0),
+            hex::init(+2, -2, +0),
+            hex::init(+2, -1, -1)),
+        town::SETTLEMENT));
+    roads.push(road::init(
+        PLAYER_ORANGE,
+        edge::init(
+            hex::init(+1, -1, +0),
+            hex::init(+2, -2, +0))));
 
     var debug = opt_debug;
 
