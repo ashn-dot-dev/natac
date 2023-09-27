@@ -1359,9 +1359,17 @@ func main() void {
             }
         }
         elif world_edge.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
-            insert_road(&roads, road::init(
-                player,
-                world_edge.value()));
+            var tile_a = tiles.lookup(world_edge.value().hexes[0]);
+            var tile_b = tiles.lookup(world_edge.value().hexes[1]);
+            assert tile_a.is_value() and tile_b.is_value();
+            var is_road_across_water =
+                tile_a.value().kind == tile::OCEAN and
+                tile_b.value().kind == tile::OCEAN;
+            if not is_road_across_water {
+                insert_road(&roads, road::init(
+                    player,
+                    world_edge.value()));
+            }
         }
 
         var iter = std::hash_map_iterator[[hex, tile]]::init(&tiles);
