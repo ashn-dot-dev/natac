@@ -153,14 +153,6 @@ struct tile {
         };
     }
 
-    func hash(self: *tile) usize {
-        return self.*.hex.hash();
-    }
-
-    func compare(lhs: *tile, rhs: *tile) ssize {
-        return std::compare[[hex]](&lhs.*.hex, &rhs.*.hex);
-    }
-
     func resource(self: *tile) std::optional[[::resource]] {
         switch self.*.kind {
         tile::DESERT or tile::OCEAN {
@@ -437,22 +429,6 @@ struct road {
             .player = player,
         };
     }
-
-    func hash(self: *road) usize {
-        return self.*.edge.hash();
-    }
-
-    func compare(lhs: *road, rhs: *road) ssize {
-        var cmp = std::compare[[edge]](&lhs.*.edge, &rhs.*.edge);
-        if cmp != 0 {
-            return cmp;
-        }
-        var cmp = std::compare[[uint]](&lhs.*.player, &rhs.*.player);
-        if cmp != 0 {
-            return cmp;
-        }
-        return 0;
-    }
 }
 
 struct town {
@@ -471,28 +447,6 @@ struct town {
             .node = node,
             .kind = kind,
         };
-    }
-
-    func hash(self: *town) usize {
-        return self.*.node.hash();
-    }
-
-    func compare(lhs: *town, rhs: *town) ssize {
-        var cmp = std::compare[[node]](&lhs.*.node, &rhs.*.node);
-        if cmp != 0 {
-            return cmp;
-        }
-        var cmp = std::compare[[uint]](&lhs.*.player, &rhs.*.player);
-        if cmp != 0 {
-            return cmp;
-        }
-        var lhs_kind = (:std::smax)lhs.*.kind;
-        var rhs_kind = (:std::smax)rhs.*.kind;
-        var cmp = std::compare[[std::smax]](&lhs_kind, &rhs_kind);
-        if cmp != 0 {
-            return cmp;
-        }
-        return 0;
     }
 }
 
