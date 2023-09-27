@@ -1,0 +1,68 @@
+import "c";
+import "std";
+
+import "shared.sunder";
+
+struct server_state {
+    var tiles: std::hash_map[[hex, tile]];
+    var edges: std::hash_set[[edge]];
+    var nodes: std::hash_set[[node]];
+    var ports: std::hash_set[[port]];
+    var roads: std::hash_map[[edge, road]];
+    var towns: std::hash_map[[node, town]];
+    var robber: hex;
+
+    func init() server_state {
+        var tiles = init_tiles();
+        var edges = init_edges(&tiles);
+        var nodes = init_nodes(&tiles);
+        var ports = init_ports();
+        var roads = init_roads();
+        var towns = init_towns();
+        var robber = hex::init(+0, +0, +0);
+
+        return (:server_state){
+            .tiles = tiles,
+            .edges = edges,
+            .nodes = nodes,
+            .ports = ports,
+            .roads = roads,
+            .towns = towns,
+            .robber = robber,
+        };
+    }
+
+    func fini(self: *server_state) void {
+        self.*.tiles.fini();
+        self.*.edges.fini();
+        self.*.nodes.fini();
+        self.*.ports.fini();
+        self.*.roads.fini();
+        self.*.towns.fini();
+    }
+
+    func to_server_message(self: *server_state) server_message {
+        return server_message::init(
+            &self.*.tiles,
+            &self.*.ports,
+            &self.*.roads,
+            &self.*.towns,
+            self.*.robber);
+    }
+
+    func place_road(self: *server_state, road: road) void {
+        insert_road(&self.*.roads, road);
+    }
+
+    func remove_road(self: *server_state, edge: edge) void {
+        self.*.roads.remove(edge);
+    }
+
+    func place_town(self: *server_state, town: town) void {
+        insert_town(&self.*.towns, town);
+    }
+
+    func remove_town(self: *server_state, node: node) void {
+        self.*.towns.remove(node);
+    }
+}

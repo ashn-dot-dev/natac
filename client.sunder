@@ -1,0 +1,517 @@
+import "c";
+import "raylib";
+import "std";
+
+import "shared.sunder";
+
+func feq(a: f32, b: f32) bool {
+    let THRESHOLD: f32 = 0.0001;
+    return f32::abs(a - b) < THRESHOLD;
+}
+
+func lerp(a: f32, b: f32, t: f32) f32 {
+    return a * (1.0 - t) + (b * t);
+}
+
+func vec2_feq(a: Vector2, b: Vector2) bool {
+    return feq(a.x, b.x) and feq(a.y, b.y);
+}
+
+func vec2_lerp(a: Vector2, b: Vector2, t: f32) Vector2 {
+    return (:Vector2){
+        .x = lerp(a.x, b.x, t),
+        .y = lerp(a.y, b.y, t),
+    };
+}
+
+func vec2_distance(a: Vector2, b: Vector2) f32 {
+    var x_dist = a.x - b.x;
+    var y_dist = a.y - b.y;
+    return f32::sqrt(x_dist * x_dist + y_dist * y_dist);
+}
+
+func tile_color(tile: tile) Color {
+    switch tile.kind {
+    ::tile::DESERT {
+        return (:Color){.r = 0xEE, .g = 0xCC, .b = 0x88, .a = 0xFF};
+    }
+    ::tile::OCEAN {
+        return (:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF};
+    }
+    ::tile::FOREST {
+        return (:Color){.r = 0x11, .g = 0x55, .b = 0x11, .a = 0xFF};
+    }
+    ::tile::FIELD {
+        return (:Color){.r = 0xDD, .g = 0xAA, .b = 0x22, .a = 0xFF};
+    }
+    ::tile::HILL {
+        return (:Color){.r = 0xCC, .g = 0x55, .b = 0x44, .a = 0xFF};
+    }
+    ::tile::MOUNTAIN {
+        return (:Color){.r = 0x88, .g = 0x88, .b = 0x88, .a = 0xFF};
+    }
+    ::tile::PASTURE {
+        return (:Color){.r = 0x66, .g = 0xAA, .b = 0x66, .a = 0xFF};
+    }
+    }
+
+    std::unreachable(fileof(), lineof());
+    return std::zeroed[[Color]]();
+}
+
+func player_color(player: uint) Color {
+    assert 0 <= player and player <= 4;
+    return (:[5]Color)[
+        BLACK,
+        RED,
+        BLUE,
+        WHITE,
+        ORANGE,
+    ][(:usize)player];
+}
+
+func point_to_pointy_hex(point: Vector2, radius: f32) hex {
+    var q = (f32::sqrt(3.0)/3.0 * point.x - 1.0/3.0 * point.y) / radius;
+    var r = (2.0/3.0 * point.y) / radius;
+    var s = -q - r;
+
+    return hex::init_round(q, r, s);
+}
+
+func pointy_hex_to_point(hex: hex, radius: f32) Vector2 {
+    var x = radius * (f32::sqrt(3.0) * (:f32)hex.q + f32::sqrt(3.0)/2.0 * (:f32)hex.r);
+    var y = radius * (3.0/2.0 * (:f32)hex.r);
+    return (:Vector2){.x = x, .y = y};
+}
+
+func pointy_hex_vertices(hex: hex, radius: f32) [6]Vector2 {
+    var result: [6]Vector2 = uninit;
+    var center = pointy_hex_to_point(hex, radius);
+    for i in 6 {
+        var x = center.x + f32::cos(f32::degrees_to_radians((:f32)i * 360.0 / 6.0 + 30.0)) * radius;
+        var y = center.y + f32::sin(f32::degrees_to_radians((:f32)i * 360.0 / 6.0 + 30.0)) * radius;
+        result[i] = (:Vector2){.x = x, .y = y};
+    }
+    return result;
+}
+
+func edge_to_points(edge: edge, radius: f32) [2]Vector2 {
+    var ret: [2]Vector2 = uninit;
+    var cur = 0u;
+
+    var vertices_a = pointy_hex_vertices(edge.hexes[0], radius);
+    var vertices_b = pointy_hex_vertices(edge.hexes[1], radius);
+    for i in countof(vertices_a) {
+        for j in countof(vertices_b) {
+            if vec2_feq(vertices_a[i], vertices_b[j]) {
+                ret[cur] = vertices_a[i];
+                cur = cur + 1;
+            }
+        }
+    }
+
+    return ret;
+}
+
+func node_to_point(node: node, radius: f32) Vector2 {
+    var ret: Vector2 = uninit;
+
+    var vertices_a = pointy_hex_vertices(node.hexes[0], radius);
+    var vertices_b = pointy_hex_vertices(node.hexes[1], radius);
+    var vertices_c = pointy_hex_vertices(node.hexes[2], radius);
+    for i in countof(vertices_a) {
+        for j in countof(vertices_b) {
+            for k in countof(vertices_c) {
+                if vec2_feq(vertices_a[i], vertices_b[j]) and vec2_feq(vertices_b[j], vertices_c[k]) {
+                    ret = vertices_a[i];
+                    break;
+                }
+            }
+        }
+    }
+
+    return ret;
+}
+
+func draw_pointy_hexagon(center: Vector2, radius: f32, color: Color) void {
+    let SIDES: sint = 6;
+    let ANGLE: f32 = 30.0; # pointy-top orientation
+    DrawPoly(center, SIDES, radius, ANGLE, color);
+}
+
+func draw_pointy_hexagon_outline(center: Vector2, radius: f32, color: Color) void {
+    let SIDES: sint = 6;
+    let ANGLE: f32 = 30.0; # pointy-top orientation
+    DrawPolyLinesEx(center, SIDES, radius, ANGLE, radius / 8.0, color);
+}
+
+func draw_pointy_hexagon_border(center: Vector2, radius: f32, color: Color) void {
+    let SIDES: sint = 6;
+    let ANGLE: f32 = 30.0; # pointy-top orientation
+    var thick: f32 = radius / 16.0;
+    DrawPolyLinesEx(center, SIDES, radius + thick / 2.0, ANGLE, thick, color);
+}
+
+func draw_circle(center: Vector2, radius: f32, color: Color) void {
+    DrawCircleV(center, radius, color);
+}
+
+func draw_circle_outline(center: Vector2, radius: f32, thickness: f32, color: Color) void {
+    let SIDES: sint = 36;
+    let ANGLE: f32 = 0.0;
+    DrawPolyLinesEx(center, SIDES, radius, ANGLE, thickness, color);
+}
+
+func draw_number_token(center: Vector2, number: sint, radius: f32, font: Font) void {
+    var CIRCLE_RADIUS = radius / 2.0;
+    let TAN = (:Color){.r = 0xDD, .g = 0xBB, .b = 0x88, .a = 0xFF};
+    draw_circle(center, CIRCLE_RADIUS, TAN);
+    # Need a little bit extra radius so that all pixels of the
+    # outline will cover up the number token circle.
+    var CIRCLE_OUTLINE_RADIUS = CIRCLE_RADIUS + 1.0;
+    var CIRCLE_OUTLINE_THICKNESS = CIRCLE_RADIUS / 8.0;
+    draw_circle_outline(center, CIRCLE_OUTLINE_RADIUS, CIRCLE_OUTLINE_THICKNESS, BLACK);
+
+    var font_size = radius / 3.0;
+    var size = measure_text_format(font, font_size,
+        "{}",
+        (:[]std::formatter)[
+            std::formatter::init[[sint]](&number)]);
+    var color = BLACK;
+    if number == 6 or number == 8 {
+        color = RED;
+    }
+    draw_text_format(font, font_size, color,
+        (:Vector2){
+            .x = center.x - size.x / 2.0,
+            .y = center.y - size.y / 2.0,
+        },
+        "{}",
+        (:[]std::formatter)[
+            std::formatter::init[[sint]](&number)]);
+
+    assert 2 <= number and number <= 12;
+    let DOTS = (:[]usize)[
+        0, # 0 (invalid)
+        0, # 1 (invalid)
+        1, # 2
+        2, # 3
+        3, # 4
+        4, # 5
+        5, # 6
+        0, # 7 (invalid)
+        5, # 8
+        4, # 9
+        3, # 10
+        2, # 11
+        1, # 12
+    ];
+    var distance = CIRCLE_RADIUS / 3.6;
+    var width = (:f32)DOTS[(:usize)number] * distance;
+    for i in DOTS[(:usize)number] {
+        var position = (:Vector2){
+            .x = center.x - width / 2.0 + distance * ((:f32)i + 0.5),
+            .y = center.y + CIRCLE_RADIUS / 2.0,
+        };
+        draw_circle(position, distance / 4.0, color);
+    }
+}
+
+func draw_port(port: port, radius: f32, font: Font) void {
+    var center = pointy_hex_to_point(port.hex, radius);
+
+    var a = node_to_point(port.nodes[0], radius);
+    var b = node_to_point(port.nodes[1], radius);
+    var thick: f32 = radius / 8.0;
+    DrawLineEx(vec2_lerp(center, a, 0.49), vec2_lerp(center, a, 0.91), thick + 1.0, BLACK);
+    DrawLineEx(vec2_lerp(center, a, 0.50), vec2_lerp(center, a, 0.90), thick, BROWN);
+    DrawLineEx(vec2_lerp(center, b, 0.49), vec2_lerp(center, b, 0.91), thick + 1.0, BLACK);
+    DrawLineEx(vec2_lerp(center, b, 0.50), vec2_lerp(center, b, 0.90), thick, BROWN);
+
+    var text = "<error>";
+    switch port.kind {
+    ::port::ANY {
+        text = "3:1";
+    }
+    ::port::BRICK {
+        text = "brick 2:1";
+    }
+    ::port::ORE {
+        text = "ore 2:1";
+    }
+    ::port::SHEEP {
+        text = "sheep 2:1";
+    }
+    ::port::WHEAT {
+        text = "wheat 2:1";
+    }
+    ::port::WOOD {
+        text = "wood 2:1";
+    }
+    }
+    var font_size = radius / 6.0;
+    var size = measure_text_cstr(font, font_size, startof(text));
+    var position = (:Vector2){.x = center.x - size.x / 2.0, .y = center.y - size.y / 2.0};
+    draw_text_cstr(font, font_size, BLACK, position, startof(text));
+}
+
+func draw_road(a: Vector2, b: Vector2, radius: f32, color: Color) void {
+    var thick: f32 = radius / 8.0;
+    DrawLineEx(vec2_lerp(a, b, 0.09), vec2_lerp(a, b, 0.91), thick + 1.0, BLACK);
+    DrawLineEx(vec2_lerp(a, b, 0.10), vec2_lerp(a, b, 0.90), thick, color);
+}
+
+func draw_settlement(center: Vector2, radius: f32, color: Color) void {
+    var center = (:Vector2){
+        .x = center.x,
+        .y = center.y - radius / 8.0f32, # y-offset
+    };
+    var size = (:Vector2){
+        .x = radius / 3.0,
+        .y = radius / 4.0,
+    };
+
+    DrawRectangleV(
+        (:Vector2){.x = center.x - size.x / 2.0 - 1.0, .y = center.y},
+        (:Vector2){.x = size.x + 2.0, .y = size.y + 1.0},
+        BLACK);
+    DrawTriangle(
+        (:Vector2){.x = center.x - size.x / 2.0 - 1.2, .y = center.y},
+        (:Vector2){.x = center.x + size.x / 2.0 + 1.2, .y = center.y},
+        (:Vector2){.x = center.x, .y = center.y - size.y / 2.0 - 1.25},
+        BLACK);
+
+    DrawRectangleV(
+        (:Vector2){.x = center.x - size.x / 2.0, .y = center.y},
+        (:Vector2){.x = size.x, .y = size.y},
+        color);
+    DrawTriangle(
+        (:Vector2){.x = center.x - size.x / 2.0, .y = center.y},
+        (:Vector2){.x = center.x + size.x / 2.0, .y = center.y},
+        (:Vector2){.x = center.x, .y = center.y - size.y / 2.0},
+        color);
+}
+
+func draw_city(center: Vector2, radius: f32, color: Color) void {
+    var center = (:Vector2){
+        .x = center.x,
+        .y = center.y - radius / 8.0f32, # y-offset
+    };
+    var size = (:Vector2){
+        .x = radius / 2.2,
+        .y = radius / 4.0,
+    };
+
+    DrawRectangleV(
+        (:Vector2){.x = center.x - size.x / 2.0 - 1.0, .y = center.y - 1.0},
+        (:Vector2){.x = size.x + 2.0, .y = size.y + 2.0},
+        BLACK);
+    DrawRectangleV(
+        (:Vector2){.x = center.x - size.x / 2.0 - 1.0, .y = center.y - size.y / 2.0},
+        (:Vector2){.x = size.x / 2.0 + 2.0, .y = size.y / 2.0 + 1.0},
+        BLACK);
+    DrawTriangle(
+        (:Vector2){.x = center.x - size.x / 2.0 - 1.0, .y = center.y - size.y / 2.0},
+        (:Vector2){.x = center.x + 1.0, .y = center.y - size.y / 2.0},
+        (:Vector2){.x = center.x - size.x / 4.0, .y = center.y - size.y - 1.0},
+        BLACK);
+
+    DrawRectangleV(
+        (:Vector2){.x = center.x - size.x / 2.0, .y = center.y},
+        (:Vector2){.x = size.x, .y = size.y},
+        color);
+    DrawRectangleV(
+        (:Vector2){.x = center.x - size.x / 2.0, .y = center.y - size.y / 2.0},
+        (:Vector2){.x = size.x / 2.0, .y = size.y / 2.0},
+        color);
+    DrawTriangle(
+        (:Vector2){.x = center.x - size.x / 2.0, .y = center.y - size.y / 2.0},
+        (:Vector2){.x = center.x, .y = center.y - size.y / 2.0},
+        (:Vector2){.x = center.x - size.x / 4.0, .y = center.y - size.y},
+        color);
+}
+
+func draw_robber(center: Vector2, radius: f32) void {
+    var radius_h = radius / 6.0;
+    var radius_v = radius / 3.0;
+    var size = (:Vector2){
+        .x = radius_h * 2.0,
+        .y = radius_v / 2.0,
+    };
+
+    let COLOR = BLACK;
+    DrawEllipse(
+        (:sint)center.x,
+        (:sint)center.y,
+        radius_h + 1.0,
+        radius_v + 1.0,
+        COLOR);
+    DrawRectangleV(
+        (:Vector2){.x = center.x - size.x / 2.0 - 1.0, .y = center.y + radius_v - size.y / 2.0 - 1.0},
+        (:Vector2){.x = size.x + 2.0, .y = size.y + 2.0},
+        COLOR);
+    DrawCircleV(
+        (:Vector2){.x = center.x, .y = center.y - radius_v},
+        radius_h * 0.9 + 1.0,
+        COLOR);
+
+    let COLOR = GRAY;
+    DrawEllipse(
+        (:sint)center.x,
+        (:sint)center.y,
+        radius_h,
+        radius_v,
+        COLOR);
+    DrawRectangleV(
+        (:Vector2){.x = center.x - size.x / 2.0, .y = center.y + radius_v - size.y / 2.0},
+        (:Vector2){.x = size.x, .y = size.y},
+        COLOR);
+    DrawCircleV(
+        (:Vector2){.x = center.x, .y = center.y - radius_v},
+        radius_h * 0.9,
+        COLOR);
+}
+
+func measure_text(font: Font, size: f32, text: []byte) Vector2 {
+    var s = std::string::init_from_str(text);
+    defer s.fini();
+
+    let SPACING = 0.0f32;
+    return MeasureTextEx(font, s.cstr(), size, SPACING);
+}
+
+func draw_text(font: Font, size: f32, color: Color, position: Vector2, text: []byte) void {
+    var s = std::string::init_from_str(text);
+    defer s.fini();
+
+    let SPACING = 0.0f32;
+    DrawTextEx(font, s.cstr(), position, size, SPACING, color);
+}
+
+func measure_text_cstr(font: Font, size: f32, text: *byte) Vector2 {
+    let SPACING = 0.0f32;
+    return MeasureTextEx(font, text, size, SPACING);
+}
+
+func draw_text_cstr(font: Font, size: f32, color: Color, position: Vector2, text: *byte) void {
+    let SPACING = 0.0f32;
+    DrawTextEx(font, text, position, size, SPACING, color);
+}
+
+func measure_text_format(font: Font, size: f32, format: []byte, args: []std::formatter) Vector2 {
+    var s = std::string::init_from_format(format, args);
+    defer s.fini();
+
+    let SPACING = 0.0f32;
+    return MeasureTextEx(font, s.cstr(), size, SPACING);
+}
+
+func draw_text_format(font: Font, size: f32, color: Color, position: Vector2, format: []byte, args: []std::formatter) void {
+    var s = std::string::init_from_format(format, args);
+    defer s.fini();
+
+    let SPACING = 0.0f32;
+    DrawTextEx(font, s.cstr(), position, size, SPACING, color);
+}
+
+func camera_zoom(radius: f32, h: f32) f32 {
+    # Return a camera zoom such that the board and board-adjacent ocean tiles
+    # fit on the screen. Approximate the length of the board and board-adjacent
+    # ocean tiles as six tile diameters (five board tiles plus two ocean tiles
+    # on either side minus one tile to somewhat account for radius overlap).
+    return h / (6.0 * 2.0 * radius);
+}
+
+struct client_state {
+    var debug: bool;
+
+    var font: Font;
+    var font_size: f32;
+
+    var player: uint;
+    var tiles: std::hash_map[[hex, tile]];
+    var edges: std::hash_set[[edge]];
+    var nodes: std::hash_set[[node]];
+    var ports: std::hash_set[[port]];
+    var roads: std::hash_map[[edge, road]];
+    var towns: std::hash_map[[node, town]];
+    var robber: hex;
+
+    func init() client_state {
+        let PUBLIC_PIXEL_TTF = embed("assets/PublicPixel.ttf");
+        let FONT_NUMCHARS: sint = '~' - ' ' + 1; # Printable ASCII
+        var font_size = 16.0f32;
+        var font = LoadFontFromMemory(
+            startof(".ttf"),
+            (:*u8)startof(PUBLIC_PIXEL_TTF),
+            (:sint)countof(PUBLIC_PIXEL_TTF),
+            (:sint)font_size,
+            std::ptr[[sint]]::NULL,
+            FONT_NUMCHARS);
+
+        var tiles = init_tiles();
+        var edges = init_edges(&tiles);
+        var nodes = init_nodes(&tiles);
+        var ports = init_ports();
+        var roads = init_roads();
+        var towns = init_towns();
+        var robber = hex::init(+0, +0, +0);
+
+        return (:client_state){
+            .debug = false,
+            .font = font,
+            .font_size = font_size,
+            .player = 0,
+            .tiles = tiles,
+            .edges = edges,
+            .nodes = nodes,
+            .ports = ports,
+            .roads = roads,
+            .towns = towns,
+            .robber = robber,
+        };
+    }
+
+    func fini(self: *client_state) void {
+        UnloadFont(self.*.font);
+        self.*.tiles.fini();
+        self.*.edges.fini();
+        self.*.nodes.fini();
+        self.*.ports.fini();
+        self.*.roads.fini();
+        self.*.towns.fini();
+    }
+
+    func update_from_server_message(self: *client_state, message: *server_message) void {
+        self.*.tiles.fini();
+        self.*.ports.fini();
+        self.*.roads.fini();
+        self.*.towns.fini();
+
+        self.*.tiles = std::hash_map[[hex, tile]]::init();
+        var iter = std::hash_map_iterator[[hex, tile]]::init(&message.*.tiles);
+        for iter.advance() {
+            self.*.tiles.insert(*iter.current().*.key, *iter.current().*.value);
+        }
+
+        self.*.ports = std::hash_set[[port]]::init();
+        var iter = std::hash_set_iterator[[port]]::init(&message.*.ports);
+        for iter.advance() {
+            self.*.ports.insert(*iter.current());
+        }
+
+        self.*.roads = std::hash_map[[edge, road]]::init();
+        var iter = std::hash_map_iterator[[edge, road]]::init(&message.*.roads);
+        for iter.advance() {
+            self.*.roads.insert(*iter.current().*.key, *iter.current().*.value);
+        }
+
+        self.*.towns = std::hash_map[[node, town]]::init();
+        var iter = std::hash_map_iterator[[node, town]]::init(&message.*.towns);
+        for iter.advance() {
+            self.*.towns.insert(*iter.current().*.key, *iter.current().*.value);
+        }
+
+        self.*.robber = message.*.robber;
+    }
+}

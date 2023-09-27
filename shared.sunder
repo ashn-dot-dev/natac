@@ -1,0 +1,832 @@
+import "c";
+import "std";
+
+let PLAYER_NIL: uint = 0;
+let PLAYER_RED: uint = 1;
+let PLAYER_BLUE: uint = 2;
+let PLAYER_WHITE: uint = 3;
+let PLAYER_ORANGE: uint = 4;
+
+# Hex position using the cube coordinate system satisfying q + r + s == 0.
+struct hex {
+    var q: sint;
+    var r: sint;
+    var s: sint;
+
+    func init(q: sint, r: sint, s: sint) hex {
+        assert q + r + s == 0;
+        return (:hex){.q = q, .r = r, .s = s};
+    }
+
+    func init_round(q_fractional: f32, r_fractional: f32, s_fractional: f32) hex {
+        var q_rounded = f32::round(q_fractional);
+        var r_rounded = f32::round(r_fractional);
+        var s_rounded = f32::round(s_fractional);
+
+        var q_diff = f32::abs(q_rounded - q_fractional);
+        var r_diff = f32::abs(r_rounded - r_fractional);
+        var s_diff = f32::abs(s_rounded - s_fractional);
+
+        var q = (:sint)q_rounded;
+        var r = (:sint)r_rounded;
+        var s = (:sint)s_rounded;
+        if q_diff > r_diff and q_diff > s_diff {
+            q = (:sint)-r_rounded - (:sint)s_rounded;
+        }
+        elif r_diff > s_diff {
+            r = (:sint)-q_rounded - (:sint)s_rounded;
+        }
+        else {
+            s = (:sint)-q_rounded - (:sint)r_rounded;
+        }
+
+        return hex::init(q, r, s);
+    }
+
+    func hash(self: *hex) usize {
+        var h = self.*.q.hash() +% self.*.q.hash() +% self.*.s.hash();
+        return h *% h;
+    }
+
+    func compare(lhs: *hex, rhs: *hex) ssize {
+        var cmp = sint::cmp(lhs.*.q, rhs.*.q);
+        if cmp != 0 {
+            return cmp;
+        }
+
+        var cmp = sint::cmp(lhs.*.r, rhs.*.r);
+        if cmp != 0 {
+            return cmp;
+        }
+
+        var cmp = sint::cmp(lhs.*.s, rhs.*.s);
+        if cmp != 0 {
+            return cmp;
+        }
+
+        return 0;
+    }
+
+    func format(self: *hex, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
+        if std::str::eq(fmt, "") {
+            return std::write_format(
+                writer,
+                "(q={}, r={}, s={})",
+                (:[]std::formatter)[
+                    std::formatter::init[[sint]](&self.*.q),
+                    std::formatter::init[[sint]](&self.*.r),
+                    std::formatter::init[[sint]](&self.*.s)]);
+        }
+
+        return std::result[[void, std::error]]::init_value(void::VALUE);
+    }
+
+    func subtract(lhs: hex, rhs: hex) hex {
+        return hex::init(lhs.q - rhs.q, lhs.r - rhs.r, lhs.s - rhs.s);
+    }
+
+    func distance(a: hex, b: hex) sint {
+        var vec = hex::subtract(a, b);
+        return (sint::abs(vec.q) + sint::abs(vec.r) + sint::abs(vec.s)) / 2;
+    }
+}
+
+enum resource {
+    BRICK;
+    ORE;
+    SHEEP;
+    WHEAT;
+    WOOD;
+
+    func data(self: *resource) []byte {
+        switch *self {
+        BRICK {
+            return "brick";
+        }
+        ORE {
+            return "ore";
+        }
+        SHEEP {
+            return "sheep";
+        }
+        WHEAT {
+            return "wheat";
+        }
+        WOOD {
+            return "wood";
+        }
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[[]byte]]();
+    }
+
+    func cstr(self: *resource) *byte {
+        return startof(self.*.data());
+    }
+
+    func format(self: *resource, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
+        if std::str::eq(fmt, "") {
+            return std::write_all(writer, self.*.data());
+        }
+
+        return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
+    }
+}
+
+struct tile {
+    var hex: hex;
+    var kind: enum {
+        DESERT;
+        OCEAN;
+
+        FOREST;
+        FIELD;
+        HILL;
+        MOUNTAIN;
+        PASTURE;
+    };
+    var number_token: sint;
+
+    let SELF: tile = uninit;
+
+    func init(hex: hex, kind: typeof(SELF.kind), number_token: sint) tile {
+        return (:tile){
+            .hex = hex,
+            .kind = kind,
+            .number_token = number_token,
+        };
+    }
+
+    func resource(self: *tile) std::optional[[::resource]] {
+        switch self.*.kind {
+        tile::DESERT or tile::OCEAN {
+            return std::optional[[::resource]]::EMPTY;
+        }
+        tile::FOREST {
+            return std::optional[[::resource]]::init_value(::resource::WOOD);
+        }
+        tile::FIELD {
+            return std::optional[[::resource]]::init_value(::resource::WHEAT);
+        }
+        tile::HILL {
+            return std::optional[[::resource]]::init_value(::resource::BRICK);
+        }
+        tile::MOUNTAIN {
+            return std::optional[[::resource]]::init_value(::resource::ORE);
+        }
+        tile::PASTURE {
+            return std::optional[[::resource]]::init_value(::resource::SHEEP);
+        }
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[std::optional[[::resource]]]]();
+    }
+
+    func format(self: *tile, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
+        var kind = "<error>";
+        switch self.*.kind {
+        tile::DESERT {
+            kind = "desert";
+        }
+        tile::OCEAN {
+            kind = "ocean";
+        }
+        tile::FOREST {
+            kind = "forest";
+        }
+        tile::FIELD {
+            kind = "field";
+        }
+        tile::HILL {
+            kind = "hill";
+        }
+        tile::MOUNTAIN {
+            kind = "mountain";
+        }
+        tile::PASTURE {
+            kind = "pasture";
+        }
+        }
+
+        if std::str::eq(fmt, "") {
+            return std::write_all(writer, kind);
+        }
+
+        if std::str::eq(fmt, "verbose") {
+            var resource = self.*.resource();
+            if resource.is_empty() {
+                return std::write_all(writer, kind);
+            }
+
+            var resource = resource.value();
+            return std::write_format(
+                writer,
+                "{} ({}, {})",
+                (:[]std::formatter)[
+                    std::formatter::init[[[]byte]](&kind),
+                    std::formatter::init[[::resource]](&resource),
+                    std::formatter::init[[sint]](&self.*.number_token)]);
+        }
+
+        return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
+    }
+}
+
+struct edge {
+    var hexes: [2]hex;
+
+    func init(a: hex, b: hex) edge {
+        assert hex::distance(a, b) == 1;
+
+        var hexes = (:[2]hex)[a, b];
+        std::sort[[hex]](hexes[0:countof(hexes)]);
+
+        return (:edge){
+            .hexes = hexes,
+        };
+    }
+
+    func hash(self: *edge) usize {
+        var hash = 0u;
+        for i in countof(self.*.hexes) {
+            hash = hash +% self.*.hexes[i].hash();
+        }
+        return hash;
+    }
+
+    func compare(lhs: *edge, rhs: *edge) ssize {
+        var cmp = hex::compare(&lhs.*.hexes[0], &rhs.*.hexes[0]);
+        if cmp != 0 {
+            return cmp;
+        }
+
+        var cmp = hex::compare(&lhs.*.hexes[1], &rhs.*.hexes[1]);
+        if cmp != 0 {
+            return cmp;
+        }
+
+        return 0;
+    }
+
+    func format(self: *edge, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
+        if std::str::eq(fmt, "") {
+            for i in countof(self.*.hexes) {
+                if i != 0 {
+                    std::print(writer, ", ");
+                }
+                std::print_format(
+                    writer,
+                    "{}",
+                    (:[]std::formatter)[
+                        std::formatter::init[[hex]](&self.*.hexes[i])]);
+            }
+
+            return std::result[[void, std::error]]::init_value(void::VALUE);
+        }
+
+        return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
+    }
+}
+
+struct node {
+    var hexes: [3]hex;
+
+    func init(a: hex, b: hex, c: hex) node {
+        assert hex::distance(a, b) == 1;
+        assert hex::distance(b, c) == 1;
+        assert hex::distance(c, a) == 1;
+
+        var hexes = (:[3]hex)[a, b, c];
+        std::sort[[hex]](hexes[0:countof(hexes)]);
+
+        return (:node){
+            .hexes = hexes,
+        };
+    }
+
+    func hash(self: *node) usize {
+        var hash = 0u;
+        for i in countof(self.*.hexes) {
+            hash = hash +% self.*.hexes[i].hash();
+        }
+        return hash;
+    }
+
+    func compare(lhs: *node, rhs: *node) ssize {
+        var cmp = hex::compare(&lhs.*.hexes[0], &rhs.*.hexes[0]);
+        if cmp != 0 {
+            return cmp;
+        }
+
+        var cmp = hex::compare(&lhs.*.hexes[1], &rhs.*.hexes[1]);
+        if cmp != 0 {
+            return cmp;
+        }
+
+        var cmp = hex::compare(&lhs.*.hexes[2], &rhs.*.hexes[2]);
+        if cmp != 0 {
+            return cmp;
+        }
+
+        return 0;
+    }
+
+    func format(self: *node, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
+        if std::str::eq(fmt, "") {
+            for i in countof(self.*.hexes) {
+                if i != 0 {
+                    std::print(writer, ", ");
+                }
+                std::print_format(
+                    writer,
+                    "{}",
+                    (:[]std::formatter)[
+                        std::formatter::init[[hex]](&self.*.hexes[i])]);
+            }
+
+            return std::result[[void, std::error]]::init_value(void::VALUE);
+        }
+
+        return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
+    }
+}
+
+struct port {
+    var hex: hex;
+    var nodes: [2]node;
+    var kind: enum {
+        ANY;
+        BRICK;
+        ORE;
+        SHEEP;
+        WHEAT;
+        WOOD;
+    };
+
+    let SELF: port = uninit;
+
+    func init(hex: hex, a: node, b: node, kind: typeof(SELF.kind)) port {
+        assert std::eq[[::hex]](&hex, &a.hexes[0])
+            or std::eq[[::hex]](&hex, &a.hexes[1])
+            or std::eq[[::hex]](&hex, &a.hexes[2]);
+        assert std::eq[[::hex]](&hex, &b.hexes[0])
+            or std::eq[[::hex]](&hex, &b.hexes[1])
+            or std::eq[[::hex]](&hex, &b.hexes[2]);
+        assert std::ne[[node]](&a, &b);
+
+        var nodes = (:[2]node)[a, b];
+        std::sort[[node]](nodes[0:countof(nodes)]);
+
+        return (:port){
+            .hex = hex,
+            .nodes = nodes,
+            .kind = kind,
+        };
+    }
+
+    func hash(self: *port) usize {
+        return self.*.hex.hash();
+    }
+
+    func compare(lhs: *port, rhs: *port) ssize {
+        return std::compare[[hex]](&lhs.*.hex, &rhs.*.hex);
+    }
+}
+
+struct road {
+    var player: uint;
+    var edge: edge;
+
+    func init(player: uint, edge: edge) road {
+        return (:road){
+            .edge = edge,
+            .player = player,
+        };
+    }
+}
+
+struct town {
+    var player: uint;
+    var node: node;
+    var kind: enum {
+        SETTLEMENT;
+        CITY;
+    };
+
+    let SELF: town = uninit;
+
+    func init(player: uint, node: node, kind: typeof(SELF.kind)) town {
+        return (:town){
+            .player = player,
+            .node = node,
+            .kind = kind,
+        };
+    }
+}
+
+func insert_tile(tiles: *std::hash_map[[hex, tile]], tile: tile) void {
+    tiles.*.insert(tile.hex, tile);
+}
+
+func insert_road(roads: *std::hash_map[[edge, road]], road: road) void {
+    roads.*.insert(road.edge, road);
+}
+
+func insert_town(towns: *std::hash_map[[node, town]], town: town) void {
+    towns.*.insert(town.node, town);
+}
+
+func init_tiles() std::hash_map[[hex, tile]] {
+    var tiles = std::hash_map[[hex, tile]]::init();
+
+    # top row
+    insert_tile(&tiles, tile::init(hex::init(+0, -2, +2), tile::MOUNTAIN, 10));
+    insert_tile(&tiles, tile::init(hex::init(+1, -2, +1), tile::PASTURE, 2));
+    insert_tile(&tiles, tile::init(hex::init(+2, -2, +0), tile::FOREST, 9));
+    # top-middle row
+    insert_tile(&tiles, tile::init(hex::init(-1, -1, +2), tile::FIELD, 12));
+    insert_tile(&tiles, tile::init(hex::init(+0, -1, +1), tile::HILL, 6));
+    insert_tile(&tiles, tile::init(hex::init(+1, -1, +0), tile::PASTURE, 4));
+    insert_tile(&tiles, tile::init(hex::init(+2, -1, -1), tile::HILL, 10));
+    # middle row
+    insert_tile(&tiles, tile::init(hex::init(-2, +0, +2), tile::FIELD, 9));
+    insert_tile(&tiles, tile::init(hex::init(-1, +0, +1), tile::FOREST, 11));
+    insert_tile(&tiles, tile::init(hex::init(+0, +0, +0), tile::DESERT, -1));
+    insert_tile(&tiles, tile::init(hex::init(+1, +0, -1), tile::FOREST, 3));
+    insert_tile(&tiles, tile::init(hex::init(+2, +0, -2), tile::MOUNTAIN, 8));
+    # bottom-middle row
+    insert_tile(&tiles, tile::init(hex::init(-2, +1, +1), tile::FOREST, 8));
+    insert_tile(&tiles, tile::init(hex::init(-1, +1, +0), tile::MOUNTAIN, 3));
+    insert_tile(&tiles, tile::init(hex::init(+0, +1, -1), tile::FIELD, 4));
+    insert_tile(&tiles, tile::init(hex::init(+1, +1, -2), tile::PASTURE, 5));
+    # bottom row
+    insert_tile(&tiles, tile::init(hex::init(-2, +2, +0), tile::HILL, 5));
+    insert_tile(&tiles, tile::init(hex::init(-1, +2, -1), tile::FIELD, 6));
+    insert_tile(&tiles, tile::init(hex::init(+0, +2, -2), tile::PASTURE, 11));
+    # adjacent ocean
+    insert_tile(&tiles, tile::init(hex::init(+0, -3, +3), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+1, -3, +2), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+2, -3, +1), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+3, -3, +0), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(-1, -2, +3), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+3, -2, -1), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(-2, -1, +3), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+3, -1, -2), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(-3, +0, +3), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+3, +0, -3), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(-3, +1, +2), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+2, +1, -3), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(-3, +2, +1), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+1, +2, -3), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(-3, +3, +0), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(-2, +3, -1), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(-1, +3, -2), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+0, +3, -3), tile::OCEAN, -1));
+
+    return tiles;
+}
+
+func init_edges(tiles: *std::hash_map[[hex, tile]]) std::hash_set[[edge]] {
+    var edges = std::hash_set[[edge]]::init();
+
+    var iter_i = std::hash_map_iterator[[hex, tile]]::init(tiles);
+    for iter_i.advance() {
+        var iter_j = std::hash_map_iterator[[hex, tile]]::init(tiles);
+        for iter_j.advance() {
+            if hex::distance(*iter_i.current().*.key, *iter_j.current().*.key) != 1 {
+                continue;
+            }
+            var edge = edge::init(
+                *iter_i.current().*.key,
+                *iter_j.current().*.key);
+            edges.insert(edge);
+        }
+    }
+
+    return edges;
+}
+
+func init_nodes(tiles: *std::hash_map[[hex, tile]]) std::hash_set[[node]] {
+    var nodes = std::hash_set[[node]]::init();
+
+    var iter_i = std::hash_map_iterator[[hex, tile]]::init(tiles);
+    for iter_i.advance() {
+        var iter_j = std::hash_map_iterator[[hex, tile]]::init(tiles);
+        for iter_j.advance() {
+            var iter_k = std::hash_map_iterator[[hex, tile]]::init(tiles);
+            for iter_k.advance() {
+                if hex::distance(*iter_i.current().*.key, *iter_j.current().*.key) != 1 {
+                    continue;
+                }
+                if hex::distance(*iter_j.current().*.key, *iter_k.current().*.key) != 1 {
+                    continue;
+                }
+                if hex::distance(*iter_k.current().*.key, *iter_i.current().*.key) != 1 {
+                    continue;
+                }
+                var node = node::init(
+                    *iter_i.current().*.key,
+                    *iter_j.current().*.key,
+                    *iter_k.current().*.key);
+                nodes.insert(node);
+            }
+        }
+    }
+
+    return nodes;
+}
+
+func init_ports() std::hash_set[[port]] {
+    var ports = std::hash_set[[port]]::init();
+
+    ports.insert(port::init(
+        hex::init(+3, +0, -3),
+        node::init(
+            hex::init(+2, +0, -2),
+            hex::init(+2, +1, -3),
+            hex::init(+3, +0, -3)),
+        node::init(
+            hex::init(+2, +0, -2),
+            hex::init(+3, -1, -2),
+            hex::init(+3, +0, -3)),
+        port::ANY));
+
+    ports.insert(port::init(
+        hex::init(+3, -2, -1),
+        node::init(
+            hex::init(+2, -2, +0),
+            hex::init(+2, -1, -1),
+            hex::init(+3, -2, -1)),
+        node::init(
+            hex::init(+2, -1, -1),
+            hex::init(+3, -2, -1),
+            hex::init(+3, -1, -2)),
+        port::ORE));
+
+    ports.insert(port::init(
+        hex::init(+2, -3, +1),
+        node::init(
+            hex::init(+1, -3, +2),
+            hex::init(+1, -2, +1),
+            hex::init(+2, -3, +1)),
+        node::init(
+            hex::init(+1, -2, +1),
+            hex::init(+2, -3, +1),
+            hex::init(+2, -2, +0)),
+        port::WHEAT));
+
+    ports.insert(port::init(
+        hex::init(+0, -3, +3),
+        node::init(
+            hex::init(-1, -2, +3),
+            hex::init(+0, -3, +3),
+            hex::init(+0, -2, +2)),
+        node::init(
+            hex::init(+0, -3, +3),
+            hex::init(+0, -2, +2),
+            hex::init(+1, -3, +2)),
+        port::ANY));
+
+    ports.insert(port::init(
+        hex::init(-2, -1, +3),
+        node::init(
+            hex::init(-2, -1, +3),
+            hex::init(-2, +0, +2),
+            hex::init(-1, -1, +2)),
+        node::init(
+            hex::init(-2, -1, +3),
+            hex::init(-1, -2, +3),
+            hex::init(-1, -1, +2)),
+        port::WOOD));
+
+    ports.insert(port::init(
+        hex::init(-3, +1, +2),
+        node::init(
+            hex::init(-3, +1, +2),
+            hex::init(-3, +2, +1),
+            hex::init(-2, +1, +1)),
+        node::init(
+            hex::init(-3, +1, +2),
+            hex::init(-2, +0, +2),
+            hex::init(-2, +1, +1)),
+        port::BRICK));
+
+    ports.insert(port::init(
+        hex::init(-3, +3, +0),
+        node::init(
+            hex::init(-3, +2, +1),
+            hex::init(-3, +3, +0),
+            hex::init(-2, +2, +0)),
+        node::init(
+            hex::init(-3, +3, +0),
+            hex::init(-2, +2, +0),
+            hex::init(-2, +3, -1)),
+        port::ANY));
+
+    ports.insert(port::init(
+        hex::init(-1, +3, -2),
+        node::init(
+            hex::init(-2, +3, -1),
+            hex::init(-1, +2, -1),
+            hex::init(-1, +3, -2)),
+        node::init(
+            hex::init(-1, +2, -1),
+            hex::init(-1, +3, -2),
+            hex::init(+0, +2, -2)),
+        port::ANY));
+
+    ports.insert(port::init(
+        hex::init(+1, +2, -3),
+        node::init(
+            hex::init(+0, +2, -2),
+            hex::init(+1, +1, -2),
+            hex::init(+1, +2, -3)),
+        node::init(
+            hex::init(+1, +1, -2),
+            hex::init(+1, +2, -3),
+            hex::init(+2, +1, -3)),
+        port::SHEEP));
+
+    return ports;
+}
+
+func init_roads() std::hash_map[[edge, road]] {
+    var roads = std::hash_map[[edge, road]]::init();
+
+    # Red starting position.
+    insert_road(&roads, road::init(
+        PLAYER_RED,
+        edge::init(
+            hex::init(-2, +1, +1),
+            hex::init(-1, +0, +1))));
+    insert_road(&roads, road::init(
+        PLAYER_RED,
+        edge::init(
+            hex::init(+0, -1, +1),
+            hex::init(+1, -2, +1))));
+
+    # Blue starting position.
+    insert_road(&roads, road::init(
+        PLAYER_BLUE,
+        edge::init(
+            hex::init(-2, +2, +0),
+            hex::init(-1, +1, +0))));
+    insert_road(&roads, road::init(
+        PLAYER_BLUE,
+        edge::init(
+            hex::init(+0, +1, -1),
+            hex::init(+1, +1, -2))));
+
+    # White starting position.
+    insert_road(&roads, road::init(
+        PLAYER_WHITE,
+        edge::init(
+            hex::init(-1, -1, +2),
+            hex::init(-1, +0, +1))));
+    insert_road(&roads, road::init(
+        PLAYER_WHITE,
+        edge::init(
+            hex::init(+1, +0, -1),
+            hex::init(+2, +0, -2))));
+
+    # Orange starting position.
+    insert_road(&roads, road::init(
+        PLAYER_ORANGE,
+        edge::init(
+            hex::init(-1, +2, -1),
+            hex::init(+0, +1, -1))));
+    insert_road(&roads, road::init(
+        PLAYER_ORANGE,
+        edge::init(
+            hex::init(+1, -1, +0),
+            hex::init(+2, -2, +0))));
+
+    return roads;
+}
+
+func init_towns() std::hash_map[[node, town]] {
+    var towns = std::hash_map[[node, town]]::init();
+
+    # Red starting position.
+    insert_town(&towns, town::init(
+        PLAYER_RED,
+        node::init(
+            hex::init(-2, +0, +2),
+            hex::init(-2, +1, +1),
+            hex::init(-1, +0, +1)),
+        town::SETTLEMENT));
+    insert_town(&towns, town::init(
+        PLAYER_RED,
+        node::init(
+            hex::init(+0, -2, +2),
+            hex::init(+0, -1, +1),
+            hex::init(+1, -2, +1)),
+        town::SETTLEMENT));
+
+    # Blue starting position.
+    insert_town(&towns, town::init(
+        PLAYER_BLUE,
+        node::init(
+            hex::init(-2, +1, +1),
+            hex::init(-2, +2, +0),
+            hex::init(-1, +1, +0)),
+        town::SETTLEMENT));
+    insert_town(&towns, town::init(
+        PLAYER_BLUE,
+        node::init(
+            hex::init(+0, +1, -1),
+            hex::init(+0, +2, -2),
+            hex::init(+1, +1, -2)),
+        town::SETTLEMENT));
+
+    # White starting position.
+    insert_town(&towns, town::init(
+        PLAYER_WHITE,
+        node::init(
+            hex::init(-1, -1, +2),
+            hex::init(-1, +0, +1),
+            hex::init(+0, -1, +1)),
+        town::SETTLEMENT));
+    insert_town(&towns, town::init(
+        PLAYER_WHITE,
+        node::init(
+            hex::init(+1, +0, -1),
+            hex::init(+1, +1, -2),
+            hex::init(+2, +0, -2)),
+        town::SETTLEMENT));
+
+    # Orange starting position.
+    insert_town(&towns, town::init(
+        PLAYER_ORANGE,
+        node::init(
+            hex::init(-1, +1, +0),
+            hex::init(-1, +2, -1),
+            hex::init(+0, +1, -1)),
+        town::SETTLEMENT));
+    insert_town(&towns, town::init(
+        PLAYER_ORANGE,
+        node::init(
+            hex::init(+1, -1, +0),
+            hex::init(+2, -2, +0),
+            hex::init(+2, -1, -1)),
+        town::SETTLEMENT));
+
+    return towns;
+}
+
+struct server_message {
+    var tiles: std::hash_map[[hex, tile]];
+    var ports: std::hash_set[[port]];
+    var roads: std::hash_map[[edge, road]];
+    var towns: std::hash_map[[node, town]];
+    var robber: hex;
+
+    func init(
+        tiles: *std::hash_map[[hex, tile]],
+        ports: *std::hash_set[[port]],
+        roads: *std::hash_map[[edge, road]],
+        towns: *std::hash_map[[node, town]],
+        robber: hex
+    ) server_message {
+        var cloned_tiles = std::hash_map[[hex, tile]]::init();
+        var iter = std::hash_map_iterator[[hex, tile]]::init(tiles);
+        for iter.advance() {
+            cloned_tiles.insert(*iter.current().*.key, *iter.current().*.value);
+        }
+
+        var cloned_ports = std::hash_set[[port]]::init();
+        var iter = std::hash_set_iterator[[port]]::init(ports);
+        for iter.advance() {
+            cloned_ports.insert(*iter.current());
+        }
+
+        var cloned_roads = std::hash_map[[edge, road]]::init();
+        var iter = std::hash_map_iterator[[edge, road]]::init(roads);
+        for iter.advance() {
+            cloned_roads.insert(*iter.current().*.key, *iter.current().*.value);
+        }
+
+        var cloned_towns = std::hash_map[[node, town]]::init();
+        var iter = std::hash_map_iterator[[node, town]]::init(towns);
+        for iter.advance() {
+            cloned_towns.insert(*iter.current().*.key, *iter.current().*.value);
+        }
+
+        return (:server_message){
+            .tiles = cloned_tiles,
+            .ports = cloned_ports,
+            .roads = cloned_roads,
+            .towns = cloned_towns,
+            .robber = robber,
+        };
+    }
+
+    func fini(self: *server_message) void {
+        self.*.tiles.fini();
+        self.*.ports.fini();
+        self.*.roads.fini();
+        self.*.towns.fini();
+    }
+}
