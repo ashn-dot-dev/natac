@@ -1371,10 +1371,10 @@ func main() void {
                     world_edge.value()));
             }
         }
-        elif world_node.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) {
+        elif world_node.is_value() and IsMouseButtonDown(MOUSE_BUTTON_RIGHT) {
             towns.remove(world_node.value());
         }
-        elif world_edge.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) {
+        elif world_edge.is_value() and IsMouseButtonDown(MOUSE_BUTTON_RIGHT) {
             roads.remove(world_edge.value());
         }
 
