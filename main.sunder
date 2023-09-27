@@ -1096,7 +1096,8 @@ func main() void {
         ToggleFullscreen();
     }
 
-    let RADIUS = 48.0f32;
+    # The radius of the outer circle touching the corners of the hexagon.
+    let HEX_RADIUS = 48.0f32;
 
     let PUBLIC_PIXEL_TTF = embed("assets/PublicPixel.ttf");
     let FONT_SIZE = 16.0f32;
@@ -1266,7 +1267,7 @@ func main() void {
             },
             .offset = render_center,
             .rotation = 0.0f32,
-            .zoom = camera_zoom(RADIUS, (:f32)render_h),
+            .zoom = camera_zoom(HEX_RADIUS, (:f32)render_h),
         };
 
         BeginMode2D(camera);
@@ -1274,25 +1275,25 @@ func main() void {
         var iter = std::hash_map_iterator[[hex, tile]]::init(&tiles);
         for iter.advance() {
             var tile = iter.current().*.value;
-            var point = pointy_hex_to_point(tile.*.hex, RADIUS);
-            draw_pointy_hexagon(point, RADIUS, tile.*.color());
+            var point = pointy_hex_to_point(tile.*.hex, HEX_RADIUS);
+            draw_pointy_hexagon(point, HEX_RADIUS, tile.*.color());
             var resource = tile.*.resource();
             if resource.is_value() {
-                draw_number_token(point, tile.*.number_token, RADIUS, font);
+                draw_number_token(point, tile.*.number_token, HEX_RADIUS, font);
             }
         }
 
         var mouse = GetMousePosition();
         var world = GetScreenToWorld2D(mouse, camera);
-        var world_hex = point_to_pointy_hex(world, RADIUS);
-        var world_hex_center = pointy_hex_to_point(world_hex, RADIUS);
+        var world_hex = point_to_pointy_hex(world, HEX_RADIUS);
+        var world_hex_center = pointy_hex_to_point(world_hex, HEX_RADIUS);
 
         var world_tile = std::optional[[tile]]::EMPTY;
         var iter = std::hash_map_iterator[[hex, tile]]::init(&tiles);
         for iter.advance() {
             if std::eq[[hex]](iter.current().*.key, &world_hex) {
                 world_tile = std::optional[[tile]]::init_value(*iter.current().*.value);
-                draw_pointy_hexagon_outline(world_hex_center, RADIUS, YELLOW);
+                draw_pointy_hexagon_outline(world_hex_center, HEX_RADIUS, YELLOW);
                 break;
             }
         }
@@ -1302,9 +1303,9 @@ func main() void {
         for iter.advance() {
             var found = true;
             for i in countof(iter.current().*.hexes) {
-                let DISTANCE = RADIUS * 1.2;
+                let DISTANCE = HEX_RADIUS * 1.2;
                 var hex = iter.current().*.hexes[i];
-                if vec2_distance(world, pointy_hex_to_point(hex, RADIUS)) > DISTANCE {
+                if vec2_distance(world, pointy_hex_to_point(hex, HEX_RADIUS)) > DISTANCE {
                     found = false;
                     break;
                 }
@@ -1313,8 +1314,8 @@ func main() void {
             if found {
                 world_edge = std::optional[[edge]]::init_value(*iter.current());
                 for i in countof(iter.current().*.hexes) {
-                    var point = pointy_hex_to_point(iter.current().*.hexes[i], RADIUS);
-                    draw_pointy_hexagon_outline(point, RADIUS, ORANGE);
+                    var point = pointy_hex_to_point(iter.current().*.hexes[i], HEX_RADIUS);
+                    draw_pointy_hexagon_outline(point, HEX_RADIUS, ORANGE);
                 }
                 break;
             }
@@ -1325,9 +1326,9 @@ func main() void {
         for iter.advance() {
             var found = true;
             for i in countof(iter.current().*.hexes) {
-                let DISTANCE = RADIUS * 1.2;
+                let DISTANCE = HEX_RADIUS * 1.2;
                 var hex = iter.current().*.hexes[i];
-                if vec2_distance(world, pointy_hex_to_point(hex, RADIUS)) > DISTANCE {
+                if vec2_distance(world, pointy_hex_to_point(hex, HEX_RADIUS)) > DISTANCE {
                     found = false;
                     break;
                 }
@@ -1336,8 +1337,8 @@ func main() void {
             if found {
                 world_node = std::optional[[node]]::init_value(*iter.current());
                 for i in countof(iter.current().*.hexes) {
-                    var point = pointy_hex_to_point(iter.current().*.hexes[i], RADIUS);
-                    draw_pointy_hexagon_outline(point, RADIUS, RED);
+                    var point = pointy_hex_to_point(iter.current().*.hexes[i], HEX_RADIUS);
+                    draw_pointy_hexagon_outline(point, HEX_RADIUS, RED);
                 }
                 break;
             }
@@ -1384,21 +1385,21 @@ func main() void {
             if tile.*.kind == ::tile::OCEAN {
                 continue;
             }
-            var point = pointy_hex_to_point(tile.*.hex, RADIUS);
-            draw_pointy_hexagon_border(point, RADIUS, BLACK);
+            var point = pointy_hex_to_point(tile.*.hex, HEX_RADIUS);
+            draw_pointy_hexagon_border(point, HEX_RADIUS, BLACK);
         }
 
         var iter = std::hash_set_iterator[[port]]::init(&ports);
         for iter.advance() {
             var port = iter.current();
-            draw_port(*port, RADIUS, font);
+            draw_port(*port, HEX_RADIUS, font);
         }
 
         var iter = std::hash_map_iterator[[edge, road]]::init(&roads);
         for iter.advance() {
             var road = iter.current().*.value;
-            var points = edge_to_points(road.*.edge, RADIUS);
-            draw_road(points[0], points[1], RADIUS, player_color(road.*.player));
+            var points = edge_to_points(road.*.edge, HEX_RADIUS);
+            draw_road(points[0], points[1], HEX_RADIUS, player_color(road.*.player));
         }
 
         var iter = std::hash_map_iterator[[node, town]]::init(&towns);
@@ -1406,23 +1407,23 @@ func main() void {
             var town = iter.current().*.value;
             switch town.*.kind {
             ::town::SETTLEMENT {
-                draw_settlement(node_to_point(town.*.node, RADIUS), RADIUS, player_color(town.*.player));
+                draw_settlement(node_to_point(town.*.node, HEX_RADIUS), HEX_RADIUS, player_color(town.*.player));
             }
             ::town::CITY {
-                draw_city(node_to_point(town.*.node, RADIUS), RADIUS, player_color(town.*.player));
+                draw_city(node_to_point(town.*.node, HEX_RADIUS), HEX_RADIUS, player_color(town.*.player));
             }
             }
         }
 
         if world_node.is_value() {
             var world_node = world_node.value();
-            var world_node_point = node_to_point(world_node, RADIUS);
+            var world_node_point = node_to_point(world_node, HEX_RADIUS);
             draw_circle(world_node_point, 6.0, RED);
             draw_circle_outline(world_node_point, 6.0, 1.0, BLACK);
         }
         elif world_edge.is_value() {
             var world_edge = world_edge.value();
-            var points = edge_to_points(world_edge, RADIUS);
+            var points = edge_to_points(world_edge, HEX_RADIUS);
             draw_circle(points[0], 6.0, ORANGE);
             draw_circle(points[1], 6.0, ORANGE);
             draw_circle_outline(points[0], 6.0, 1.0, BLACK);
@@ -1433,7 +1434,7 @@ func main() void {
             draw_circle_outline(world_hex_center, 6.0, 1.0, BLACK);
         }
 
-        draw_robber(pointy_hex_to_point(robber, RADIUS), RADIUS);
+        draw_robber(pointy_hex_to_point(robber, HEX_RADIUS), HEX_RADIUS);
 
         EndMode2D();
 
