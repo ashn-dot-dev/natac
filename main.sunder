@@ -443,7 +443,15 @@ struct road {
     }
 
     func compare(lhs: *road, rhs: *road) ssize {
-        return std::compare[[edge]](&lhs.*.edge, &rhs.*.edge);
+        var cmp = std::compare[[edge]](&lhs.*.edge, &rhs.*.edge);
+        if cmp != 0 {
+            return cmp;
+        }
+        var cmp = std::compare[[uint]](&lhs.*.player, &rhs.*.player);
+        if cmp != 0 {
+            return cmp;
+        }
+        return 0;
     }
 }
 
@@ -470,7 +478,21 @@ struct town {
     }
 
     func compare(lhs: *town, rhs: *town) ssize {
-        return std::compare[[node]](&lhs.*.node, &rhs.*.node);
+        var cmp = std::compare[[node]](&lhs.*.node, &rhs.*.node);
+        if cmp != 0 {
+            return cmp;
+        }
+        var cmp = std::compare[[uint]](&lhs.*.player, &rhs.*.player);
+        if cmp != 0 {
+            return cmp;
+        }
+        var lhs_kind = (:std::smax)lhs.*.kind;
+        var rhs_kind = (:std::smax)rhs.*.kind;
+        var cmp = std::compare[[std::smax]](&lhs_kind, &rhs_kind);
+        if cmp != 0 {
+            return cmp;
+        }
+        return 0;
     }
 }
 
@@ -867,78 +889,90 @@ func camera_zoom(radius: f32, h: f32) f32 {
     return h / (6.0 * 2.0 * radius);
 }
 
-func init_tiles() std::hash_set[[tile]] {
-    var tiles = std::hash_set[[tile]]::init();
+func insert_tile(tiles: *std::hash_map[[hex, tile]], tile: tile) void {
+    tiles.*.insert(tile.hex, tile);
+}
+
+func insert_road(roads: *std::hash_map[[edge, road]], road: road) void {
+    roads.*.insert(road.edge, road);
+}
+
+func insert_town(towns: *std::hash_map[[node, town]], town: town) void {
+    towns.*.insert(town.node, town);
+}
+
+func init_tiles() std::hash_map[[hex, tile]] {
+    var tiles = std::hash_map[[hex, tile]]::init();
 
     # top row
-    tiles.insert(tile::init(hex::init(+0, -2, +2), tile::MOUNTAIN, 10));
-    tiles.insert(tile::init(hex::init(+1, -2, +1), tile::PASTURE, 2));
-    tiles.insert(tile::init(hex::init(+2, -2, +0), tile::FOREST, 9));
+    insert_tile(&tiles, tile::init(hex::init(+0, -2, +2), tile::MOUNTAIN, 10));
+    insert_tile(&tiles, tile::init(hex::init(+1, -2, +1), tile::PASTURE, 2));
+    insert_tile(&tiles, tile::init(hex::init(+2, -2, +0), tile::FOREST, 9));
     # top-middle row
-    tiles.insert(tile::init(hex::init(-1, -1, +2), tile::FIELD, 12));
-    tiles.insert(tile::init(hex::init(+0, -1, +1), tile::HILL, 6));
-    tiles.insert(tile::init(hex::init(+1, -1, +0), tile::PASTURE, 4));
-    tiles.insert(tile::init(hex::init(+2, -1, -1), tile::HILL, 10));
+    insert_tile(&tiles, tile::init(hex::init(-1, -1, +2), tile::FIELD, 12));
+    insert_tile(&tiles, tile::init(hex::init(+0, -1, +1), tile::HILL, 6));
+    insert_tile(&tiles, tile::init(hex::init(+1, -1, +0), tile::PASTURE, 4));
+    insert_tile(&tiles, tile::init(hex::init(+2, -1, -1), tile::HILL, 10));
     # middle row
-    tiles.insert(tile::init(hex::init(-2, +0, +2), tile::FIELD, 9));
-    tiles.insert(tile::init(hex::init(-1, +0, +1), tile::FOREST, 11));
-    tiles.insert(tile::init(hex::init(+0, +0, +0), tile::DESERT, -1));
-    tiles.insert(tile::init(hex::init(+1, +0, -1), tile::FOREST, 3));
-    tiles.insert(tile::init(hex::init(+2, +0, -2), tile::MOUNTAIN, 8));
+    insert_tile(&tiles, tile::init(hex::init(-2, +0, +2), tile::FIELD, 9));
+    insert_tile(&tiles, tile::init(hex::init(-1, +0, +1), tile::FOREST, 11));
+    insert_tile(&tiles, tile::init(hex::init(+0, +0, +0), tile::DESERT, -1));
+    insert_tile(&tiles, tile::init(hex::init(+1, +0, -1), tile::FOREST, 3));
+    insert_tile(&tiles, tile::init(hex::init(+2, +0, -2), tile::MOUNTAIN, 8));
     # bottom-middle row
-    tiles.insert(tile::init(hex::init(-2, +1, +1), tile::FOREST, 8));
-    tiles.insert(tile::init(hex::init(-1, +1, +0), tile::MOUNTAIN, 3));
-    tiles.insert(tile::init(hex::init(+0, +1, -1), tile::FIELD, 4));
-    tiles.insert(tile::init(hex::init(+1, +1, -2), tile::PASTURE, 5));
+    insert_tile(&tiles, tile::init(hex::init(-2, +1, +1), tile::FOREST, 8));
+    insert_tile(&tiles, tile::init(hex::init(-1, +1, +0), tile::MOUNTAIN, 3));
+    insert_tile(&tiles, tile::init(hex::init(+0, +1, -1), tile::FIELD, 4));
+    insert_tile(&tiles, tile::init(hex::init(+1, +1, -2), tile::PASTURE, 5));
     # bottom row
-    tiles.insert(tile::init(hex::init(-2, +2, +0), tile::HILL, 5));
-    tiles.insert(tile::init(hex::init(-1, +2, -1), tile::FIELD, 6));
-    tiles.insert(tile::init(hex::init(+0, +2, -2), tile::PASTURE, 11));
+    insert_tile(&tiles, tile::init(hex::init(-2, +2, +0), tile::HILL, 5));
+    insert_tile(&tiles, tile::init(hex::init(-1, +2, -1), tile::FIELD, 6));
+    insert_tile(&tiles, tile::init(hex::init(+0, +2, -2), tile::PASTURE, 11));
     # adjacent ocean
-    tiles.insert(tile::init(hex::init(+0, -3, +3), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(+1, -3, +2), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(+2, -3, +1), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(+3, -3, +0), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(-1, -2, +3), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(+3, -2, -1), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(-2, -1, +3), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(+3, -1, -2), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(-3, +0, +3), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(+3, +0, -3), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(-3, +1, +2), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(+2, +1, -3), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(-3, +2, +1), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(+1, +2, -3), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(-3, +3, +0), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(-2, +3, -1), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(-1, +3, -2), tile::OCEAN, -1));
-    tiles.insert(tile::init(hex::init(+0, +3, -3), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+0, -3, +3), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+1, -3, +2), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+2, -3, +1), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+3, -3, +0), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(-1, -2, +3), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+3, -2, -1), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(-2, -1, +3), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+3, -1, -2), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(-3, +0, +3), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+3, +0, -3), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(-3, +1, +2), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+2, +1, -3), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(-3, +2, +1), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+1, +2, -3), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(-3, +3, +0), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(-2, +3, -1), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(-1, +3, -2), tile::OCEAN, -1));
+    insert_tile(&tiles, tile::init(hex::init(+0, +3, -3), tile::OCEAN, -1));
 
     return tiles;
 }
 
-func init_nodes(tiles: *std::hash_set[[tile]]) std::hash_set[[node]] {
+func init_nodes(tiles: *std::hash_map[[hex, tile]]) std::hash_set[[node]] {
     var nodes = std::hash_set[[node]]::init();
 
-    var iter_i = std::hash_set_iterator[[tile]]::init(tiles);
+    var iter_i = std::hash_map_iterator[[hex, tile]]::init(tiles);
     for iter_i.advance() {
-        var iter_j = std::hash_set_iterator[[tile]]::init(tiles);
+        var iter_j = std::hash_map_iterator[[hex, tile]]::init(tiles);
         for iter_j.advance() {
-            var iter_k = std::hash_set_iterator[[tile]]::init(tiles);
+            var iter_k = std::hash_map_iterator[[hex, tile]]::init(tiles);
             for iter_k.advance() {
-                if hex::distance(iter_i.current().*.hex, iter_j.current().*.hex) != 1 {
+                if hex::distance(*iter_i.current().*.key, *iter_j.current().*.key) != 1 {
                     continue;
                 }
-                if hex::distance(iter_j.current().*.hex, iter_k.current().*.hex) != 1 {
+                if hex::distance(*iter_j.current().*.key, *iter_k.current().*.key) != 1 {
                     continue;
                 }
-                if hex::distance(iter_k.current().*.hex, iter_i.current().*.hex) != 1 {
+                if hex::distance(*iter_k.current().*.key, *iter_i.current().*.key) != 1 {
                     continue;
                 }
                 var node = node::init(
-                    iter_i.current().*.hex,
-                    iter_j.current().*.hex,
-                    iter_k.current().*.hex);
+                    *iter_i.current().*.key,
+                    *iter_j.current().*.key,
+                    *iter_k.current().*.key);
                 nodes.insert(node);
             }
         }
@@ -947,19 +981,19 @@ func init_nodes(tiles: *std::hash_set[[tile]]) std::hash_set[[node]] {
     return nodes;
 }
 
-func init_edges(tiles: *std::hash_set[[tile]]) std::hash_set[[edge]] {
+func init_edges(tiles: *std::hash_map[[hex, tile]]) std::hash_set[[edge]] {
     var edges = std::hash_set[[edge]]::init();
 
-    var iter_i = std::hash_set_iterator[[tile]]::init(tiles);
+    var iter_i = std::hash_map_iterator[[hex, tile]]::init(tiles);
     for iter_i.advance() {
-        var iter_j = std::hash_set_iterator[[tile]]::init(tiles);
+        var iter_j = std::hash_map_iterator[[hex, tile]]::init(tiles);
         for iter_j.advance() {
-            if hex::distance(iter_i.current().*.hex, iter_j.current().*.hex) != 1 {
+            if hex::distance(*iter_i.current().*.key, *iter_j.current().*.key) != 1 {
                 continue;
             }
             var edge = edge::init(
-                iter_i.current().*.hex,
-                iter_j.current().*.hex);
+                *iter_i.current().*.key,
+                *iter_j.current().*.key);
             edges.insert(edge);
         }
     }
@@ -1132,107 +1166,107 @@ func main() void {
     defer ports.fini();
 
     var robber = hex::init(+0, +0, +0);
-    var roads = std::vector[[road]]::init();
+    var roads = std::hash_map[[edge, road]]::init();
     defer roads.fini();
-    var towns = std::vector[[town]]::init();
+    var towns = std::hash_map[[node, town]]::init();
     defer towns.fini();
 
     # Red starting position.
-    towns.push(town::init(
+    insert_town(&towns, town::init(
         PLAYER_RED,
         node::init(
             hex::init(-2, +0, +2),
             hex::init(-2, +1, +1),
             hex::init(-1, +0, +1)),
         town::SETTLEMENT));
-    roads.push(road::init(
+    insert_road(&roads, road::init(
         PLAYER_RED,
         edge::init(
             hex::init(-2, +1, +1),
             hex::init(-1, +0, +1))));
-    towns.push(town::init(
+    insert_town(&towns, town::init(
         PLAYER_RED,
         node::init(
             hex::init(+0, -2, +2),
             hex::init(+0, -1, +1),
             hex::init(+1, -2, +1)),
         town::SETTLEMENT));
-    roads.push(road::init(
+    insert_road(&roads, road::init(
         PLAYER_RED,
         edge::init(
             hex::init(+0, -1, +1),
             hex::init(+1, -2, +1))));
     # Blue starting position.
-    towns.push(town::init(
+    insert_town(&towns, town::init(
         PLAYER_BLUE,
         node::init(
             hex::init(-2, +1, +1),
             hex::init(-2, +2, +0),
             hex::init(-1, +1, +0)),
         town::SETTLEMENT));
-    roads.push(road::init(
+    insert_road(&roads, road::init(
         PLAYER_BLUE,
         edge::init(
             hex::init(-2, +2, +0),
             hex::init(-1, +1, +0))));
-    towns.push(town::init(
+    insert_town(&towns, town::init(
         PLAYER_BLUE,
         node::init(
             hex::init(+0, +1, -1),
             hex::init(+0, +2, -2),
             hex::init(+1, +1, -2)),
         town::SETTLEMENT));
-    roads.push(road::init(
+    insert_road(&roads, road::init(
         PLAYER_BLUE,
         edge::init(
             hex::init(+0, +1, -1),
             hex::init(+1, +1, -2))));
     # White starting position.
-    towns.push(town::init(
+    insert_town(&towns, town::init(
         PLAYER_WHITE,
         node::init(
             hex::init(-1, -1, +2),
             hex::init(-1, +0, +1),
             hex::init(+0, -1, +1)),
         town::SETTLEMENT));
-    roads.push(road::init(
+    insert_road(&roads, road::init(
         PLAYER_WHITE,
         edge::init(
             hex::init(-1, -1, +2),
             hex::init(-1, +0, +1))));
-    towns.push(town::init(
+    insert_town(&towns, town::init(
         PLAYER_WHITE,
         node::init(
             hex::init(+1, +0, -1),
             hex::init(+1, +1, -2),
             hex::init(+2, +0, -2)),
         town::SETTLEMENT));
-    roads.push(road::init(
+    insert_road(&roads, road::init(
         PLAYER_WHITE,
         edge::init(
             hex::init(+1, +0, -1),
             hex::init(+2, +0, -2))));
     # Orange starting position.
-    towns.push(town::init(
+    insert_town(&towns, town::init(
         PLAYER_ORANGE,
         node::init(
             hex::init(-1, +1, +0),
             hex::init(-1, +2, -1),
             hex::init(+0, +1, -1)),
         town::SETTLEMENT));
-    roads.push(road::init(
+    insert_road(&roads, road::init(
         PLAYER_ORANGE,
         edge::init(
             hex::init(-1, +2, -1),
             hex::init(+0, +1, -1))));
-    towns.push(town::init(
+    insert_town(&towns, town::init(
         PLAYER_ORANGE,
         node::init(
             hex::init(+1, -1, +0),
             hex::init(+2, -2, +0),
             hex::init(+2, -1, -1)),
         town::SETTLEMENT));
-    roads.push(road::init(
+    insert_road(&roads, road::init(
         PLAYER_ORANGE,
         edge::init(
             hex::init(+1, -1, +0),
@@ -1283,9 +1317,9 @@ func main() void {
 
         BeginMode2D(camera);
 
-        var iter = std::hash_set_iterator[[tile]]::init(&tiles);
+        var iter = std::hash_map_iterator[[hex, tile]]::init(&tiles);
         for iter.advance() {
-            var tile = iter.current();
+            var tile = iter.current().*.value;
             var point = pointy_hex_to_point(tile.*.hex, RADIUS);
             draw_pointy_hexagon(point, RADIUS, tile.*.color());
             var resource = tile.*.resource();
@@ -1300,10 +1334,10 @@ func main() void {
         var world_hex_center = pointy_hex_to_point(world_hex, RADIUS);
 
         var world_tile = std::optional[[tile]]::EMPTY;
-        var iter = std::hash_set_iterator[[tile]]::init(&tiles);
+        var iter = std::hash_map_iterator[[hex, tile]]::init(&tiles);
         for iter.advance() {
-            if std::eq[[hex]](&iter.current().*.hex, &world_hex) {
-                world_tile = std::optional[[tile]]::init_value(*iter.current());
+            if std::eq[[hex]](iter.current().*.key, &world_hex) {
+                world_tile = std::optional[[tile]]::init_value(*iter.current().*.value);
                 draw_pointy_hexagon_outline(world_hex_center, RADIUS, YELLOW);
                 break;
             }
@@ -1356,26 +1390,29 @@ func main() void {
         }
 
         if world_node.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
-            towns.push(town::init(
-                player,
-                world_node.value(),
-                town::SETTLEMENT));
-        }
-        elif world_node.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) {
-            towns.push(town::init(
-                player,
-                world_node.value(),
-                town::CITY));
+            var existing = towns.lookup(world_node.value());
+            if existing.is_value() and existing.value().player == player {
+                insert_town(&towns, town::init(
+                    player,
+                    world_node.value(),
+                    town::CITY));
+            }
+            else {
+                insert_town(&towns, town::init(
+                    player,
+                    world_node.value(),
+                    town::SETTLEMENT));
+            }
         }
         elif world_edge.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
-            roads.push(road::init(
+            insert_road(&roads, road::init(
                 player,
                 world_edge.value()));
         }
 
-        var iter = std::hash_set_iterator[[tile]]::init(&tiles);
+        var iter = std::hash_map_iterator[[hex, tile]]::init(&tiles);
         for iter.advance() {
-            var tile = iter.current();
+            var tile = iter.current().*.value;
             if tile.*.kind == ::tile::OCEAN {
                 continue;
             }
@@ -1389,16 +1426,16 @@ func main() void {
             draw_port(*port, RADIUS, font);
         }
 
-        var iter = std::slice_iterator[[road]]::init(roads.data());
+        var iter = std::hash_map_iterator[[edge, road]]::init(&roads);
         for iter.advance() {
-            var road = iter.current();
+            var road = iter.current().*.value;
             var points = edge_to_points(road.*.edge, RADIUS);
             draw_road(points[0], points[1], RADIUS, player_color(road.*.player));
         }
 
-        var iter = std::slice_iterator[[town]]::init(towns.data());
+        var iter = std::hash_map_iterator[[node, town]]::init(&towns);
         for iter.advance() {
-            var town = iter.current();
+            var town = iter.current().*.value;
             switch town.*.kind {
             ::town::SETTLEMENT {
                 draw_settlement(node_to_point(town.*.node, RADIUS), RADIUS, player_color(town.*.player));
