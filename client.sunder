@@ -59,15 +59,27 @@ func tile_color(tile: tile) Color {
     return std::zeroed[[Color]]();
 }
 
-func player_color(player: uint) Color {
-    assert 0 <= player and player <= 4;
-    return (:[5]Color)[
-        BLACK,
-        RED,
-        BLUE,
-        WHITE,
-        ORANGE,
-    ][(:usize)player];
+func player_color(player: player) Color {
+    switch player {
+    ::player::NIL {
+        return BLACK;
+    }
+    ::player::RED {
+        return RED;
+    }
+    ::player::BLUE {
+        return BLUE;
+    }
+    ::player::WHITE {
+        return WHITE;
+    }
+    ::player::ORANGE {
+        return ORANGE;
+    }
+    }
+
+    std::unreachable(fileof(), lineof());
+    return std::zeroed[[Color]]();
 }
 
 func point_to_pointy_hex(point: Vector2, radius: f32) hex {
@@ -428,7 +440,7 @@ struct client_state {
     var font: Font;
     var font_size: f32;
 
-    var player: uint;
+    var player: player;
     var tiles: std::hash_map[[hex, tile]];
     var edges: std::hash_set[[edge]];
     var nodes: std::hash_set[[node]];
@@ -461,7 +473,7 @@ struct client_state {
             .debug = false,
             .font = font,
             .font_size = font_size,
-            .player = 0,
+            .player = player::NIL,
             .tiles = tiles,
             .edges = edges,
             .nodes = nodes,

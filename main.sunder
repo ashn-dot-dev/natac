@@ -41,7 +41,7 @@ func main() void {
     var cstate = client_state::init();
     defer cstate.fini();
     cstate.debug = opt_debug;
-    cstate.player = PLAYER_RED;
+    cstate.player = player::RED;
 
     for not WindowShouldClose() {
         var message = sstate.to_server_message();
@@ -56,16 +56,16 @@ func main() void {
         }
 
         if IsKeyPressed(KEY_ONE) {
-            cstate.player = PLAYER_RED;
+            cstate.player = player::RED;
         }
         if IsKeyPressed(KEY_TWO) {
-            cstate.player = PLAYER_BLUE;
+            cstate.player = player::BLUE;
         }
         if IsKeyPressed(KEY_THREE) {
-            cstate.player = PLAYER_WHITE;
+            cstate.player = player::WHITE;
         }
         if IsKeyPressed(KEY_FOUR) {
-            cstate.player = PLAYER_ORANGE;
+            cstate.player = player::ORANGE;
         }
 
         BeginDrawing();
@@ -325,7 +325,7 @@ func main() void {
             var square_ypos = SQUARE_OFFSET;
 
             var square_background = BLACK;
-            if cstate.player == PLAYER_RED {
+            if cstate.player == player::RED {
                 square_background = YELLOW;
             }
             DrawRectangleV(
@@ -344,10 +344,10 @@ func main() void {
                     .y = square_ypos,
                 },
                 SQUARE_SIZE,
-                player_color(PLAYER_RED));
+                player_color(player::RED));
 
             var square_background = BLACK;
-            if cstate.player == PLAYER_BLUE {
+            if cstate.player == player::BLUE {
                 square_background = YELLOW;
             }
             DrawRectangleV(
@@ -366,10 +366,10 @@ func main() void {
                     .y = square_ypos,
                 },
                 SQUARE_SIZE,
-                player_color(PLAYER_BLUE));
+                player_color(player::BLUE));
 
             var square_background = BLACK;
-            if cstate.player == PLAYER_WHITE {
+            if cstate.player == player::WHITE {
                 square_background = YELLOW;
             }
             DrawRectangleV(
@@ -388,10 +388,10 @@ func main() void {
                     .y = square_ypos,
                 },
                 SQUARE_SIZE,
-                player_color(PLAYER_WHITE));
+                player_color(player::WHITE));
 
             var square_background = BLACK;
-            if cstate.player == PLAYER_ORANGE {
+            if cstate.player == player::ORANGE {
                 square_background = YELLOW;
             }
             DrawRectangleV(
@@ -410,7 +410,7 @@ func main() void {
                     .y = square_ypos,
                 },
                 SQUARE_SIZE,
-                player_color(PLAYER_ORANGE));
+                player_color(player::ORANGE));
         }
 
         EndDrawing();

@@ -1,11 +1,13 @@
 import "c";
 import "std";
 
-let PLAYER_NIL: uint = 0;
-let PLAYER_RED: uint = 1;
-let PLAYER_BLUE: uint = 2;
-let PLAYER_WHITE: uint = 3;
-let PLAYER_ORANGE: uint = 4;
+enum player {
+    NIL = 0;
+    RED = 1;
+    BLUE = 2;
+    WHITE = 3;
+    ORANGE = 4;
+}
 
 # Hex position using the cube coordinate system satisfying q + r + s == 0.
 struct hex {
@@ -396,10 +398,10 @@ struct port {
 }
 
 struct road {
-    var player: uint;
+    var player: player;
     var edge: edge;
 
-    func init(player: uint, edge: edge) road {
+    func init(player: player, edge: edge) road {
         return (:road){
             .edge = edge,
             .player = player,
@@ -408,7 +410,7 @@ struct road {
 }
 
 struct town {
-    var player: uint;
+    var player: player;
     var node: node;
     var kind: enum {
         SETTLEMENT;
@@ -417,7 +419,7 @@ struct town {
 
     let SELF: town = uninit;
 
-    func init(player: uint, node: node, kind: typeof(SELF.kind)) town {
+    func init(player: player, node: node, kind: typeof(SELF.kind)) town {
         return (:town){
             .player = player,
             .node = node,
@@ -657,48 +659,48 @@ func init_roads() std::hash_map[[edge, road]] {
 
     # Red starting position.
     insert_road(&roads, road::init(
-        PLAYER_RED,
+        player::RED,
         edge::init(
             hex::init(-2, +1, +1),
             hex::init(-1, +0, +1))));
     insert_road(&roads, road::init(
-        PLAYER_RED,
+        player::RED,
         edge::init(
             hex::init(+0, -1, +1),
             hex::init(+1, -2, +1))));
 
     # Blue starting position.
     insert_road(&roads, road::init(
-        PLAYER_BLUE,
+        player::BLUE,
         edge::init(
             hex::init(-2, +2, +0),
             hex::init(-1, +1, +0))));
     insert_road(&roads, road::init(
-        PLAYER_BLUE,
+        player::BLUE,
         edge::init(
             hex::init(+0, +1, -1),
             hex::init(+1, +1, -2))));
 
     # White starting position.
     insert_road(&roads, road::init(
-        PLAYER_WHITE,
+        player::WHITE,
         edge::init(
             hex::init(-1, -1, +2),
             hex::init(-1, +0, +1))));
     insert_road(&roads, road::init(
-        PLAYER_WHITE,
+        player::WHITE,
         edge::init(
             hex::init(+1, +0, -1),
             hex::init(+2, +0, -2))));
 
     # Orange starting position.
     insert_road(&roads, road::init(
-        PLAYER_ORANGE,
+        player::ORANGE,
         edge::init(
             hex::init(-1, +2, -1),
             hex::init(+0, +1, -1))));
     insert_road(&roads, road::init(
-        PLAYER_ORANGE,
+        player::ORANGE,
         edge::init(
             hex::init(+1, -1, +0),
             hex::init(+2, -2, +0))));
@@ -711,14 +713,14 @@ func init_towns() std::hash_map[[node, town]] {
 
     # Red starting position.
     insert_town(&towns, town::init(
-        PLAYER_RED,
+        player::RED,
         node::init(
             hex::init(-2, +0, +2),
             hex::init(-2, +1, +1),
             hex::init(-1, +0, +1)),
         town::SETTLEMENT));
     insert_town(&towns, town::init(
-        PLAYER_RED,
+        player::RED,
         node::init(
             hex::init(+0, -2, +2),
             hex::init(+0, -1, +1),
@@ -727,14 +729,14 @@ func init_towns() std::hash_map[[node, town]] {
 
     # Blue starting position.
     insert_town(&towns, town::init(
-        PLAYER_BLUE,
+        player::BLUE,
         node::init(
             hex::init(-2, +1, +1),
             hex::init(-2, +2, +0),
             hex::init(-1, +1, +0)),
         town::SETTLEMENT));
     insert_town(&towns, town::init(
-        PLAYER_BLUE,
+        player::BLUE,
         node::init(
             hex::init(+0, +1, -1),
             hex::init(+0, +2, -2),
@@ -743,14 +745,14 @@ func init_towns() std::hash_map[[node, town]] {
 
     # White starting position.
     insert_town(&towns, town::init(
-        PLAYER_WHITE,
+        player::WHITE,
         node::init(
             hex::init(-1, -1, +2),
             hex::init(-1, +0, +1),
             hex::init(+0, -1, +1)),
         town::SETTLEMENT));
     insert_town(&towns, town::init(
-        PLAYER_WHITE,
+        player::WHITE,
         node::init(
             hex::init(+1, +0, -1),
             hex::init(+1, +1, -2),
@@ -759,14 +761,14 @@ func init_towns() std::hash_map[[node, town]] {
 
     # Orange starting position.
     insert_town(&towns, town::init(
-        PLAYER_ORANGE,
+        player::ORANGE,
         node::init(
             hex::init(-1, +1, +0),
             hex::init(-1, +2, -1),
             hex::init(+0, +1, -1)),
         town::SETTLEMENT));
     insert_town(&towns, town::init(
-        PLAYER_ORANGE,
+        player::ORANGE,
         node::init(
             hex::init(+1, -1, +0),
             hex::init(+2, -2, +0),
