@@ -1239,6 +1239,7 @@ func main() void {
             hex::init(+2, -2, +0))));
 
     var debug = opt_debug;
+    var player = PLAYER_RED;
 
     for not WindowShouldClose() {
         if IsKeyPressed(KEY_F3) {
@@ -1246,6 +1247,19 @@ func main() void {
         }
         if IsKeyPressed(KEY_F11) {
             ToggleFullscreen();
+        }
+
+        if IsKeyPressed(KEY_ONE) {
+            player = PLAYER_RED;
+        }
+        if IsKeyPressed(KEY_TWO) {
+            player = PLAYER_BLUE;
+        }
+        if IsKeyPressed(KEY_THREE) {
+            player = PLAYER_WHITE;
+        }
+        if IsKeyPressed(KEY_FOUR) {
+            player = PLAYER_ORANGE;
         }
 
         BeginDrawing();
@@ -1339,6 +1353,24 @@ func main() void {
                 }
                 break;
             }
+        }
+
+        if world_node.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
+            towns.push(town::init(
+                player,
+                world_node.value(),
+                town::SETTLEMENT));
+        }
+        elif world_node.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) {
+            towns.push(town::init(
+                player,
+                world_node.value(),
+                town::CITY));
+        }
+        elif world_edge.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
+            roads.push(road::init(
+                player,
+                world_edge.value()));
         }
 
         var iter = std::hash_set_iterator[[tile]]::init(&tiles);
@@ -1462,6 +1494,100 @@ func main() void {
                         std::formatter::init[[hex]](&world_tile.hex),
                         std::formatter::init[[tile]](&world_tile)]);
             }
+
+            let SQUARE_SIZE = (:Vector2){.x = 32.0, .y = 32.0};
+            let SQUARE_OFFSET = 8.0f32;
+            let SQUARE_BORDER = 2.0f32;
+            var square_xpos = (:f32)render_w - 4.0 * SQUARE_SIZE.x - 4.0 * SQUARE_OFFSET;
+            var square_ypos = SQUARE_OFFSET;
+
+            var square_background = BLACK;
+            if player == PLAYER_RED {
+                square_background = YELLOW;
+            }
+            DrawRectangleV(
+                (:Vector2){
+                    .x = square_xpos - SQUARE_BORDER + SQUARE_SIZE.x * 0.0 + SQUARE_OFFSET * 0.0,
+                    .y = square_ypos - SQUARE_BORDER,
+                },
+                (:Vector2){
+                    .x = SQUARE_SIZE.x + 2.0 * SQUARE_BORDER,
+                    .y = SQUARE_SIZE.y + 2.0 * SQUARE_BORDER,
+                },
+                square_background);
+            DrawRectangleV(
+                (:Vector2){
+                    .x = square_xpos + SQUARE_SIZE.x * 0.0 + SQUARE_OFFSET * 0.0,
+                    .y = square_ypos,
+                },
+                SQUARE_SIZE,
+                player_color(PLAYER_RED));
+
+            var square_background = BLACK;
+            if player == PLAYER_BLUE {
+                square_background = YELLOW;
+            }
+            DrawRectangleV(
+                (:Vector2){
+                    .x = square_xpos - SQUARE_BORDER + SQUARE_SIZE.x * 1.0 + SQUARE_OFFSET * 1.0,
+                    .y = square_ypos - SQUARE_BORDER,
+                },
+                (:Vector2){
+                    .x = SQUARE_SIZE.x + 2.0 * SQUARE_BORDER,
+                    .y = SQUARE_SIZE.y + 2.0 * SQUARE_BORDER,
+                },
+                square_background);
+            DrawRectangleV(
+                (:Vector2){
+                    .x = square_xpos + SQUARE_SIZE.x * 1.0 + SQUARE_OFFSET * 1.0,
+                    .y = square_ypos,
+                },
+                SQUARE_SIZE,
+                player_color(PLAYER_BLUE));
+
+            var square_background = BLACK;
+            if player == PLAYER_WHITE {
+                square_background = YELLOW;
+            }
+            DrawRectangleV(
+                (:Vector2){
+                    .x = square_xpos - SQUARE_BORDER + SQUARE_SIZE.x * 2.0 + SQUARE_OFFSET * 2.0,
+                    .y = square_ypos - SQUARE_BORDER,
+                },
+                (:Vector2){
+                    .x = SQUARE_SIZE.x + 2.0 * SQUARE_BORDER,
+                    .y = SQUARE_SIZE.y + 2.0 * SQUARE_BORDER,
+                },
+                square_background);
+            DrawRectangleV(
+                (:Vector2){
+                    .x = square_xpos + SQUARE_SIZE.x * 2.0 + SQUARE_OFFSET * 2.0,
+                    .y = square_ypos,
+                },
+                SQUARE_SIZE,
+                player_color(PLAYER_WHITE));
+
+            var square_background = BLACK;
+            if player == PLAYER_ORANGE {
+                square_background = YELLOW;
+            }
+            DrawRectangleV(
+                (:Vector2){
+                    .x = square_xpos - SQUARE_BORDER + SQUARE_SIZE.x * 3.0 + SQUARE_OFFSET * 3.0,
+                    .y = square_ypos - SQUARE_BORDER,
+                },
+                (:Vector2){
+                    .x = SQUARE_SIZE.x + 2.0 * SQUARE_BORDER,
+                    .y = SQUARE_SIZE.y + 2.0 * SQUARE_BORDER,
+                },
+                square_background);
+            DrawRectangleV(
+                (:Vector2){
+                    .x = square_xpos + SQUARE_SIZE.x * 3.0 + SQUARE_OFFSET * 3.0,
+                    .y = square_ypos,
+                },
+                SQUARE_SIZE,
+                player_color(PLAYER_ORANGE));
         }
 
         EndDrawing();
