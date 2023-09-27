@@ -1371,6 +1371,12 @@ func main() void {
                     world_edge.value()));
             }
         }
+        elif world_node.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) {
+            towns.remove(world_node.value());
+        }
+        elif world_edge.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) {
+            roads.remove(world_edge.value());
+        }
 
         var iter = std::hash_map_iterator[[hex, tile]]::init(&tiles);
         for iter.advance() {
