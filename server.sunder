@@ -65,4 +65,21 @@ struct server_state {
     func remove_town(self: *server_state, node: node) void {
         self.*.towns.remove(node);
     }
+
+    func update_from_client_message(self: *server_state, message: *client_message) void {
+        switch message.*.kind {
+        client_message::BUILD_ROAD {
+            self.*.place_road(message.*.data.build_road);
+        }
+        client_message::BUILD_TOWN {
+            self.*.place_town(message.*.data.build_town);
+        }
+        client_message::REMOVE_ROAD {
+            self.*.remove_road(message.*.data.remove_road);
+        }
+        client_message::REMOVE_TOWN {
+            self.*.remove_town(message.*.data.remove_town);
+        }
+        }
+    }
 }

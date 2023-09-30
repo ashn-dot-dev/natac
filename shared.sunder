@@ -778,6 +778,51 @@ func init_towns() std::hash_map[[node, town]] {
     return towns;
 }
 
+struct client_message {
+    var kind: enum {
+        BUILD_ROAD;
+        BUILD_TOWN;
+        REMOVE_ROAD;
+        REMOVE_TOWN;
+    };
+    var data: union {
+        var build_road: road;
+        var build_town: town;
+        var remove_road: edge;
+        var remove_town: node;
+    };
+
+    let SELF: client_message = uninit;
+
+    func init_build_road(road: road) client_message {
+        return (:client_message){
+            .kind = client_message::BUILD_ROAD,
+            .data = (:typeof(SELF.data)){.build_road = road},
+        };
+    }
+
+    func init_build_town(town: town) client_message {
+        return (:client_message){
+            .kind = client_message::BUILD_TOWN,
+            .data = (:typeof(SELF.data)){.build_town = town},
+        };
+    }
+
+    func init_remove_road(road: edge) client_message {
+        return (:client_message){
+            .kind = client_message::REMOVE_ROAD,
+            .data = (:typeof(SELF.data)){.remove_road = road},
+        };
+    }
+
+    func init_remove_town(town: node) client_message {
+        return (:client_message){
+            .kind = client_message::REMOVE_TOWN,
+            .data = (:typeof(SELF.data)){.remove_town = town},
+        };
+    }
+}
+
 struct server_message {
     var tiles: std::hash_map[[hex, tile]];
     var ports: std::hash_set[[port]];
