@@ -563,7 +563,7 @@ struct client_state {
     }
 }
 
-func update(cstate: *client_state, sender: *message_sender[[client_message]]) void {
+func client_update(cstate: *client_state, sender: *message_sender[[client_message]]) void {
     if IsKeyPressed(KEY_F3) {
         cstate.*.debug = not cstate.*.debug;
     }
@@ -687,7 +687,7 @@ func update(cstate: *client_state, sender: *message_sender[[client_message]]) vo
     cstate.*.world_node = world_node;
 }
 
-func render(cstate: *client_state) void {
+func client_render(cstate: *client_state) void {
     BeginDrawing();
     ClearBackground((:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF});
 

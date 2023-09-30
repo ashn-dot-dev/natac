@@ -83,3 +83,9 @@ struct server_state {
         }
     }
 }
+
+func server_update(sstate: *server_state, sender: *message_sender[[server_message]]) void {
+    var message = sstate.*.to_server_message();
+    sender.*.send(&message);
+    message.fini();
+}

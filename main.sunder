@@ -62,11 +62,8 @@ func main() void {
     var smessage_sender = message_sender[[server_message]]::init[[local_server_message_sender]](&smessage_sender);
 
     for not WindowShouldClose() {
-        var message = sstate.to_server_message();
-        smessage_sender.send(&message);
-        message.fini();
-
-        update(&cstate, &cmessage_sender);
-        render(&cstate);
+        server_update(&sstate, &smessage_sender);
+        client_update(&cstate, &cmessage_sender);
+        client_render(&cstate);
     }
 }
