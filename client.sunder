@@ -709,21 +709,22 @@ func client_render(cstate: *client_state) void {
     }
 
     var world_hex_center = pointy_hex_to_point(cstate.*.world_hex, HEX_RADIUS);
-    if cstate.*.world_tile.is_value() {
-        draw_pointy_hexagon_outline(world_hex_center, HEX_RADIUS, YELLOW);
-    }
 
-    if cstate.*.world_edge.is_value() {
-        for i in countof(cstate.*.world_edge.value().hexes) {
-            var point = pointy_hex_to_point(cstate.*.world_edge.value().hexes[i], HEX_RADIUS);
-            draw_pointy_hexagon_outline(point, HEX_RADIUS, ORANGE);
+    if cstate.*.debug {
+        if cstate.*.world_node.is_value() {
+            for i in countof(cstate.*.world_node.value().hexes) {
+                var point = pointy_hex_to_point(cstate.*.world_node.value().hexes[i], HEX_RADIUS);
+                draw_pointy_hexagon_outline(point, HEX_RADIUS, RED);
+            }
         }
-    }
-
-    if cstate.*.world_node.is_value() {
-        for i in countof(cstate.*.world_node.value().hexes) {
-            var point = pointy_hex_to_point(cstate.*.world_node.value().hexes[i], HEX_RADIUS);
-            draw_pointy_hexagon_outline(point, HEX_RADIUS, RED);
+        elif cstate.*.world_edge.is_value() {
+            for i in countof(cstate.*.world_edge.value().hexes) {
+                var point = pointy_hex_to_point(cstate.*.world_edge.value().hexes[i], HEX_RADIUS);
+                draw_pointy_hexagon_outline(point, HEX_RADIUS, ORANGE);
+            }
+        }
+        elif cstate.*.world_tile.is_value() {
+            draw_pointy_hexagon_outline(world_hex_center, HEX_RADIUS, YELLOW);
         }
     }
 
@@ -763,23 +764,25 @@ func client_render(cstate: *client_state) void {
         }
     }
 
-    if cstate.*.world_node.is_value() {
-        var world_node = cstate.*.world_node.value();
-        var world_node_point = node_to_point(world_node, HEX_RADIUS);
-        draw_circle(world_node_point, 6.0, RED);
-        draw_circle_outline(world_node_point, 6.0, 1.0, BLACK);
-    }
-    elif cstate.*.world_edge.is_value() {
-        var world_edge = cstate.*.world_edge.value();
-        var points = edge_to_points(world_edge, HEX_RADIUS);
-        draw_circle(points[0], 6.0, ORANGE);
-        draw_circle(points[1], 6.0, ORANGE);
-        draw_circle_outline(points[0], 6.0, 1.0, BLACK);
-        draw_circle_outline(points[1], 6.0, 1.0, BLACK);
-    }
-    else {
-        draw_circle(world_hex_center, 6.0, YELLOW);
-        draw_circle_outline(world_hex_center, 6.0, 1.0, BLACK);
+    if cstate.*.debug {
+        if cstate.*.world_node.is_value() {
+            var world_node = cstate.*.world_node.value();
+            var world_node_point = node_to_point(world_node, HEX_RADIUS);
+            draw_circle(world_node_point, 6.0, RED);
+            draw_circle_outline(world_node_point, 6.0, 1.0, BLACK);
+        }
+        elif cstate.*.world_edge.is_value() {
+            var world_edge = cstate.*.world_edge.value();
+            var points = edge_to_points(world_edge, HEX_RADIUS);
+            draw_circle(points[0], 6.0, ORANGE);
+            draw_circle(points[1], 6.0, ORANGE);
+            draw_circle_outline(points[0], 6.0, 1.0, BLACK);
+            draw_circle_outline(points[1], 6.0, 1.0, BLACK);
+        }
+        else {
+            draw_circle(world_hex_center, 6.0, YELLOW);
+            draw_circle_outline(world_hex_center, 6.0, 1.0, BLACK);
+        }
     }
 
     draw_robber(pointy_hex_to_point(cstate.*.robber, HEX_RADIUS), HEX_RADIUS);
