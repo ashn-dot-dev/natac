@@ -6,6 +6,22 @@ import "client.sunder";
 import "server.sunder";
 import "shared.sunder";
 
+struct client_message_sender {
+    var server: *server_state;
+
+    func send(self: *client_message_sender, message: *client_message) void {
+        self.*.server.*.update_from_client_message(message);
+    }
+}
+
+struct server_message_sender {
+    var client: *client_state;
+
+    func send(self: *server_message_sender, message: *server_message) void {
+        self.*.client.*.update_from_server_message(message);
+    }
+}
+
 func main() void {
     var argparser = std::argument_parser::init((:[][]byte)[
         "debug",
@@ -40,9 +56,14 @@ func main() void {
     cstate.debug = opt_debug;
     cstate.player = player::RED;
 
+    var cmessage_sender = (:client_message_sender){.server = &sstate};
+    var cmessage_sender = message_sender[[client_message]]::init[[client_message_sender]](&cmessage_sender);
+    var smessage_sender = (:server_message_sender){.client = &cstate};
+    var smessage_sender = message_sender[[server_message]]::init[[server_message_sender]](&smessage_sender);
+
     for not WindowShouldClose() {
         var message = sstate.to_server_message();
-        cstate.update_from_server_message(&message);
+        smessage_sender.send(&message);
         message.fini();
 
         if IsKeyPressed(KEY_F3) {
@@ -65,7 +86,7 @@ func main() void {
             cstate.player = player::ORANGE;
         }
 
-        update(&cstate, &sstate);
+        update(&cstate, &cmessage_sender);
         render(&cstate);
     }
 }

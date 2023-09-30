@@ -877,3 +877,26 @@ struct server_message {
         self.*.towns.fini();
     }
 }
+
+struct message_sender_itable[[MESSAGE]] {
+    var send: func(*any, *MESSAGE) void;
+}
+
+struct message_sender[[MESSAGE]] {
+    var itable: *message_sender_itable[[MESSAGE]];
+    var object: *any;
+
+    func init[[T]](object: *T) message_sender[[MESSAGE]] {
+        let itable = (:message_sender_itable[[MESSAGE]]){
+            .send = T::send,
+        };
+        return (:message_sender[[MESSAGE]]){
+            .itable = &itable,
+            .object = object,
+        };
+    }
+
+    func send(self: *message_sender[[MESSAGE]], message: *MESSAGE) void {
+        self.*.itable.*.send(self.*.object, message);
+    }
+}

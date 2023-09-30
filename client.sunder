@@ -3,7 +3,6 @@ import "raylib";
 import "std";
 
 import "shared.sunder";
-import "server.sunder"; # RM ME
 
 # The radius of the outer circle touching the corners of the hexagon.
 let HEX_RADIUS = 48.0f32;
@@ -564,7 +563,7 @@ struct client_state {
     }
 }
 
-func update(cstate: *client_state, sstate: *server_state) void {
+func update(cstate: *client_state, sender: *message_sender[[client_message]]) void {
     var render_w = GetRenderWidth();
     var render_h = GetRenderHeight();
     var camera = camera(HEX_RADIUS, (:f32)render_w, (:f32)render_h);
@@ -627,14 +626,14 @@ func update(cstate: *client_state, sstate: *server_state) void {
                 cstate.*.player,
                 world_node.value(),
                 town::CITY));
-            sstate.*.update_from_client_message(&cmessage);
+            sender.*.send(&cmessage);
         }
         else {
             var cmessage = client_message::init_build_town(town::init(
                 cstate.*.player,
                 world_node.value(),
                 town::SETTLEMENT));
-            sstate.*.update_from_client_message(&cmessage);
+            sender.*.send(&cmessage);
         }
     }
     elif world_edge.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
@@ -648,16 +647,16 @@ func update(cstate: *client_state, sstate: *server_state) void {
             var cmessage = client_message::init_build_road(road::init(
                 cstate.*.player,
                 world_edge.value()));
-            sstate.*.update_from_client_message(&cmessage);
+            sender.*.send(&cmessage);
         }
     }
     elif world_node.is_value() and IsMouseButtonDown(MOUSE_BUTTON_RIGHT) {
         var cmessage = client_message::init_remove_town(world_node.value());
-        sstate.*.update_from_client_message(&cmessage);
+        sender.*.send(&cmessage);
     }
     elif world_edge.is_value() and IsMouseButtonDown(MOUSE_BUTTON_RIGHT) {
         var cmessage = client_message::init_remove_road(world_edge.value());
-        sstate.*.update_from_client_message(&cmessage);
+        sender.*.send(&cmessage);
     }
 
     cstate.*.mouse = mouse;
