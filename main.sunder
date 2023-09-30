@@ -6,18 +6,18 @@ import "client.sunder";
 import "server.sunder";
 import "shared.sunder";
 
-struct client_message_sender {
+struct local_client_message_sender {
     var server: *server_state;
 
-    func send(self: *client_message_sender, message: *client_message) void {
+    func send(self: *local_client_message_sender, message: *client_message) void {
         self.*.server.*.update_from_client_message(message);
     }
 }
 
-struct server_message_sender {
+struct local_server_message_sender {
     var client: *client_state;
 
-    func send(self: *server_message_sender, message: *server_message) void {
+    func send(self: *local_server_message_sender, message: *server_message) void {
         self.*.client.*.update_from_server_message(message);
     }
 }
@@ -56,35 +56,15 @@ func main() void {
     cstate.debug = opt_debug;
     cstate.player = player::RED;
 
-    var cmessage_sender = (:client_message_sender){.server = &sstate};
-    var cmessage_sender = message_sender[[client_message]]::init[[client_message_sender]](&cmessage_sender);
-    var smessage_sender = (:server_message_sender){.client = &cstate};
-    var smessage_sender = message_sender[[server_message]]::init[[server_message_sender]](&smessage_sender);
+    var cmessage_sender = (:local_client_message_sender){.server = &sstate};
+    var cmessage_sender = message_sender[[client_message]]::init[[local_client_message_sender]](&cmessage_sender);
+    var smessage_sender = (:local_server_message_sender){.client = &cstate};
+    var smessage_sender = message_sender[[server_message]]::init[[local_server_message_sender]](&smessage_sender);
 
     for not WindowShouldClose() {
         var message = sstate.to_server_message();
         smessage_sender.send(&message);
         message.fini();
-
-        if IsKeyPressed(KEY_F3) {
-            cstate.debug = not cstate.debug;
-        }
-        if IsKeyPressed(KEY_F11) {
-            ToggleFullscreen();
-        }
-
-        if IsKeyPressed(KEY_ONE) {
-            cstate.player = player::RED;
-        }
-        if IsKeyPressed(KEY_TWO) {
-            cstate.player = player::BLUE;
-        }
-        if IsKeyPressed(KEY_THREE) {
-            cstate.player = player::WHITE;
-        }
-        if IsKeyPressed(KEY_FOUR) {
-            cstate.player = player::ORANGE;
-        }
 
         update(&cstate, &cmessage_sender);
         render(&cstate);

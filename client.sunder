@@ -564,6 +564,26 @@ struct client_state {
 }
 
 func update(cstate: *client_state, sender: *message_sender[[client_message]]) void {
+    if IsKeyPressed(KEY_F3) {
+        cstate.*.debug = not cstate.*.debug;
+    }
+    if IsKeyPressed(KEY_F11) {
+        ToggleFullscreen();
+    }
+
+    if IsKeyPressed(KEY_ONE) {
+        cstate.*.player = player::RED;
+    }
+    if IsKeyPressed(KEY_TWO) {
+        cstate.*.player = player::BLUE;
+    }
+    if IsKeyPressed(KEY_THREE) {
+        cstate.*.player = player::WHITE;
+    }
+    if IsKeyPressed(KEY_FOUR) {
+        cstate.*.player = player::ORANGE;
+    }
+
     var render_w = GetRenderWidth();
     var render_h = GetRenderHeight();
     var camera = camera(HEX_RADIUS, (:f32)render_w, (:f32)render_h);
