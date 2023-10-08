@@ -18,7 +18,7 @@ EMCFLAGS = \
 all: build-desktop build-web
 
 build-desktop:
-	SUNDER_CFLAGS="$(SUNDER_CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --cflags)"
+	SUNDER_CFLAGS="$(SUNDER_CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --cflags)" \
 	sunder-compile \
 		-o $(TARGET) \
 		$$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --libs) \
