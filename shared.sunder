@@ -428,6 +428,75 @@ struct town {
     }
 }
 
+struct board {
+    var tiles: std::hash_map[[hex, tile]];
+    var edges: std::hash_set[[edge]];
+    var nodes: std::hash_set[[node]];
+    var ports: std::hash_set[[port]];
+    var roads: std::hash_map[[edge, road]];
+    var towns: std::hash_map[[node, town]];
+    var robber: hex;
+
+    func init() board {
+        var tiles = std::hash_map[[hex, tile]]::init();
+        var edges = std::hash_set[[edge]]::init();
+        var nodes = std::hash_set[[node]]::init();
+        var ports = std::hash_set[[port]]::init();
+        var roads = std::hash_map[[edge, road]]::init();
+        var towns = std::hash_map[[node, town]]::init();
+        var robber = hex::init(+0, +0, +0);
+
+        return (:board){
+            .tiles = tiles,
+            .edges = edges,
+            .nodes = nodes,
+            .ports = ports,
+            .roads = roads,
+            .towns = towns,
+            .robber = robber,
+        };
+    }
+
+    func init_starter_map_for_beginners() board {
+        var tiles = init_tiles();
+        var edges = init_edges(&tiles);
+        var nodes = init_nodes(&tiles);
+        var ports = init_ports();
+        var roads = init_roads();
+        var towns = init_towns();
+        var robber = hex::init(+0, +0, +0);
+
+        return (:board){
+            .tiles = tiles,
+            .edges = edges,
+            .nodes = nodes,
+            .ports = ports,
+            .roads = roads,
+            .towns = towns,
+            .robber = robber,
+        };
+    }
+
+    func fini(self: *board) void {
+        self.*.tiles.fini();
+        self.*.edges.fini();
+        self.*.nodes.fini();
+        self.*.ports.fini();
+        self.*.roads.fini();
+        self.*.towns.fini();
+    }
+
+    func assign(self: *board, from: *board) void {
+        std::hash_map[[hex, tile]]::assign(&self.*.tiles, &from.*.tiles);
+        std::hash_set[[edge]]::assign(&self.*.edges, &from.*.edges);
+        std::hash_set[[node]]::assign(&self.*.nodes, &from.*.nodes);
+        std::hash_set[[port]]::assign(&self.*.ports, &from.*.ports);
+        std::hash_map[[edge, road]]::assign(&self.*.roads, &from.*.roads);
+        std::hash_map[[node, town]]::assign(&self.*.towns, &from.*.towns);
+        self.*.robber = from.*.robber;
+    }
+}
+
 func insert_tile(tiles: *std::hash_map[[hex, tile]], tile: tile) void {
     tiles.*.insert(tile.hex, tile);
 }
@@ -824,57 +893,19 @@ struct client_message {
 }
 
 struct server_message {
-    var tiles: std::hash_map[[hex, tile]];
-    var ports: std::hash_set[[port]];
-    var roads: std::hash_map[[edge, road]];
-    var towns: std::hash_map[[node, town]];
-    var robber: hex;
+    var board: board;
 
-    func init(
-        tiles: *std::hash_map[[hex, tile]],
-        ports: *std::hash_set[[port]],
-        roads: *std::hash_map[[edge, road]],
-        towns: *std::hash_map[[node, town]],
-        robber: hex
-    ) server_message {
-        var cloned_tiles = std::hash_map[[hex, tile]]::init();
-        var iter = std::hash_map_iterator[[hex, tile]]::init(tiles);
-        for iter.advance() {
-            cloned_tiles.insert(*iter.current().*.key, *iter.current().*.value);
-        }
-
-        var cloned_ports = std::hash_set[[port]]::init();
-        var iter = std::hash_set_iterator[[port]]::init(ports);
-        for iter.advance() {
-            cloned_ports.insert(*iter.current());
-        }
-
-        var cloned_roads = std::hash_map[[edge, road]]::init();
-        var iter = std::hash_map_iterator[[edge, road]]::init(roads);
-        for iter.advance() {
-            cloned_roads.insert(*iter.current().*.key, *iter.current().*.value);
-        }
-
-        var cloned_towns = std::hash_map[[node, town]]::init();
-        var iter = std::hash_map_iterator[[node, town]]::init(towns);
-        for iter.advance() {
-            cloned_towns.insert(*iter.current().*.key, *iter.current().*.value);
-        }
+    func init(board: *board) server_message {
+        var board_copy = ::board::init();
+        board_copy.assign(board);
 
         return (:server_message){
-            .tiles = cloned_tiles,
-            .ports = cloned_ports,
-            .roads = cloned_roads,
-            .towns = cloned_towns,
-            .robber = robber,
+            .board = board_copy,
         };
     }
 
     func fini(self: *server_message) void {
-        self.*.tiles.fini();
-        self.*.ports.fini();
-        self.*.roads.fini();
-        self.*.towns.fini();
+        self.*.board.fini();
     }
 }
 

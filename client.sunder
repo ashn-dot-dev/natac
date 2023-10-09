@@ -460,13 +460,7 @@ struct client_state {
     var font_size: f32;
 
     var player: player;
-    var tiles: std::hash_map[[hex, tile]];
-    var edges: std::hash_set[[edge]];
-    var nodes: std::hash_set[[node]];
-    var ports: std::hash_set[[port]];
-    var roads: std::hash_map[[edge, road]];
-    var towns: std::hash_map[[node, town]];
-    var robber: hex;
+    var board: board;
 
     var mouse: Vector2;
     var world: Vector2;
@@ -487,13 +481,7 @@ struct client_state {
             std::ptr[[sint]]::NULL,
             FONT_NUMCHARS);
 
-        var tiles = init_tiles();
-        var edges = init_edges(&tiles);
-        var nodes = init_nodes(&tiles);
-        var ports = init_ports();
-        var roads = init_roads();
-        var towns = init_towns();
-        var robber = hex::init(+0, +0, +0);
+        var board = board::init();
 
         return (:client_state){
             .debug = false,
@@ -502,13 +490,7 @@ struct client_state {
             .font_size = font_size,
 
             .player = player::NIL,
-            .tiles = tiles,
-            .edges = edges,
-            .nodes = nodes,
-            .ports = ports,
-            .roads = roads,
-            .towns = towns,
-            .robber = robber,
+            .board = board,
 
             .mouse = uninit,
             .world = uninit,
@@ -521,45 +503,11 @@ struct client_state {
 
     func fini(self: *client_state) void {
         UnloadFont(self.*.font);
-        self.*.tiles.fini();
-        self.*.edges.fini();
-        self.*.nodes.fini();
-        self.*.ports.fini();
-        self.*.roads.fini();
-        self.*.towns.fini();
+        self.*.board.fini();
     }
 
     func update_from_server_message(self: *client_state, message: *server_message) void {
-        self.*.tiles.fini();
-        self.*.ports.fini();
-        self.*.roads.fini();
-        self.*.towns.fini();
-
-        self.*.tiles = std::hash_map[[hex, tile]]::init();
-        var iter = std::hash_map_iterator[[hex, tile]]::init(&message.*.tiles);
-        for iter.advance() {
-            self.*.tiles.insert(*iter.current().*.key, *iter.current().*.value);
-        }
-
-        self.*.ports = std::hash_set[[port]]::init();
-        var iter = std::hash_set_iterator[[port]]::init(&message.*.ports);
-        for iter.advance() {
-            self.*.ports.insert(*iter.current());
-        }
-
-        self.*.roads = std::hash_map[[edge, road]]::init();
-        var iter = std::hash_map_iterator[[edge, road]]::init(&message.*.roads);
-        for iter.advance() {
-            self.*.roads.insert(*iter.current().*.key, *iter.current().*.value);
-        }
-
-        self.*.towns = std::hash_map[[node, town]]::init();
-        var iter = std::hash_map_iterator[[node, town]]::init(&message.*.towns);
-        for iter.advance() {
-            self.*.towns.insert(*iter.current().*.key, *iter.current().*.value);
-        }
-
-        self.*.robber = message.*.robber;
+        board::assign(&self.*.board, &message.*.board);
     }
 }
 
@@ -593,7 +541,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var world_hex = point_to_pointy_hex(world, HEX_RADIUS);
 
     var world_tile = std::optional[[tile]]::EMPTY;
-    var iter = std::hash_map_iterator[[hex, tile]]::init(&cstate.*.tiles);
+    var iter = std::hash_map_iterator[[hex, tile]]::init(&cstate.*.board.tiles);
     for iter.advance() {
         if std::eq[[hex]](iter.current().*.key, &world_hex) {
             world_tile = std::optional[[tile]]::init_value(*iter.current().*.value);
@@ -602,7 +550,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     }
 
     var world_edge = std::optional[[edge]]::EMPTY;
-    var iter = std::hash_set_iterator[[edge]]::init(&cstate.*.edges);
+    var iter = std::hash_set_iterator[[edge]]::init(&cstate.*.board.edges);
     for iter.advance() {
         var found = true;
         for i in countof(iter.current().*.hexes) {
@@ -621,7 +569,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     }
 
     var world_node = std::optional[[node]]::EMPTY;
-    var iter = std::hash_set_iterator[[node]]::init(&cstate.*.nodes);
+    var iter = std::hash_set_iterator[[node]]::init(&cstate.*.board.nodes);
     for iter.advance() {
         var found = true;
         for i in countof(iter.current().*.hexes) {
@@ -640,7 +588,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     }
 
     if world_node.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
-        var existing = cstate.*.towns.lookup(world_node.value());
+        var existing = cstate.*.board.towns.lookup(world_node.value());
         if existing.is_value() and existing.value().player == cstate.*.player {
             var cmessage = client_message::init_build_town(town::init(
                 cstate.*.player,
@@ -657,8 +605,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         }
     }
     elif world_edge.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
-        var tile_a = cstate.*.tiles.lookup(world_edge.value().hexes[0]);
-        var tile_b = cstate.*.tiles.lookup(world_edge.value().hexes[1]);
+        var tile_a = cstate.*.board.tiles.lookup(world_edge.value().hexes[0]);
+        var tile_b = cstate.*.board.tiles.lookup(world_edge.value().hexes[1]);
         assert tile_a.is_value() and tile_b.is_value();
         var is_road_across_water =
             tile_a.value().kind == tile::OCEAN and
@@ -697,7 +645,7 @@ func client_render(cstate: *client_state) void {
 
     BeginMode2D(camera);
 
-    var iter = std::hash_map_iterator[[hex, tile]]::init(&cstate.*.tiles);
+    var iter = std::hash_map_iterator[[hex, tile]]::init(&cstate.*.board.tiles);
     for iter.advance() {
         var tile = iter.current().*.value;
         var point = pointy_hex_to_point(tile.*.hex, HEX_RADIUS);
@@ -728,7 +676,7 @@ func client_render(cstate: *client_state) void {
         }
     }
 
-    var iter = std::hash_map_iterator[[hex, tile]]::init(&cstate.*.tiles);
+    var iter = std::hash_map_iterator[[hex, tile]]::init(&cstate.*.board.tiles);
     for iter.advance() {
         var tile = iter.current().*.value;
         if tile.*.kind == ::tile::OCEAN {
@@ -738,20 +686,20 @@ func client_render(cstate: *client_state) void {
         draw_pointy_hexagon_border(point, HEX_RADIUS, BLACK);
     }
 
-    var iter = std::hash_set_iterator[[port]]::init(&cstate.*.ports);
+    var iter = std::hash_set_iterator[[port]]::init(&cstate.*.board.ports);
     for iter.advance() {
         var port = iter.current();
         draw_port(*port, HEX_RADIUS, cstate.*.font);
     }
 
-    var iter = std::hash_map_iterator[[edge, road]]::init(&cstate.*.roads);
+    var iter = std::hash_map_iterator[[edge, road]]::init(&cstate.*.board.roads);
     for iter.advance() {
         var road = iter.current().*.value;
         var points = edge_to_points(road.*.edge, HEX_RADIUS);
         draw_road(points[0], points[1], HEX_RADIUS, player_color(road.*.player));
     }
 
-    var iter = std::hash_map_iterator[[node, town]]::init(&cstate.*.towns);
+    var iter = std::hash_map_iterator[[node, town]]::init(&cstate.*.board.towns);
     for iter.advance() {
         var town = iter.current().*.value;
         switch town.*.kind {
@@ -785,7 +733,7 @@ func client_render(cstate: *client_state) void {
         }
     }
 
-    draw_robber(pointy_hex_to_point(cstate.*.robber, HEX_RADIUS), HEX_RADIUS);
+    draw_robber(pointy_hex_to_point(cstate.*.board.robber, HEX_RADIUS), HEX_RADIUS);
 
     EndMode2D();
 
