@@ -7,6 +7,5 @@ NATAC
 
 ## Building
 ```sh
-$ make build-desktop  # Desktop (Linux)
-$ make build-web      # Web (HTML5)
+$ make build  # Desktop (Linux, MacOS)
 ```
