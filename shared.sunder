@@ -457,6 +457,12 @@ struct board {
         };
     }
 
+    func init_assign(from: *board) board {
+        var self = board::init();
+        board::assign(&self, from);
+        return self;
+    }
+
     func init_starter_map_for_beginners() board {
         var tiles = init_tiles();
         var edges = init_edges(&tiles);
@@ -896,8 +902,7 @@ struct server_message {
     var board: board;
 
     func init(board: *board) server_message {
-        var board_copy = ::board::init();
-        board_copy.assign(board);
+        var board_copy = ::board::init_assign(board);
 
         return (:server_message){
             .board = board_copy,
