@@ -1,6 +1,8 @@
 import "c";
-import "raylib";
 import "std";
+
+import "nbnet";
+import "raylib";
 
 import "client.sunder";
 import "server.sunder";
@@ -22,38 +24,77 @@ struct local_server_message_sender {
     }
 }
 
-func main() void {
-    var argparser = std::argument_parser::init((:[][]byte)[
-        "debug",
-        "fullscreen"
-    ]);
-    var opt_debug = false;
-    var opt_fullscreen = false;
-    for argparser.advance() {
-        if argparser.check_option("debug") {
-            opt_debug = true;
-            continue;
-        }
-        if argparser.check_option("fullscreen") {
-            opt_fullscreen = true;
-            continue;
-        }
+struct nbnet_client_message_sender {
+    var connected: bool;
+
+    func init() nbnet_client_message_sender {
+        return (:nbnet_client_message_sender){
+            .connected = false,
+        };
     }
 
+    func send(self: *nbnet_client_message_sender, message: *client_message) void {
+        if not self.*.connected {
+            std::print_line(std::err(), "error: failed to send client message (not connected to server)");
+            return;
+        }
+
+        if NBN_GameClient_SendReliableMessage(client_message::TYPE, message) < 0 {
+            std::print_line(std::err(), "error: failed to send client message");
+        }
+    }
+}
+
+struct nbnet_server_message_sender {
+    var client: NBN_ConnectionHandle;
+
+    func init() nbnet_server_message_sender {
+        return (:nbnet_server_message_sender){
+            .client = (:NBN_ConnectionHandle)0,
+        };
+    }
+
+    func send(self: *nbnet_server_message_sender, message: *server_message) void {
+        if self.*.client == 0 {
+            return;
+        }
+
+        if NBN_GameServer_SendReliableMessageTo(self.*.client, server_message::TYPE, message) < 0 {
+            std::print_line(std::err(), "error: failed to send server message");
+        }
+    }
+}
+
+enum network {
+    LOCAL;
+    CLIENT;
+    SERVER;
+}
+
+func raylib_init(fullscreen: bool) void {
     SetTraceLogLevel(LOG_WARNING);
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(800, 600, startof("NATAC"));
-    defer CloseWindow();
     SetTargetFPS(60);
-    if opt_fullscreen {
+    if fullscreen {
         ToggleFullscreen();
     }
+}
+
+func raylib_fini() void {
+    CloseWindow();
+}
+
+func run_local(debug: bool, fullscreen: bool) void {
+    raylib_init(fullscreen);
+    defer raylib_fini();
 
     var sstate = server_state::init();
     defer sstate.fini();
+
     var cstate = client_state::init();
     defer cstate.fini();
-    cstate.debug = opt_debug;
+    cstate.debug = debug;
     cstate.player = player::RED;
 
     var cmessage_sender = (:local_client_message_sender){.server = &sstate};
@@ -65,5 +106,215 @@ func main() void {
         server_update(&sstate, &smessage_sender);
         client_update(&cstate, &cmessage_sender);
         client_render(&cstate);
+    }
+}
+
+func run_client(debug: bool, fullscreen: bool) void {
+    raylib_init(fullscreen);
+    defer raylib_fini();
+
+    NBN_Log_SetIsEnabled(NBN_LogType::NBN_LOG_TRACE, false);
+    NBN_Log_SetIsEnabled(NBN_LogType::NBN_LOG_DEBUG, false);
+    NBN_Driver_Init();
+    var addr = startof("127.0.0.1");
+    var port = 31415u16;
+    if NBN_GameClient_StartEx(startof("natac"), addr, port, false, std::ptr[[uint8_t]]::NULL, 0) < 0 {
+        std::print_line(std::err(), "error: failed to start the nbnet client");
+        std::exit(std::EXIT_FAILURE);
+    }
+    defer NBN_GameClient_Stop();
+
+    # TODO: Register messages with `NBN_GameClient_RegisterMessage` here.
+
+    var cstate = client_state::init();
+    defer cstate.fini();
+    cstate.debug = debug;
+    cstate.player = player::RED;
+
+    var client_message_sender = nbnet_client_message_sender::init();
+    var message_sender = message_sender[[client_message]]::init[[nbnet_client_message_sender]](&client_message_sender);
+
+    for not WindowShouldClose() {
+        for true {
+            var ev = NBN_GameClient_Poll();
+
+            if ev < 0 {
+                std::print_line(std::err(), "error: failed to poll nbnet event");
+                break;
+            }
+
+            if ev == NBN_NO_EVENT {
+                break;
+            }
+
+            if ev == NBN_CONNECTED {
+                std::print_line(std::err(), "info: connected to server");
+                client_message_sender.connected = true;
+            }
+
+            if ev == NBN_DISCONNECTED {
+                std::print_line(std::err(), "info: disconnected from server");
+                client_message_sender.connected = false;
+                if NBN_GameClient_GetServerCloseCode() == BUSY_CODE {
+                    std::print_line(std::err(), "error: server sent busy code");
+                }
+                break;
+            }
+
+            if ev == NBN_MESSAGE_RECEIVED {
+                std::print_line(std::err(), "info: message received");
+                var info = NBN_GameClient_GetMessageInfo();
+                assert info.type == server_message::TYPE;
+                var incoming = (:*::server_message)info.data;
+
+                cstate.update_from_server_message(incoming);
+
+                # TODO: Implement `server_message::destroy`.
+                server_message::destroy(incoming);
+            }
+        }
+
+        client_update(&cstate, &message_sender);
+
+        if NBN_GameClient_SendPackets() < 0 {
+            std::print_line(std::err(), "error: failed to send nbnet packets");
+        }
+
+        client_render(&cstate);
+    }
+}
+
+func run_server() void {
+    NBN_Driver_Init();
+    var port = 31415u16;
+    if NBN_GameServer_StartEx(startof("natac"), port, false) < 0 {
+        std::print_line(std::err(), "error: failed to start the nbnet server");
+        std::exit(std::EXIT_FAILURE);
+    }
+    defer NBN_GameServer_Stop();
+
+    NBN_GameServer_RegisterMessage(
+        client_message::TYPE,
+        (:NBN_MessageBuilder)client_message::create,
+        (:NBN_MessageDestructor)client_message::destroy,
+        (:NBN_MessageSerializer)client_message::serialize);
+    NBN_GameServer_RegisterMessage(
+        server_message::TYPE,
+        (:NBN_MessageBuilder)server_message::create,
+        (:NBN_MessageDestructor)server_message::destroy,
+        (:NBN_MessageSerializer)server_message::serialize);
+
+    var sstate = server_state::init();
+    defer sstate.fini();
+
+    var server_message_sender = nbnet_server_message_sender::init();
+    var message_sender = message_sender[[server_message]]::init[[nbnet_server_message_sender]](&server_message_sender);
+
+    for true {
+        for true {
+            var ev = NBN_GameServer_Poll();
+
+            if ev < 0 {
+                std::print_line(std::err(), "error: failed to poll nbnet event");
+                break;
+            }
+
+            if ev == NBN_NO_EVENT {
+                break;
+            }
+
+            if ev == NBN_NEW_CONNECTION {
+                std::print_line(std::err(), "info: new connection");
+                if server_message_sender.client == 0 {
+                    server_message_sender.client = NBN_GameServer_GetIncomingConnection();
+                    NBN_GameServer_AcceptIncomingConnection();
+                }
+                else {
+                    NBN_GameServer_RejectIncomingConnectionWithCode(BUSY_CODE);
+                }
+            }
+
+            if ev == NBN_CLIENT_DISCONNECTED {
+                std::print_line(std::err(), "info: disconnected");
+                if server_message_sender.client != 0 and NBN_GameServer_GetDisconnectedClient() == server_message_sender.client {
+                    server_message_sender.client = 0;
+                }
+            }
+
+            if ev == NBN_CLIENT_MESSAGE_RECEIVED {
+                std::print_line(std::err(), "info: message received");
+
+                var info = NBN_GameServer_GetMessageInfo();
+                assert info.type == client_message::TYPE;
+                var incoming = (:*client_message)info.data;
+                if info.sender == server_message_sender.client {
+                    sstate.update_from_client_message(incoming);
+                }
+
+                client_message::destroy(incoming);
+            }
+
+        }
+
+        server_update(&sstate, &message_sender);
+
+        if NBN_GameServer_SendPackets() < 0 {
+            std::print_line(std::err(), "error: failed to send nbnet packets");
+            break;
+        }
+    }
+}
+
+func main() void {
+    var argparser = std::argument_parser::init((:[][]byte)[
+        "debug",
+        "fullscreen",
+
+        "local",
+        "client",
+        "server",
+    ]);
+    var opt_debug = false;
+    var opt_fullscreen = false;
+    var opt_network = std::optional[[network]]::EMPTY;
+    for argparser.advance() {
+        if argparser.check_option("debug") {
+            opt_debug = true;
+            continue;
+        }
+        if argparser.check_option("fullscreen") {
+            opt_fullscreen = true;
+            continue;
+        }
+
+        if argparser.check_option("local") {
+            opt_network = std::optional[[network]]::init_value(network::LOCAL);
+            continue;
+        }
+        if argparser.check_option("client") {
+            opt_network = std::optional[[network]]::init_value(network::CLIENT);
+            continue;
+        }
+        if argparser.check_option("server") {
+            opt_network = std::optional[[network]]::init_value(network::SERVER);
+            continue;
+        }
+    }
+
+    var network = network::CLIENT;
+    if opt_network.is_value() {
+        network = opt_network.value();
+    }
+
+    switch network {
+    ::network::LOCAL {
+        run_local(opt_debug, opt_fullscreen);
+    }
+    ::network::CLIENT {
+        run_client(opt_debug, opt_fullscreen);
+    }
+    ::network::SERVER {
+        run_server();
+    }
     }
 }

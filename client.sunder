@@ -1,6 +1,7 @@
 import "c";
-import "raylib";
 import "std";
+
+import "raylib";
 
 import "shared.sunder";
 

@@ -14,6 +14,7 @@ build:
 	sunder-compile \
 		-o $(TARGET) \
 		$$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --libs) \
+		-L$(SUNDER_HOME)/lib/nbnet -lnbnet \
 		main.sunder
 
 clean:
