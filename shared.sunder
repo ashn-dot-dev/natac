@@ -1,8 +1,6 @@
 import "c";
 import "std";
 
-import "nbnet";
-
 enum player {
     NIL = 0;
     RED = 1;
@@ -872,7 +870,6 @@ struct client_message {
     };
 
     let SELF: client_message = uninit;
-    let TYPE: u8 = 0x1; # nbnet message type
 
     func init_build_road(road: road) client_message {
         return (:client_message){
@@ -901,27 +898,10 @@ struct client_message {
             .data = (:typeof(SELF.data)){.remove_town = town},
         };
     }
-
-    func create() *client_message {
-        return std::new[[client_message]]();
-    }
-
-    func destroy(self: *client_message) void {
-        std::delete[[client_message]](self);
-    }
-
-    func serialize(self: *client_message, stream: *NBN_Stream) sint {
-        self;
-        stream;
-        std::panic("TODO: client_message::serialize");
-        return 0;
-    }
 }
 
 struct server_message {
     var board: board;
-
-    let TYPE: u8 = 0x2; # nbnet message type
 
     func init(board: *board) server_message {
         var board_copy = ::board::init_assign(board);
@@ -933,21 +913,6 @@ struct server_message {
 
     func fini(self: *server_message) void {
         self.*.board.fini();
-    }
-
-    func create() *server_message {
-        return std::new[[server_message]]();
-    }
-
-    func destroy(self: *server_message) void {
-        std::delete[[server_message]](self);
-    }
-
-    func serialize(self: *server_message, stream: *NBN_Stream) sint {
-        self;
-        stream;
-        std::panic("TODO: server_message::serialize");
-        return 0;
     }
 }
 

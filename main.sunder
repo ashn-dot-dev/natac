@@ -39,8 +39,11 @@ struct nbnet_client_message_sender {
             return;
         }
 
-        if NBN_GameClient_SendReliableMessage(client_message::TYPE, message) < 0 {
-            std::print_line(std::err(), "error: failed to send client message");
+        message; # TODO
+        var start = (:*u8)startof("TODO");
+        var count = (:u32)countof("TODO");
+        if NBN_GameClient_SendReliableByteArray(start, count) < 0 {
+            std::print_line(std::err(), "error: failed to send server message");
         }
     }
 }
@@ -59,7 +62,10 @@ struct nbnet_server_message_sender {
             return;
         }
 
-        if NBN_GameServer_SendReliableMessageTo(self.*.client, server_message::TYPE, message) < 0 {
+        message; # TODO
+        var start = (:*u8)startof("TODO");
+        var count = (:u32)countof("TODO");
+        if NBN_GameServer_SendReliableByteArrayTo(self.*.client, start, count) < 0 {
             std::print_line(std::err(), "error: failed to send server message");
         }
     }
@@ -124,8 +130,6 @@ func run_client(debug: bool, fullscreen: bool) void {
     }
     defer NBN_GameClient_Stop();
 
-    # TODO: Register messages with `NBN_GameClient_RegisterMessage` here.
-
     var cstate = client_state::init();
     defer cstate.fini();
     cstate.debug = debug;
@@ -164,13 +168,13 @@ func run_client(debug: bool, fullscreen: bool) void {
             if ev == NBN_MESSAGE_RECEIVED {
                 std::print_line(std::err(), "info: message received");
                 var info = NBN_GameClient_GetMessageInfo();
-                assert info.type == server_message::TYPE;
-                var incoming = (:*::server_message)info.data;
+                assert info.type == NBN_BYTE_ARRAY_MESSAGE_TYPE;
+                var incoming = (:*NBN_ByteArrayMessage)info.data;
 
-                cstate.update_from_server_message(incoming);
+                # TODO: Process text message into server message.
+                #cstate.update_from_server_message(incoming);
 
-                # TODO: Implement `server_message::destroy`.
-                server_message::destroy(incoming);
+                NBN_ByteArrayMessage_Destroy(incoming);
             }
         }
 
@@ -192,17 +196,6 @@ func run_server() void {
         std::exit(std::EXIT_FAILURE);
     }
     defer NBN_GameServer_Stop();
-
-    NBN_GameServer_RegisterMessage(
-        client_message::TYPE,
-        (:NBN_MessageBuilder)client_message::create,
-        (:NBN_MessageDestructor)client_message::destroy,
-        (:NBN_MessageSerializer)client_message::serialize);
-    NBN_GameServer_RegisterMessage(
-        server_message::TYPE,
-        (:NBN_MessageBuilder)server_message::create,
-        (:NBN_MessageDestructor)server_message::destroy,
-        (:NBN_MessageSerializer)server_message::serialize);
 
     var sstate = server_state::init();
     defer sstate.fini();
@@ -245,13 +238,15 @@ func run_server() void {
                 std::print_line(std::err(), "info: message received");
 
                 var info = NBN_GameServer_GetMessageInfo();
-                assert info.type == client_message::TYPE;
-                var incoming = (:*client_message)info.data;
-                if info.sender == server_message_sender.client {
-                    sstate.update_from_client_message(incoming);
-                }
+                assert info.type == NBN_BYTE_ARRAY_MESSAGE_TYPE;
+                var incoming = (:*NBN_ByteArrayMessage)info.data;
 
-                client_message::destroy(incoming);
+                # TODO: Process text message into client message.
+                #if info.sender == server_message_sender.client {
+                #    sstate.update_from_client_message(incoming);
+                #}
+
+                NBN_ByteArrayMessage_Destroy(incoming);
             }
 
         }
