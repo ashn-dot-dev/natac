@@ -136,16 +136,15 @@ func run_local(debug: bool, fullscreen: bool) void {
     }
 }
 
-func run_client(debug: bool, fullscreen: bool) void {
+func run_client(debug: bool, fullscreen: bool, address: *byte) void {
     raylib_init(fullscreen);
     defer raylib_fini();
 
     NBN_Log_SetIsEnabled(NBN_LogType::NBN_LOG_TRACE, false);
     NBN_Log_SetIsEnabled(NBN_LogType::NBN_LOG_DEBUG, false);
     NBN_Driver_Init();
-    var addr = startof("127.0.0.1");
     var port = 31415u16;
-    if NBN_GameClient_StartEx(startof("natac"), addr, port, false, std::ptr[[uint8_t]]::NULL, 0) < 0 {
+    if NBN_GameClient_StartEx(startof("natac"), address, port, false, std::ptr[[uint8_t]]::NULL, 0) < 0 {
         std::print_line(std::err(), "error: failed to start the nbnet client");
         std::exit(std::EXIT_FAILURE);
     }
@@ -308,12 +307,13 @@ func main() void {
         "fullscreen",
 
         "local",
-        "client",
+        "client:",
         "server",
     ]);
     var opt_debug = false;
     var opt_fullscreen = false;
     var opt_network = std::optional[[network]]::EMPTY;
+    var opt_address = std::optional[[*byte]]::EMPTY;
     for argparser.advance() {
         if argparser.check_option("debug") {
             opt_debug = true;
@@ -330,6 +330,7 @@ func main() void {
         }
         if argparser.check_option("client") {
             opt_network = std::optional[[network]]::init_value(network::CLIENT);
+            opt_address = std::optional[[*byte]]::init_value(startof(argparser.argument_value()));
             continue;
         }
         if argparser.check_option("server") {
@@ -338,7 +339,7 @@ func main() void {
         }
     }
 
-    var network = network::CLIENT;
+    var network = network::LOCAL;
     if opt_network.is_value() {
         network = opt_network.value();
     }
@@ -348,7 +349,7 @@ func main() void {
         run_local(opt_debug, opt_fullscreen);
     }
     ::network::CLIENT {
-        run_client(opt_debug, opt_fullscreen);
+        run_client(opt_debug, opt_fullscreen, opt_address.value());
     }
     ::network::SERVER {
         run_server();
