@@ -302,6 +302,22 @@ func run_server() void {
 }
 
 func main() void {
+    var allocator = std::general_allocator::init();
+    defer allocator.fini();
+    defer {
+        var iter = std::general_allocator_iterator::init(&allocator);
+        for iter.advance() {
+            var size = iter.current().*.size();
+            std::print_format_line(
+                std::err(),
+                "leaked allocation of size {}",
+                (:[]std::formatter)[
+                    std::formatter::init[[usize]](&size)]);
+        }
+    }
+
+    var allocator = std::allocator::init[[typeof(allocator)]](&allocator);
+    std::set_global_allocator(allocator);
     var argparser = std::argument_parser::init((:[][]byte)[
         "debug",
         "fullscreen",
