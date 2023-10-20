@@ -1,6 +1,8 @@
 import "c";
 import "std";
 
+import "bubby";
+
 enum player {
     NIL = 0;
     RED = 1;
@@ -81,6 +83,21 @@ struct hex {
         }
 
         return std::result[[void, std::error]]::init_value(void::VALUE);
+    }
+
+    func init_from_bubby(value: *bubby::value) hex {
+        return hex::init(
+            (:sint)value.*.vec().*.data()[0].int(),
+            (:sint)value.*.vec().*.data()[1].int(),
+            (:sint)value.*.vec().*.data()[2].int());
+    }
+
+    func to_bubby(self: *hex) bubby::value {
+        var out = bubby::value::init_vec();
+        out.vec().*.push(bubby::value::init_int((:s64)self.*.q));
+        out.vec().*.push(bubby::value::init_int((:s64)self.*.r));
+        out.vec().*.push(bubby::value::init_int((:s64)self.*.s));
+        return out;
     }
 
     func subtract(lhs: hex, rhs: hex) hex {
@@ -234,6 +251,66 @@ struct tile {
 
         return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
     }
+
+    func init_from_bubby(value: *bubby::value) tile {
+        var hex = hex::init_from_bubby(value.*.map_xlookup_str("hex"));
+        var kind_value = value.*.map_xlookup_str("kind");
+        var kind = tile::OCEAN;
+        if std::str::eq(kind_value.*.str(), "desert") {
+            kind = tile::DESERT;
+        }
+        elif std::str::eq(kind_value.*.str(), "ocean") {
+            kind = tile::OCEAN;
+        }
+        elif std::str::eq(kind_value.*.str(), "forest") {
+            kind = tile::FOREST;
+        }
+        elif std::str::eq(kind_value.*.str(), "field") {
+            kind = tile::FIELD;
+        }
+        elif std::str::eq(kind_value.*.str(), "hill") {
+            kind = tile::HILL;
+        }
+        elif std::str::eq(kind_value.*.str(), "mountain") {
+            kind = tile::MOUNTAIN;
+        }
+        elif std::str::eq(kind_value.*.str(), "pasture") {
+            kind = tile::PASTURE;
+        }
+        var number = (:sint)value.*.map_xlookup_str("number").*.int();
+        var self = tile::init(hex, kind, number);
+        return self;
+    }
+
+    func to_bubby(self: *tile) bubby::value {
+        var out = bubby::value::init_map();
+        out.map().*.insert(bubby::value::init_str("hex"), self.*.hex.to_bubby());
+        switch self.*.kind {
+        tile::DESERT {
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("desert"));
+        }
+        tile::OCEAN {
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("ocean"));
+        }
+        tile::FOREST {
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("forest"));
+        }
+        tile::FIELD {
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("field"));
+        }
+        tile::HILL {
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("hill"));
+        }
+        tile::MOUNTAIN {
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("mountain"));
+        }
+        tile::PASTURE {
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("pasture"));
+        }
+        }
+        out.map().*.insert(bubby::value::init_str("number"), bubby::value::init_int((:s64)self.*.number_token));
+        return out;
+    }
 }
 
 struct edge {
@@ -289,6 +366,20 @@ struct edge {
         }
 
         return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
+    }
+
+    func init_from_bubby(value: *bubby::value) edge {
+        return edge::init(
+            hex::init_from_bubby(&value.*.vec().*.data()[0]),
+            hex::init_from_bubby(&value.*.vec().*.data()[1]));
+    }
+
+    func to_bubby(self: *edge) bubby::value {
+        var out = bubby::value::init_vec();
+        for i in countof(self.*.hexes) {
+            out.vec().*.push(self.*.hexes[i].to_bubby());
+        }
+        return out;
     }
 }
 
@@ -353,6 +444,21 @@ struct node {
 
         return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
     }
+
+    func init_from_bubby(value: *bubby::value) node {
+        return node::init(
+            hex::init_from_bubby(&value.*.vec().*.data()[0]),
+            hex::init_from_bubby(&value.*.vec().*.data()[1]),
+            hex::init_from_bubby(&value.*.vec().*.data()[2]));
+    }
+
+    func to_bubby(self: *node) bubby::value {
+        var out = bubby::value::init_vec();
+        for i in countof(self.*.hexes) {
+            out.vec().*.push(self.*.hexes[i].to_bubby());
+        }
+        return out;
+    }
 }
 
 struct port {
@@ -395,6 +501,64 @@ struct port {
     func compare(lhs: *port, rhs: *port) ssize {
         return std::compare[[hex]](&lhs.*.hex, &rhs.*.hex);
     }
+
+    func init_from_bubby(value: *bubby::value) port {
+        var hex = hex::init_from_bubby(value.*.map_xlookup_str("hex"));
+        var node_a = node::init_from_bubby(&value.*.map_xlookup_str("nodes").*.vec().*.data()[0]);
+        var node_b = node::init_from_bubby(&value.*.map_xlookup_str("nodes").*.vec().*.data()[1]);
+        var kind_value = value.*.map_xlookup_str("kind");
+        var kind = port::ANY;
+        if std::str::eq(kind_value.*.str(), "any") {
+            kind = port::ANY;
+        }
+        elif std::str::eq(kind_value.*.str(), "brick") {
+            kind = port::BRICK;
+        }
+        elif std::str::eq(kind_value.*.str(), "ore") {
+            kind = port::ORE;
+        }
+        elif std::str::eq(kind_value.*.str(), "sheep") {
+            kind = port::SHEEP;
+        }
+        elif std::str::eq(kind_value.*.str(), "wheat") {
+            kind = port::WHEAT;
+        }
+        elif std::str::eq(kind_value.*.str(), "wood") {
+            kind = port::WOOD;
+        }
+        return port::init(hex, node_a, node_b, kind);
+    }
+
+    func to_bubby(self: *port) bubby::value {
+        var out = bubby::value::init_map();
+        out.map().*.insert(bubby::value::init_str("hex"), self.*.hex.to_bubby());
+        out.map().*.insert(bubby::value::init_str("nodes"), bubby::value::init_vec());
+        out.map_xlookup_str("nodes").*.vec().*.push(self.*.nodes[0].to_bubby());
+        out.map_xlookup_str("nodes").*.vec().*.push(self.*.nodes[1].to_bubby());
+        var kind = "<error>";
+        switch self.*.kind {
+        port::ANY {
+            kind = "any";
+        }
+        port::BRICK {
+            kind = "brick";
+        }
+        port::ORE {
+            kind = "ore";
+        }
+        port::SHEEP {
+            kind = "sheep";
+        }
+        port::WHEAT {
+            kind = "wheat";
+        }
+        port::WOOD {
+            kind = "wood";
+        }
+        }
+        out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str(kind));
+        return out;
+    }
 }
 
 struct road {
@@ -406,6 +570,19 @@ struct road {
             .edge = edge,
             .player = player,
         };
+    }
+
+    func init_from_bubby(value: *bubby::value) road {
+        return road::init(
+            (:player)value.*.map_xlookup_str("player").*.int(),
+            edge::init_from_bubby(value.*.map_xlookup_str("edge")));
+    }
+
+    func to_bubby(self: *road) bubby::value {
+        var out = bubby::value::init_map();
+        out.map_insert_str("player", bubby::value::init_int((:s64)self.*.player));
+        out.map_insert_str("edge", self.*.edge.to_bubby());
+        return out;
     }
 }
 
@@ -425,6 +602,37 @@ struct town {
             .node = node,
             .kind = kind,
         };
+    }
+
+    func init_from_bubby(value: *bubby::value) town {
+        var kind_value = value.*.map_xlookup_str("kind");
+        var kind = town::SETTLEMENT;
+        if std::str::eq(kind_value.*.str(), "settlement") {
+            kind = town::SETTLEMENT;
+        }
+        elif std::str::eq(kind_value.*.str(), "city") {
+            kind = town::CITY;
+        }
+
+        return town::init(
+            (:player)value.*.map_xlookup_str("player").*.int(),
+            node::init_from_bubby(value.*.map_xlookup_str("node")),
+            kind);
+    }
+
+    func to_bubby(self: *town) bubby::value {
+        var out = bubby::value::init_map();
+        out.map_insert_str("player", bubby::value::init_int((:s64)self.*.player));
+        out.map_insert_str("node", self.*.node.to_bubby());
+        switch self.*.kind {
+        town::SETTLEMENT {
+            out.map_insert_str("kind", bubby::value::init_str("settlement"));
+        }
+        town::CITY {
+            out.map_insert_str("kind", bubby::value::init_str("city"));
+        }
+        }
+        return out;
     }
 }
 
@@ -500,6 +708,70 @@ struct board {
         std::hash_map[[edge, road]]::assign(&self.*.roads, &from.*.roads);
         std::hash_map[[node, town]]::assign(&self.*.towns, &from.*.towns);
         self.*.robber = from.*.robber;
+    }
+
+    func init_from_bubby(value: *bubby::value) board {
+        var self = board::init();
+        var tiles = value.*.map_xlookup_str("tiles");
+        var iter = std::hash_set_iterator[[bubby::value]]::init(tiles.*.set());
+        for iter.advance() {
+            var tile = tile::init_from_bubby(iter.current());
+            self.tiles.insert(tile.hex, tile);
+        }
+        self.edges.fini();
+        self.edges = init_edges(&self.tiles);
+        self.nodes.fini();
+        self.nodes = init_nodes(&self.tiles);
+        var ports = value.*.map_xlookup_str("ports");
+        var iter = std::hash_set_iterator[[bubby::value]]::init(ports.*.set());
+        for iter.advance() {
+            var port = port::init_from_bubby(iter.current());
+            self.ports.insert(port);
+        }
+        var roads = value.*.map_xlookup_str("roads");
+        var iter = std::hash_set_iterator[[bubby::value]]::init(roads.*.set());
+        for iter.advance() {
+            var road = road::init_from_bubby(iter.current());
+            self.roads.insert(road.edge, road);
+        }
+        var towns = value.*.map_xlookup_str("towns");
+        var iter = std::hash_set_iterator[[bubby::value]]::init(towns.*.set());
+        for iter.advance() {
+            var town = town::init_from_bubby(iter.current());
+            self.towns.insert(town.node, town);
+        }
+        self.robber = hex::init_from_bubby(value.*.map_xlookup_str("robber"));
+        return self;
+    }
+
+    func to_bubby(self: *board) bubby::value {
+        var out = bubby::value::init_map();
+        out.map_insert_str("tiles", bubby::value::init_set());
+        var iter = std::hash_map_iterator[[hex, tile]]::init(&self.*.tiles);
+        for iter.advance() {
+            var tile = iter.current().*.value.*.to_bubby();
+            out.map_xlookup_str("tiles").*.set_insert(tile);
+        }
+        out.map_insert_str("ports", bubby::value::init_set());
+        var iter = std::hash_set_iterator[[port]]::init(&self.*.ports);
+        for iter.advance() {
+            var port = iter.current().*.to_bubby();
+            out.map_xlookup_str("ports").*.set_insert(port);
+        }
+        out.map_insert_str("roads", bubby::value::init_set());
+        var iter = std::hash_map_iterator[[edge, road]]::init(&self.*.roads);
+        for iter.advance() {
+            var road = iter.current().*.value.*.to_bubby();
+            out.map_xlookup_str("roads").*.set_insert(road);
+        }
+        out.map_insert_str("towns", bubby::value::init_set());
+        var iter = std::hash_map_iterator[[node, town]]::init(&self.*.towns);
+        for iter.advance() {
+            var town = iter.current().*.value.*.to_bubby();
+            out.map_xlookup_str("towns").*.set_insert(town);
+        }
+        out.map_insert_str("robber", self.*.robber.to_bubby());
+        return out;
     }
 }
 
@@ -898,6 +1170,52 @@ struct client_message {
             .data = (:typeof(SELF.data)){.remove_town = town},
         };
     }
+
+    func init_from_bubby(value: *bubby::value) client_message {
+        var kind = value.*.map_xlookup_str("kind");
+        if std::str::eq(kind.*.str(), "build road") {
+            var road = road::init_from_bubby(value.*.map_xlookup_str("data"));
+            return client_message::init_build_road(road);
+        }
+        elif std::str::eq(kind.*.str(), "build town") {
+            var town = town::init_from_bubby(value.*.map_xlookup_str("data"));
+            return client_message::init_build_town(town);
+        }
+        elif std::str::eq(kind.*.str(), "remove road") {
+            var edge = edge::init_from_bubby(value.*.map_xlookup_str("data"));
+            return client_message::init_remove_road(edge);
+        }
+        elif std::str::eq(kind.*.str(), "remove town") {
+            var node = node::init_from_bubby(value.*.map_xlookup_str("data"));
+            return client_message::init_remove_town(node);
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[client_message]]();
+    }
+
+    func to_bubby(self: *client_message) bubby::value {
+        var out = bubby::value::init_map();
+        switch self.*.kind {
+        client_message::BUILD_ROAD {
+            out.map_insert_str("kind", bubby::value::init_str("build road"));
+            out.map_insert_str("data", self.*.data.build_road.to_bubby());
+        }
+        client_message::BUILD_TOWN {
+            out.map_insert_str("kind", bubby::value::init_str("build town"));
+            out.map_insert_str("data", self.*.data.build_town.to_bubby());
+        }
+        client_message::REMOVE_ROAD {
+            out.map_insert_str("kind", bubby::value::init_str("remove road"));
+            out.map_insert_str("data", self.*.data.remove_road.to_bubby());
+        }
+        client_message::REMOVE_TOWN {
+            out.map_insert_str("kind", bubby::value::init_str("remove town"));
+            out.map_insert_str("data", self.*.data.remove_town.to_bubby());
+        }
+        }
+        return out;
+    }
 }
 
 struct server_message {
@@ -913,6 +1231,15 @@ struct server_message {
 
     func fini(self: *server_message) void {
         self.*.board.fini();
+    }
+
+    func init_from_bubby(value: *bubby::value) server_message {
+        var board = board::init_from_bubby(value);
+        return server_message::init(&board);
+    }
+
+    func to_bubby(self: *server_message) bubby::value {
+        return self.*.board.to_bubby();
     }
 }
 

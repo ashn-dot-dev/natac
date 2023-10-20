@@ -82,6 +82,8 @@ func player_color(player: player) Color {
     }
     }
 
+var tmp = (:ssize)player; # RM ME
+std::print_format_line(std::err(), "UNREACHABLE PLAYER COLOR PLAYER: {}", (:[]std::formatter)[std::formatter::init[[ssize]](&tmp)]);
     std::unreachable(fileof(), lineof());
     return std::zeroed[[Color]]();
 }
