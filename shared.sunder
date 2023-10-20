@@ -1235,6 +1235,7 @@ struct server_message {
 
     func init_from_bubby(value: *bubby::value) server_message {
         var board = board::init_from_bubby(value);
+        defer board.fini();
         return server_message::init(&board);
     }
 
