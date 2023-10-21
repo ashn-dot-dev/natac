@@ -506,27 +506,28 @@ struct port {
         var hex = hex::init_from_bubby(value.*.map_xlookup_str("hex"));
         var node_a = node::init_from_bubby(&value.*.map_xlookup_str("nodes").*.vec().*.data()[0]);
         var node_b = node::init_from_bubby(&value.*.map_xlookup_str("nodes").*.vec().*.data()[1]);
-        var kind_value = value.*.map_xlookup_str("kind");
-        var kind = port::ANY;
-        if std::str::eq(kind_value.*.str(), "any") {
-            kind = port::ANY;
+        var kind = value.*.map_xlookup_str("kind").*.str();
+        if std::str::eq(kind, "any") {
+            return port::init(hex, node_a, node_b, port::ANY);
         }
-        elif std::str::eq(kind_value.*.str(), "brick") {
-            kind = port::BRICK;
+        if std::str::eq(kind, "brick") {
+            return port::init(hex, node_a, node_b, port::BRICK);
         }
-        elif std::str::eq(kind_value.*.str(), "ore") {
-            kind = port::ORE;
+        if std::str::eq(kind, "ore") {
+            return port::init(hex, node_a, node_b, port::ORE);
         }
-        elif std::str::eq(kind_value.*.str(), "sheep") {
-            kind = port::SHEEP;
+        if std::str::eq(kind, "sheep") {
+            return port::init(hex, node_a, node_b, port::SHEEP);
         }
-        elif std::str::eq(kind_value.*.str(), "wheat") {
-            kind = port::WHEAT;
+        if std::str::eq(kind, "wheat") {
+            return port::init(hex, node_a, node_b, port::WHEAT);
         }
-        elif std::str::eq(kind_value.*.str(), "wood") {
-            kind = port::WOOD;
+        if std::str::eq(kind, "wood") {
+            return port::init(hex, node_a, node_b, port::WOOD);
         }
-        return port::init(hex, node_a, node_b, kind);
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[port]]();
     }
 
     func to_bubby(self: *port) bubby::value {
@@ -535,28 +536,26 @@ struct port {
         out.map().*.insert(bubby::value::init_str("nodes"), bubby::value::init_vec());
         out.map_xlookup_str("nodes").*.vec().*.push(self.*.nodes[0].to_bubby());
         out.map_xlookup_str("nodes").*.vec().*.push(self.*.nodes[1].to_bubby());
-        var kind = "<error>";
         switch self.*.kind {
         port::ANY {
-            kind = "any";
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("any"));
         }
         port::BRICK {
-            kind = "brick";
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("brick"));
         }
         port::ORE {
-            kind = "ore";
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("ore"));
         }
         port::SHEEP {
-            kind = "sheep";
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("sheep"));
         }
         port::WHEAT {
-            kind = "wheat";
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("wheat"));
         }
         port::WOOD {
-            kind = "wood";
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("wood"));
         }
         }
-        out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str(kind));
         return out;
     }
 }
