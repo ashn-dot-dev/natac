@@ -254,32 +254,32 @@ struct tile {
 
     func init_from_bubby(value: *bubby::value) tile {
         var hex = hex::init_from_bubby(value.*.map_xlookup_str("hex"));
-        var kind_value = value.*.map_xlookup_str("kind");
-        var kind = tile::OCEAN;
-        if std::str::eq(kind_value.*.str(), "desert") {
-            kind = tile::DESERT;
-        }
-        elif std::str::eq(kind_value.*.str(), "ocean") {
-            kind = tile::OCEAN;
-        }
-        elif std::str::eq(kind_value.*.str(), "forest") {
-            kind = tile::FOREST;
-        }
-        elif std::str::eq(kind_value.*.str(), "field") {
-            kind = tile::FIELD;
-        }
-        elif std::str::eq(kind_value.*.str(), "hill") {
-            kind = tile::HILL;
-        }
-        elif std::str::eq(kind_value.*.str(), "mountain") {
-            kind = tile::MOUNTAIN;
-        }
-        elif std::str::eq(kind_value.*.str(), "pasture") {
-            kind = tile::PASTURE;
-        }
         var number = (:sint)value.*.map_xlookup_str("number").*.int();
-        var self = tile::init(hex, kind, number);
-        return self;
+        var kind = value.*.map_xlookup_str("kind").*.str();
+        if std::str::eq(kind, "desert") {
+            return tile::init(hex, tile::DESERT, number);
+        }
+        elif std::str::eq(kind, "ocean") {
+            return tile::init(hex, tile::OCEAN, number);
+        }
+        elif std::str::eq(kind, "forest") {
+            return tile::init(hex, tile::FOREST, number);
+        }
+        elif std::str::eq(kind, "field") {
+            return tile::init(hex, tile::FIELD, number);
+        }
+        elif std::str::eq(kind, "hill") {
+            return tile::init(hex, tile::HILL, number);
+        }
+        elif std::str::eq(kind, "mountain") {
+            return tile::init(hex, tile::MOUNTAIN, number);
+        }
+        elif std::str::eq(kind, "pasture") {
+            return tile::init(hex, tile::PASTURE, number);
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[tile]]();
     }
 
     func to_bubby(self: *tile) bubby::value {
