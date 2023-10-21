@@ -86,17 +86,16 @@ struct hex {
     }
 
     func init_from_bubby(value: *bubby::value) hex {
-        return hex::init(
-            (:sint)value.*.vec().*.data()[0].int(),
-            (:sint)value.*.vec().*.data()[1].int(),
-            (:sint)value.*.vec().*.data()[2].int());
+        var q = (:sint)value.*.vec().*.data()[0].int();
+        var r = (:sint)value.*.vec().*.data()[1].int();
+        var s = -q - r;
+        return hex::init(q, r, s);
     }
 
     func to_bubby(self: *hex) bubby::value {
         var out = bubby::value::init_vec();
         out.vec().*.push(bubby::value::init_int((:s64)self.*.q));
         out.vec().*.push(bubby::value::init_int((:s64)self.*.r));
-        out.vec().*.push(bubby::value::init_int((:s64)self.*.s));
         return out;
     }
 
