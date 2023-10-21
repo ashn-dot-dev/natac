@@ -1175,15 +1175,15 @@ struct client_message {
             var road = road::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_build_road(road);
         }
-        elif std::str::eq(kind.*.str(), "build town") {
+        if std::str::eq(kind.*.str(), "build town") {
             var town = town::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_build_town(town);
         }
-        elif std::str::eq(kind.*.str(), "remove road") {
+        if std::str::eq(kind.*.str(), "remove road") {
             var edge = edge::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_remove_road(edge);
         }
-        elif std::str::eq(kind.*.str(), "remove town") {
+        if std::str::eq(kind.*.str(), "remove town") {
             var node = node::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_remove_town(node);
         }
