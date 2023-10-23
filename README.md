@@ -4,6 +4,7 @@ NATAC
 ## Dependencies
 + [sunder](https://github.com/ashn-dot-dev/sunder)
 + [raylib-sunder](https://github.com/ashn-dot-dev/raylib-sunder) 4.6.0-dev
++ [nbnet-sunder](https://github.com/ashn-dot-dev/nbnet-sunder)
 + [bubby](https://github.com/ashn-dot-dev/bubby)
 
 ## Building
