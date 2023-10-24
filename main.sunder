@@ -42,6 +42,7 @@ struct nbnet_client_message_sender {
 
         var value = message.*.to_bubby();
         defer value.fini();
+
         var string = std::string::init();
         defer string.fini();
         var writer = std::writer::init[[std::string]](&string);
@@ -51,10 +52,12 @@ struct nbnet_client_message_sender {
         std::print_format_line(std::err(), "CLIENT MESSAGE STRING: {}", (:[]std::formatter)[std::formatter::init[[[]byte]](&data)]);
         std::print_format_line(std::err(), "CLIENT MESSAGE LENGTH: {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
 
-        var start = (:*u8)startof(data);
-        var count = (:u32)countof(data);
-        if NBN_GameClient_SendReliableByteArray(start, count) < 0 {
-            std::print_line(std::err(), "error: failed to send server message");
+        var outgoing = ::message::create();
+        outgoing.*.len = (:uint)count;
+        std::slice[[byte]]::copy(outgoing.*.buf[0:count], data);
+
+        if NBN_GameClient_SendReliableMessage(::message::TYPE, (:*any)outgoing) < 0 {
+            std::print_line(std::err(), "error: failed to send client message");
         }
     }
 }
@@ -75,6 +78,7 @@ struct nbnet_server_message_sender {
 
         var value = message.*.to_bubby();
         defer value.fini();
+
         var string = std::string::init();
         defer string.fini();
         var writer = std::writer::init[[std::string]](&string);
@@ -84,9 +88,11 @@ struct nbnet_server_message_sender {
         std::print_format_line(std::err(), "SERVER MESSAGE STRING: {}", (:[]std::formatter)[std::formatter::init[[[]byte]](&data)]);
         std::print_format_line(std::err(), "SERVER MESSAGE LENGTH: {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
 
-        var start = (:*u8)startof(data);
-        var count = (:u32)countof(data);
-        if NBN_GameServer_SendReliableByteArrayTo(self.*.client, start, count) < 0 {
+        var outgoing = ::message::create();
+        outgoing.*.len = (:uint)count;
+        std::slice[[byte]]::copy(outgoing.*.buf[0:count], data);
+
+        if NBN_GameServer_SendReliableMessageTo(self.*.client, ::message::TYPE, outgoing) < 0 {
             std::print_line(std::err(), "error: failed to send server message");
         }
     }
@@ -149,6 +155,11 @@ func run_client(debug: bool, fullscreen: bool, address: *byte) void {
         std::exit(std::EXIT_FAILURE);
     }
     defer NBN_GameClient_Stop();
+    NBN_GameClient_RegisterMessage(
+        message::TYPE,
+        (:NBN_MessageBuilder)message::create,
+        (:NBN_MessageDestructor)message::destroy,
+        (:NBN_MessageSerializer)message::serialize);
 
     var cstate = client_state::init();
     defer cstate.fini();
@@ -188,11 +199,11 @@ func run_client(debug: bool, fullscreen: bool, address: *byte) void {
             if ev == NBN_MESSAGE_RECEIVED {
                 std::print_line(std::err(), "info: message received");
                 var info = NBN_GameClient_GetMessageInfo();
-                assert info.type == NBN_BYTE_ARRAY_MESSAGE_TYPE;
-                var incoming = (:*NBN_ByteArrayMessage)info.data;
+                assert info.type == message::TYPE;
+                var incoming = (:*message)info.data;
 
-                var count = (:usize)incoming.*.length;
-                var data = (:[]byte){(:*byte)&incoming.*.bytes[0], count};
+                var count = (:usize)incoming.*.len;
+                var data = (:[]byte){(:*byte)&incoming.*.buf[0], count};
                 std::print_format_line(std::err(), "INCOMING SERVER MESSAGE STRING: {}", (:[]std::formatter)[std::formatter::init[[[]byte]](&data)]);
                 std::print_format_line(std::err(), "INCOMING SERVER MESSAGE LENGTH: {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
                 var result = bubby::value::init_from_str(data);
@@ -204,7 +215,7 @@ func run_client(debug: bool, fullscreen: bool, address: *byte) void {
                 defer server_message.fini();
                 cstate.update_from_server_message(&server_message);
 
-                NBN_ByteArrayMessage_Destroy(incoming);
+                message::destroy(incoming);
             }
         }
 
@@ -228,6 +239,11 @@ func run_server() void {
         std::exit(std::EXIT_FAILURE);
     }
     defer NBN_GameServer_Stop();
+    NBN_GameServer_RegisterMessage(
+        message::TYPE,
+        (:NBN_MessageBuilder)message::create,
+        (:NBN_MessageDestructor)message::destroy,
+        (:NBN_MessageSerializer)message::serialize);
 
     var sstate = server_state::init();
     defer sstate.fini();
@@ -270,11 +286,11 @@ func run_server() void {
                 std::print_line(std::err(), "info: message received");
 
                 var info = NBN_GameServer_GetMessageInfo();
-                assert info.type == NBN_BYTE_ARRAY_MESSAGE_TYPE;
-                var incoming = (:*NBN_ByteArrayMessage)info.data;
+                assert info.type == message::TYPE;
+                var incoming = (:*message)info.data;
 
-                var count = (:usize)incoming.*.length;
-                var data = (:[]byte){(:*byte)&incoming.*.bytes[0], count};
+                var count = (:usize)incoming.*.len;
+                var data = (:[]byte){(:*byte)&incoming.*.buf[0], count};
                 std::print_format_line(std::err(), "INCOMING CLIENT MESSAGE STRING: {}", (:[]std::formatter)[std::formatter::init[[[]byte]](&data)]);
                 std::print_format_line(std::err(), "INCOMING CLIENT MESSAGE LENGTH: {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
                 var result = bubby::value::init_from_str(data);
@@ -287,7 +303,7 @@ func run_server() void {
                     sstate.update_from_client_message(&client_message);
                 }
 
-                NBN_ByteArrayMessage_Destroy(incoming);
+                message::destroy(incoming);
             }
 
         }

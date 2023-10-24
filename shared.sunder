@@ -2,6 +2,7 @@ import "c";
 import "std";
 
 import "bubby";
+import "nbnet";
 
 enum player {
     NIL = 0;
@@ -1124,6 +1125,28 @@ func init_towns() std::hash_map[[node, town]] {
 }
 
 let BUSY_CODE = (:sint)42; # nbnet busy code
+
+struct message {
+    let TYPE: u8 = 0;
+    let SIZE: usize = 4096 * 4;
+
+    var len: uint;
+    var buf: [SIZE]char;
+
+    func create() *message {
+        return std::new[[message]]();
+    }
+
+    func destroy(self: *message) void {
+        std::delete[[message]](self);
+    }
+
+    func serialize(self: *message, stream: *NBN_Stream) sint {
+        stream.*.serialize_uint_func(stream, &self.*.len, 0, (:uint)SIZE);
+        stream.*.serialize_bytes_func(stream, (:*u8)&self.*.buf[0], self.*.len);
+        return 0;
+    }
+}
 
 struct client_message {
     var kind: enum {
