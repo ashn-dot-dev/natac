@@ -723,6 +723,8 @@ func client_render(cstate: *client_state) void {
         }
     }
 
+    draw_robber(pointy_hex_to_point(cstate.*.board.robber, HEX_RADIUS), HEX_RADIUS);
+
     if cstate.*.debug {
         if cstate.*.world_node.is_value() {
             var world_node = cstate.*.world_node.value();
@@ -743,8 +745,6 @@ func client_render(cstate: *client_state) void {
             draw_circle_outline(world_hex_center, 6.0, 1.0, BLACK);
         }
     }
-
-    draw_robber(pointy_hex_to_point(cstate.*.board.robber, HEX_RADIUS), HEX_RADIUS);
 
     EndMode2D();
 
