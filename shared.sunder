@@ -670,12 +670,13 @@ struct board {
     }
 
     func init_starter_map_for_beginners() board {
-        var tiles = init_tiles();
+        var tiles = init_starter_map_for_beginners_tiles();
         var edges = init_edges(&tiles);
         var nodes = init_nodes(&tiles);
-        var ports = init_ports();
-        var roads = init_roads();
-        var towns = init_towns();
+        var ports = init_starter_map_for_beginners_ports();
+        var roads = init_starter_map_for_beginners_roads();
+        var towns = init_starter_map_for_beginners_towns();
+
         var robber = hex::init(+0, +0, +0);
 
         return (:board){
@@ -785,7 +786,7 @@ func insert_town(towns: *std::hash_map[[node, town]], town: town) void {
     towns.*.insert(town.node, town);
 }
 
-func init_tiles() std::hash_map[[hex, tile]] {
+func init_starter_map_for_beginners_tiles() std::hash_map[[hex, tile]] {
     var tiles = std::hash_map[[hex, tile]]::init();
 
     # top row
@@ -885,7 +886,7 @@ func init_nodes(tiles: *std::hash_map[[hex, tile]]) std::hash_set[[node]] {
     return nodes;
 }
 
-func init_ports() std::hash_set[[port]] {
+func init_starter_map_for_beginners_ports() std::hash_set[[port]] {
     var ports = std::hash_set[[port]]::init();
 
     ports.insert(port::init(
@@ -999,7 +1000,7 @@ func init_ports() std::hash_set[[port]] {
     return ports;
 }
 
-func init_roads() std::hash_map[[edge, road]] {
+func init_starter_map_for_beginners_roads() std::hash_map[[edge, road]] {
     var roads = std::hash_map[[edge, road]]::init();
 
     # Red starting position.
@@ -1053,7 +1054,7 @@ func init_roads() std::hash_map[[edge, road]] {
     return roads;
 }
 
-func init_towns() std::hash_map[[node, town]] {
+func init_starter_map_for_beginners_towns() std::hash_map[[node, town]] {
     var towns = std::hash_map[[node, town]]::init();
 
     # Red starting position.
