@@ -347,7 +347,7 @@ func draw_city(center: Vector2, radius: f32, color: Color) void {
         color);
 }
 
-func draw_robber(center: Vector2, radius: f32) void {
+func draw_robber(center: Vector2, radius: f32, outline: Color) void {
     var radius_h = radius / 6.0;
     var radius_v = radius / 3.0;
     var size = (:Vector2){
@@ -355,21 +355,20 @@ func draw_robber(center: Vector2, radius: f32) void {
         .y = radius_v / 2.0,
     };
 
-    let COLOR = BLACK;
     DrawEllipse(
         (:sint)center.x,
         (:sint)center.y,
         radius_h + 1.0,
         radius_v + 1.0,
-        COLOR);
+        outline);
     DrawRectangleV(
         (:Vector2){.x = center.x - size.x / 2.0 - 1.0, .y = center.y + radius_v - size.y / 2.0 - 1.0},
         (:Vector2){.x = size.x + 2.0, .y = size.y + 2.0},
-        COLOR);
+        outline);
     DrawCircleV(
         (:Vector2){.x = center.x, .y = center.y - radius_v},
         radius_h * 0.9 + 1.0,
-        COLOR);
+        outline);
 
     let COLOR = GRAY;
     DrawEllipse(
@@ -454,6 +453,11 @@ func camera(radius: f32, w: f32, h: f32) Camera2D {
     };
 }
 
+enum client_action {
+    NONE;
+    SELECTED_ROBBER;
+}
+
 struct client_state {
     var debug: bool;
 
@@ -462,6 +466,7 @@ struct client_state {
 
     var player: player;
     var board: board;
+    var action: client_action;
 
     var mouse: Vector2;
     var world: Vector2;
@@ -492,6 +497,7 @@ struct client_state {
 
             .player = player::NIL,
             .board = board,
+            .action = client_action::NONE,
 
             .mouse = uninit,
             .world = uninit,
@@ -565,7 +571,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     for iter.advance() {
         var found = true;
         for i in countof(iter.current().*.hexes) {
-            let DISTANCE = HEX_RADIUS * 1.2;
+            let DISTANCE = HEX_RADIUS * 1.15;
             var hex = iter.current().*.hexes[i];
             if vec2_distance(world, pointy_hex_to_point(hex, HEX_RADIUS)) > DISTANCE {
                 found = false;
@@ -584,7 +590,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     for iter.advance() {
         var found = true;
         for i in countof(iter.current().*.hexes) {
-            let DISTANCE = HEX_RADIUS * 1.2;
+            let DISTANCE = HEX_RADIUS * 1.15;
             var hex = iter.current().*.hexes[i];
             if vec2_distance(world, pointy_hex_to_point(hex, HEX_RADIUS)) > DISTANCE {
                 found = false;
@@ -599,15 +605,16 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     }
 
     if world_node.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
+        var should_build_town = cstate.*.action == client_action::NONE;
         var existing = cstate.*.board.towns.lookup(world_node.value());
-        if existing.is_value() and existing.value().player == cstate.*.player {
+        if should_build_town and existing.is_value() and existing.value().player == cstate.*.player {
             var cmessage = client_message::init_build_town(town::init(
                 cstate.*.player,
                 world_node.value(),
                 town::CITY));
             sender.*.send(&cmessage);
         }
-        else {
+        elif should_build_town {
             var cmessage = client_message::init_build_town(town::init(
                 cstate.*.player,
                 world_node.value(),
@@ -619,15 +626,31 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         var tile_a = cstate.*.board.tiles.lookup(world_edge.value().hexes[0]);
         var tile_b = cstate.*.board.tiles.lookup(world_edge.value().hexes[1]);
         assert tile_a.is_value() and tile_b.is_value();
+        var should_build_road = cstate.*.action == client_action::NONE;
         var is_road_across_water =
             tile_a.value().kind == tile::OCEAN and
             tile_b.value().kind == tile::OCEAN;
-        if not is_road_across_water {
+        if should_build_road and not is_road_across_water {
             var cmessage = client_message::init_build_road(road::init(
                 cstate.*.player,
                 world_edge.value()));
             sender.*.send(&cmessage);
         }
+    }
+    elif world_tile.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
+        var world_tile = world_tile.value();
+        if std::eq[[hex]](&world_tile.hex, &cstate.*.board.robber) {
+            cstate.*.action = client_action::SELECTED_ROBBER;
+        }
+        elif cstate.*.action == client_action::SELECTED_ROBBER {
+            var cmessage = client_message::init_move_robber(world_tile.hex);
+            sender.*.send(&cmessage);
+            cstate.*.action = client_action::NONE;
+        }
+    }
+    elif IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
+        # LMB pressed while hovering over nothing.
+        cstate.*.action = client_action::NONE;
     }
     elif world_node.is_value() and IsMouseButtonDown(MOUSE_BUTTON_RIGHT) {
         var cmessage = client_message::init_remove_town(world_node.value());
@@ -636,6 +659,10 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     elif world_edge.is_value() and IsMouseButtonDown(MOUSE_BUTTON_RIGHT) {
         var cmessage = client_message::init_remove_road(world_edge.value());
         sender.*.send(&cmessage);
+    }
+    elif IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) {
+        # RMB pressed while hovering over nothing.
+        cstate.*.action = client_action::NONE;
     }
 
     cstate.*.mouse = mouse;
@@ -710,6 +737,24 @@ func client_render(cstate: *client_state) void {
         draw_road(points[0], points[1], HEX_RADIUS, player_color(road.*.player));
     }
 
+    var show_world_edge_road =
+        cstate.*.world_edge.is_value() and
+        not cstate.*.board.roads.contains(cstate.*.world_edge.value()) and
+        not cstate.*.world_node.is_value() and
+        cstate.*.action == client_action::NONE;
+    if show_world_edge_road {
+        var tile_a = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[0]);
+        var tile_b = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[1]);
+        assert tile_a.is_value() and tile_b.is_value();
+        var is_road_across_water =
+            tile_a.value().kind == tile::OCEAN and
+            tile_b.value().kind == tile::OCEAN;
+        if not is_road_across_water {
+            var points = edge_to_points(cstate.*.world_edge.value(), HEX_RADIUS);
+            draw_road(points[0], points[1], HEX_RADIUS, YELLOW);
+        }
+    }
+
     var iter = std::hash_map_iterator[[node, town]]::init(&cstate.*.board.towns);
     for iter.advance() {
         var town = iter.current().*.value;
@@ -723,7 +768,21 @@ func client_render(cstate: *client_state) void {
         }
     }
 
-    draw_robber(pointy_hex_to_point(cstate.*.board.robber, HEX_RADIUS), HEX_RADIUS);
+    var show_world_node_town =
+        cstate.*.world_node.is_value() and
+        not cstate.*.board.towns.contains(cstate.*.world_node.value()) and
+        cstate.*.action == client_action::NONE;
+    if show_world_node_town {
+        var point = node_to_point(cstate.*.world_node.value(), HEX_RADIUS);
+        draw_circle(point, 6.0, YELLOW);
+        draw_circle_outline(point, 6.0, 1.0, BLACK);
+    }
+
+    var robber_outline = BLACK;
+    if cstate.*.action == client_action::SELECTED_ROBBER {
+        robber_outline = YELLOW;
+    }
+    draw_robber(pointy_hex_to_point(cstate.*.board.robber, HEX_RADIUS), HEX_RADIUS, robber_outline);
 
     if cstate.*.debug {
         if cstate.*.world_node.is_value() {

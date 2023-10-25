@@ -577,6 +577,14 @@ struct road {
             edge::init_from_bubby(value.*.map_xlookup_str("edge")));
     }
 
+    func hash(self: *road) usize {
+        return self.*.edge.hash();
+    }
+
+    func compare(lhs: *road, rhs: *road) ssize {
+        return std::compare[[edge]](&lhs.*.edge, &rhs.*.edge);
+    }
+
     func to_bubby(self: *road) bubby::value {
         var out = bubby::value::init_map();
         out.map_insert_str("player", bubby::value::init_int((:s64)self.*.player));
@@ -1124,6 +1132,107 @@ func init_starter_map_for_beginners_towns() std::hash_map[[node, town]] {
     return towns;
 }
 
+func adjacent_edges_to_edge(target: edge, edges: *std::hash_set[[edge]], nodes: *std::hash_set[[node]]) std::hash_set[[edge]] {
+    var out = std::hash_set[[edge]]::init();
+
+    var adjacent_nodes = adjacent_nodes_to_edge(target, nodes);
+    defer adjacent_nodes.fini();
+
+    var iter = std::hash_set_iterator[[node]]::init(&adjacent_nodes);
+    for iter.advance() {
+        var adjacent_edges = adjacent_edges_to_node(*iter.current(), edges);
+        defer adjacent_edges.fini();
+
+        var iter = std::hash_set_iterator[[edge]]::init(&adjacent_edges);
+        for iter.advance() {
+            if not std::eq[[edge]](&target, iter.current()) {
+                out.insert(*iter.current());
+            }
+        }
+    }
+
+    return out;
+}
+
+func adjacent_nodes_to_edge(target: edge, nodes: *std::hash_set[[node]]) std::hash_set[[node]] {
+    var out = std::hash_set[[node]]::init();
+
+    var a = std::hash_set[[hex]]::init();
+    defer a.fini();
+    a.insert(target.hexes[0]);
+    a.insert(target.hexes[1]);
+
+    var iter = std::hash_set_iterator[[node]]::init(nodes);
+    for iter.advance() {
+        var b = std::hash_set[[hex]]::init();
+        defer b.fini();
+        b.insert(iter.current().*.hexes[0]);
+        b.insert(iter.current().*.hexes[1]);
+        b.insert(iter.current().*.hexes[2]);
+
+        var intersection = std::hash_set[[hex]]::init_intersection(&a, &b);
+        defer intersection.fini();
+        if intersection.count() == 2 {
+            out.insert(*iter.current());
+        }
+    }
+
+    return out;
+}
+
+func adjacent_edges_to_node(target: node, edges: *std::hash_set[[edge]]) std::hash_set[[edge]] {
+    var out = std::hash_set[[edge]]::init();
+
+    var a = std::hash_set[[hex]]::init();
+    defer a.fini();
+    a.insert(target.hexes[0]);
+    a.insert(target.hexes[1]);
+    a.insert(target.hexes[2]);
+
+    var iter = std::hash_set_iterator[[edge]]::init(edges);
+    for iter.advance() {
+        var b = std::hash_set[[hex]]::init();
+        defer b.fini();
+        b.insert(iter.current().*.hexes[0]);
+        b.insert(iter.current().*.hexes[1]);
+
+        var intersection = std::hash_set[[hex]]::init_intersection(&a, &b);
+        defer intersection.fini();
+        if intersection.count() == 2 {
+            out.insert(*iter.current());
+        }
+    }
+
+    return out;
+}
+
+func adjacent_nodes_to_node(target: node, nodes: *std::hash_set[[node]]) std::hash_set[[node]] {
+    var out = std::hash_set[[node]]::init();
+
+    var a = std::hash_set[[hex]]::init();
+    defer a.fini();
+    a.insert(target.hexes[0]);
+    a.insert(target.hexes[1]);
+    a.insert(target.hexes[2]);
+
+    var iter = std::hash_set_iterator[[node]]::init(nodes);
+    for iter.advance() {
+        var b = std::hash_set[[hex]]::init();
+        defer b.fini();
+        b.insert(iter.current().*.hexes[0]);
+        b.insert(iter.current().*.hexes[1]);
+        b.insert(iter.current().*.hexes[2]);
+
+        var intersection = std::hash_set[[hex]]::init_intersection(&a, &b);
+        defer intersection.fini();
+        if intersection.count() == 2 {
+            out.insert(*iter.current());
+        }
+    }
+
+    return out;
+}
+
 let BUSY_CODE = (:sint)42; # nbnet busy code
 
 struct message {
@@ -1154,12 +1263,14 @@ struct client_message {
         BUILD_TOWN;
         REMOVE_ROAD;
         REMOVE_TOWN;
+        MOVE_ROBBER;
     };
     var data: union {
         var build_road: road;
         var build_town: town;
         var remove_road: edge;
         var remove_town: node;
+        var move_robber: hex;
     };
 
     let SELF: client_message = uninit;
@@ -1192,23 +1303,34 @@ struct client_message {
         };
     }
 
+    func init_move_robber(hex: hex) client_message {
+        return (:client_message){
+            .kind = client_message::MOVE_ROBBER,
+            .data = (:typeof(SELF.data)){.move_robber = hex},
+        };
+    }
+
     func init_from_bubby(value: *bubby::value) client_message {
         var kind = value.*.map_xlookup_str("kind");
-        if std::str::eq(kind.*.str(), "build road") {
+        if std::str::eq(kind.*.str(), "build-road") {
             var road = road::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_build_road(road);
         }
-        if std::str::eq(kind.*.str(), "build town") {
+        if std::str::eq(kind.*.str(), "build-town") {
             var town = town::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_build_town(town);
         }
-        if std::str::eq(kind.*.str(), "remove road") {
+        if std::str::eq(kind.*.str(), "remove-road") {
             var edge = edge::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_remove_road(edge);
         }
-        if std::str::eq(kind.*.str(), "remove town") {
+        if std::str::eq(kind.*.str(), "remove-town") {
             var node = node::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_remove_town(node);
+        }
+        if std::str::eq(kind.*.str(), "move-robber") {
+            var hex = hex::init_from_bubby(value.*.map_xlookup_str("data"));
+            return client_message::init_move_robber(hex);
         }
 
         std::unreachable(fileof(), lineof());
@@ -1219,20 +1341,24 @@ struct client_message {
         var out = bubby::value::init_map();
         switch self.*.kind {
         client_message::BUILD_ROAD {
-            out.map_insert_str("kind", bubby::value::init_str("build road"));
+            out.map_insert_str("kind", bubby::value::init_str("build-road"));
             out.map_insert_str("data", self.*.data.build_road.to_bubby());
         }
         client_message::BUILD_TOWN {
-            out.map_insert_str("kind", bubby::value::init_str("build town"));
+            out.map_insert_str("kind", bubby::value::init_str("build-town"));
             out.map_insert_str("data", self.*.data.build_town.to_bubby());
         }
         client_message::REMOVE_ROAD {
-            out.map_insert_str("kind", bubby::value::init_str("remove road"));
+            out.map_insert_str("kind", bubby::value::init_str("remove-road"));
             out.map_insert_str("data", self.*.data.remove_road.to_bubby());
         }
         client_message::REMOVE_TOWN {
-            out.map_insert_str("kind", bubby::value::init_str("remove town"));
+            out.map_insert_str("kind", bubby::value::init_str("remove-town"));
             out.map_insert_str("data", self.*.data.remove_town.to_bubby());
+        }
+        client_message::MOVE_ROBBER {
+            out.map_insert_str("kind", bubby::value::init_str("move-robber"));
+            out.map_insert_str("data", self.*.data.move_robber.to_bubby());
         }
         }
         return out;
