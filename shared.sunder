@@ -259,22 +259,22 @@ struct tile {
         if std::str::eq(kind, "desert") {
             return tile::init(hex, tile::DESERT, number);
         }
-        elif std::str::eq(kind, "ocean") {
+        if std::str::eq(kind, "ocean") {
             return tile::init(hex, tile::OCEAN, number);
         }
-        elif std::str::eq(kind, "forest") {
+        if std::str::eq(kind, "forest") {
             return tile::init(hex, tile::FOREST, number);
         }
-        elif std::str::eq(kind, "field") {
+        if std::str::eq(kind, "field") {
             return tile::init(hex, tile::FIELD, number);
         }
-        elif std::str::eq(kind, "hill") {
+        if std::str::eq(kind, "hill") {
             return tile::init(hex, tile::HILL, number);
         }
-        elif std::str::eq(kind, "mountain") {
+        if std::str::eq(kind, "mountain") {
             return tile::init(hex, tile::MOUNTAIN, number);
         }
-        elif std::str::eq(kind, "pasture") {
+        if std::str::eq(kind, "pasture") {
             return tile::init(hex, tile::PASTURE, number);
         }
 
@@ -604,19 +604,18 @@ struct town {
     }
 
     func init_from_bubby(value: *bubby::value) town {
-        var kind_value = value.*.map_xlookup_str("kind");
-        var kind = town::SETTLEMENT;
-        if std::str::eq(kind_value.*.str(), "settlement") {
-            kind = town::SETTLEMENT;
+        var player = (:player)value.*.map_xlookup_str("player").*.int();
+        var node = node::init_from_bubby(value.*.map_xlookup_str("node"));
+        var kind = value.*.map_xlookup_str("kind").*.str();
+        if std::str::eq(kind, "settlement") {
+            return town::init(player, node, town::SETTLEMENT);
         }
-        elif std::str::eq(kind_value.*.str(), "city") {
-            kind = town::CITY;
+        if std::str::eq(kind, "city") {
+            return town::init(player, node, town::CITY);
         }
 
-        return town::init(
-            (:player)value.*.map_xlookup_str("player").*.int(),
-            node::init_from_bubby(value.*.map_xlookup_str("node")),
-            kind);
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[town]]();
     }
 
     func to_bubby(self: *town) bubby::value {
