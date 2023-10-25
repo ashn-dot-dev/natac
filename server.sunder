@@ -4,13 +4,13 @@ import "std";
 import "shared.sunder";
 
 struct server_state {
+    var tick: usize;
     var board: board;
 
     func init() server_state {
-        var board = board::init_starter_map_for_beginners();
-
         return (:server_state){
-            .board = board,
+            .tick = 0,
+            .board = board::init_starter_map_for_beginners(),
         };
     }
 
@@ -81,7 +81,13 @@ struct server_state {
 }
 
 func server_update(sstate: *server_state, sender: *message_sender[[server_message]]) void {
-    var message = server_message::init_board(&sstate.*.board);
-    sender.*.send(&message);
-    message.fini();
+    # The state of the board changes relatively infrequently, so it is not
+    # necessary to serialize and send the entire board state every game tick.
+    if sstate.*.tick % 4 == 0 {
+        var message = server_message::init_board(&sstate.*.board);
+        defer message.fini();
+        sender.*.send(&message);
+    }
+
+    sstate.*.tick = sstate.*.tick +% 1;
 }
