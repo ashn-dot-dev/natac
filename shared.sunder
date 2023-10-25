@@ -1241,8 +1241,12 @@ struct client_message {
 struct server_message {
     var kind: enum {
         BOARD;
+        ACCEPTED;
+        REJECTED;
     };
     var data: union {
+        var accepted: std::string;
+        var rejected: std::string;
         var board: board;
     };
 
@@ -1255,11 +1259,30 @@ struct server_message {
         };
     }
 
+    func init_accepted(text: []byte) server_message {
+        return (:server_message){
+            .kind = server_message::ACCEPTED,
+            .data = (:typeof(SELF.data)){.accepted = std::string::init_from_str(text)},
+        };
+    }
+
+    func init_rejected(text: []byte) server_message {
+        return (:server_message){
+            .kind = server_message::REJECTED,
+            .data = (:typeof(SELF.data)){.rejected = std::string::init_from_str(text)},
+        };
+    }
 
     func fini(self: *server_message) void {
         switch self.*.kind {
         server_message::BOARD {
             self.*.data.board.fini();
+        }
+        server_message::ACCEPTED {
+            self.*.data.accepted.fini();
+        }
+        server_message::REJECTED {
+            self.*.data.rejected.fini();
         }
         }
     }
@@ -1270,6 +1293,12 @@ struct server_message {
             var board = board::init_from_bubby(value.*.map_xlookup_str("data"));
             defer board.fini();
             return server_message::init_board(&board);
+        }
+        if std::str::eq(kind, "accepted") {
+            return server_message::init_accepted(value.*.map_xlookup_str("data").*.str());
+        }
+        if std::str::eq(kind, "rejected") {
+            return server_message::init_rejected(value.*.map_xlookup_str("data").*.str());
         }
 
         std::unreachable(fileof(), lineof());
@@ -1282,6 +1311,14 @@ struct server_message {
         server_message::BOARD {
             out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("board"));
             out.map().*.insert(bubby::value::init_str("data"), self.*.data.board.to_bubby());
+        }
+        server_message::ACCEPTED {
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("accepted"));
+            out.map().*.insert(bubby::value::init_str("data"), bubby::value::init_str(self.*.data.accepted.data()));
+        }
+        server_message::REJECTED {
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("rejected"));
+            out.map().*.insert(bubby::value::init_str("data"), bubby::value::init_str(self.*.data.rejected.data()));
         }
         }
         return out;

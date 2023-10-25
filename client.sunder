@@ -514,6 +514,12 @@ struct client_state {
         server_message::BOARD {
             board::assign(&self.*.board, &message.*.data.board);
         }
+        server_message::ACCEPTED {
+            std::print_format_line(std::err(), "action accepted by server: ", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.accepted)]);
+        }
+        server_message::REJECTED {
+            std::print_format_line(std::err(), "action rejected by server: ", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.rejected)]);
+        }
         }
     }
 }
