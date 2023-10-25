@@ -87,6 +87,20 @@ struct server_state {
             return;
         }
 
+        var player_road_count = 0u;
+        var iter = std::hash_map_iterator[[edge, ::road]]::init(&self.*.board.roads);
+        for iter.advance() {
+            if iter.current().*.value.*.player == road.player {
+                player_road_count = player_road_count + 1;
+            }
+        }
+        if player_road_count >= 15 {
+            var message = server_message::init_rejected("cannot build road (all roads placed)");
+            defer message.fini();
+            sender.*.send(&message);
+            return;
+        }
+
         self.*.place_road(road);
         var message = server_message::init_accepted("built road");
         defer message.fini();
@@ -155,6 +169,26 @@ struct server_state {
         }
         if not is_road_adjacent {
             var message = server_message::init_rejected("cannot build town (no adjacent road)");
+            defer message.fini();
+            sender.*.send(&message);
+            return;
+        }
+
+        var player_town_count = 0u;
+        var iter = std::hash_map_iterator[[node, ::town]]::init(&self.*.board.towns);
+        for iter.advance() {
+            if iter.current().*.value.*.player == town.player and iter.current().*.value.*.kind == town.kind {
+                player_town_count = player_town_count + 1;
+            }
+        }
+        if town.kind == ::town::SETTLEMENT and player_town_count >= 5 {
+            var message = server_message::init_rejected("cannot build town (all settlements placed)");
+            defer message.fini();
+            sender.*.send(&message);
+            return;
+        }
+        if town.kind == ::town::CITY and player_town_count >= 4 {
+            var message = server_message::init_rejected("cannot build town (all cities placed)");
             defer message.fini();
             sender.*.send(&message);
             return;
