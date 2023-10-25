@@ -10,14 +10,19 @@ import "server.sunder";
 import "shared.sunder";
 
 struct local_client_message_sender {
+    # Server state immediately updated from client messages.
     var server: *server_state;
+    # Server message sender passed to passed to the function updating server
+    # state from client messages. Required for the server to send responses.
+    var sender: *message_sender[[server_message]];
 
     func send(self: *local_client_message_sender, message: *client_message) void {
-        self.*.server.*.update_from_client_message(message);
+        self.*.server.*.update_from_client_message(message, self.*.sender);
     }
 }
 
 struct local_server_message_sender {
+    # Client state immediately updated from server messages.
     var client: *client_state;
 
     func send(self: *local_server_message_sender, message: *server_message) void {
@@ -130,10 +135,15 @@ func run_local(debug: bool, fullscreen: bool) void {
     cstate.debug = debug;
     cstate.player = player::RED;
 
-    var cmessage_sender = (:local_client_message_sender){.server = &sstate};
-    var cmessage_sender = message_sender[[client_message]]::init[[local_client_message_sender]](&cmessage_sender);
-    var smessage_sender = (:local_server_message_sender){.client = &cstate};
+    var smessage_sender = (:local_server_message_sender){
+        .client = &cstate,
+    };
     var smessage_sender = message_sender[[server_message]]::init[[local_server_message_sender]](&smessage_sender);
+    var cmessage_sender = (:local_client_message_sender){
+        .server = &sstate,
+        .sender = &smessage_sender,
+    };
+    var cmessage_sender = message_sender[[client_message]]::init[[local_client_message_sender]](&cmessage_sender);
 
     for not WindowShouldClose() {
         server_update(&sstate, &smessage_sender);
@@ -300,7 +310,7 @@ func run_server() void {
 
                 var client_message = client_message::init_from_bubby(&value);
                 if info.sender == server_message_sender.client {
-                    sstate.update_from_client_message(&client_message);
+                    sstate.update_from_client_message(&client_message, &message_sender);
                 }
 
                 message::destroy(incoming);

@@ -34,19 +34,31 @@ struct server_state {
         self.*.board.towns.remove(node);
     }
 
-    func update_from_client_message(self: *server_state, message: *client_message) void {
+    func update_from_client_message(self: *server_state, message: *client_message, sender: *message_sender[[server_message]]) void {
         switch message.*.kind {
         client_message::BUILD_ROAD {
             self.*.place_road(message.*.data.build_road);
+            var message = server_message::init_accepted("built road");
+            defer message.fini();
+            sender.*.send(&message);
         }
         client_message::BUILD_TOWN {
             self.*.place_town(message.*.data.build_town);
+            var message = server_message::init_accepted("built town");
+            defer message.fini();
+            sender.*.send(&message);
         }
         client_message::REMOVE_ROAD {
             self.*.remove_road(message.*.data.remove_road);
+            var message = server_message::init_accepted("removed road");
+            defer message.fini();
+            sender.*.send(&message);
         }
         client_message::REMOVE_TOWN {
             self.*.remove_town(message.*.data.remove_town);
+            var message = server_message::init_accepted("removed town");
+            defer message.fini();
+            sender.*.send(&message);
         }
         }
     }
