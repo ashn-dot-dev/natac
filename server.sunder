@@ -19,7 +19,7 @@ struct server_state {
     }
 
     func to_server_message(self: *server_state) server_message {
-        return server_message::init(&self.*.board);
+        return server_message::init_board(&self.*.board);
     }
 
     func place_road(self: *server_state, road: road) void {

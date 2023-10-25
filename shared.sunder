@@ -1240,28 +1240,52 @@ struct client_message {
 }
 
 struct server_message {
-    var board: board;
+    var kind: enum {
+        BOARD;
+    };
+    var data: union {
+        var board: board;
+    };
 
-    func init(board: *board) server_message {
-        var board_copy = ::board::init_assign(board);
+    let SELF: server_message = uninit;
 
+    func init_board(board: *board) server_message {
         return (:server_message){
-            .board = board_copy,
+            .kind = server_message::BOARD,
+            .data = (:typeof(SELF.data)){.board = ::board::init_assign(board)},
         };
     }
 
+
     func fini(self: *server_message) void {
-        self.*.board.fini();
+        switch self.*.kind {
+        server_message::BOARD {
+            self.*.data.board.fini();
+        }
+        }
     }
 
     func init_from_bubby(value: *bubby::value) server_message {
-        var board = board::init_from_bubby(value);
-        defer board.fini();
-        return server_message::init(&board);
+        var kind = value.*.map_xlookup_str("kind").*.str();
+        if std::str::eq(kind, "board") {
+            var board = board::init_from_bubby(value.*.map_xlookup_str("data"));
+            defer board.fini();
+            return server_message::init_board(&board);
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[server_message]]();
     }
 
     func to_bubby(self: *server_message) bubby::value {
-        return self.*.board.to_bubby();
+        var out = bubby::value::init_map();
+        switch self.*.kind {
+        server_message::BOARD {
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("board"));
+            out.map().*.insert(bubby::value::init_str("data"), self.*.data.board.to_bubby());
+        }
+        }
+        return out;
     }
 }
 

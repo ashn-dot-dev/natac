@@ -510,7 +510,11 @@ struct client_state {
     }
 
     func update_from_server_message(self: *client_state, message: *server_message) void {
-        board::assign(&self.*.board, &message.*.board);
+        switch message.*.kind {
+        server_message::BOARD {
+            board::assign(&self.*.board, &message.*.data.board);
+        }
+        }
     }
 }
 
