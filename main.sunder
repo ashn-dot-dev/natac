@@ -54,8 +54,8 @@ struct nbnet_client_message_sender {
         std::print_format(writer, "{}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&value)]);
         var data = string.data();
         var count = string.count();
-        std::print_format_line(std::err(), "CLIENT MESSAGE STRING: {}", (:[]std::formatter)[std::formatter::init[[[]byte]](&data)]);
-        std::print_format_line(std::err(), "CLIENT MESSAGE LENGTH: {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
+        #std::print_format_line(std::err(), "CLIENT MESSAGE STRING: {}", (:[]std::formatter)[std::formatter::init[[[]byte]](&data)]);
+        #std::print_format_line(std::err(), "CLIENT MESSAGE LENGTH: {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
 
         var outgoing = ::message::create();
         outgoing.*.len = (:uint)count;
@@ -90,8 +90,8 @@ struct nbnet_server_message_sender {
         std::print_format(writer, "{}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&value)]);
         var data = string.data();
         var count = string.count();
-        std::print_format_line(std::err(), "SERVER MESSAGE STRING: {}", (:[]std::formatter)[std::formatter::init[[[]byte]](&data)]);
-        std::print_format_line(std::err(), "SERVER MESSAGE LENGTH: {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
+        #std::print_format_line(std::err(), "SERVER MESSAGE STRING: {}", (:[]std::formatter)[std::formatter::init[[[]byte]](&data)]);
+        #std::print_format_line(std::err(), "SERVER MESSAGE LENGTH: {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
 
         var outgoing = ::message::create();
         outgoing.*.len = (:uint)count;
@@ -214,8 +214,8 @@ func run_client(debug: bool, fullscreen: bool, address: *byte) void {
 
                 var count = (:usize)incoming.*.len;
                 var data = (:[]byte){(:*byte)&incoming.*.buf[0], count};
-                std::print_format_line(std::err(), "INCOMING SERVER MESSAGE STRING: {}", (:[]std::formatter)[std::formatter::init[[[]byte]](&data)]);
-                std::print_format_line(std::err(), "INCOMING SERVER MESSAGE LENGTH: {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
+                #std::print_format_line(std::err(), "INCOMING SERVER MESSAGE STRING: {}", (:[]std::formatter)[std::formatter::init[[[]byte]](&data)]);
+                #std::print_format_line(std::err(), "INCOMING SERVER MESSAGE LENGTH: {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
                 var result = bubby::value::init_from_str(data);
                 assert result.is_value(); # XXX: Need to handle decoding error.
                 var value = result.value();
@@ -301,8 +301,8 @@ func run_server() void {
 
                 var count = (:usize)incoming.*.len;
                 var data = (:[]byte){(:*byte)&incoming.*.buf[0], count};
-                std::print_format_line(std::err(), "INCOMING CLIENT MESSAGE STRING: {}", (:[]std::formatter)[std::formatter::init[[[]byte]](&data)]);
-                std::print_format_line(std::err(), "INCOMING CLIENT MESSAGE LENGTH: {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
+                #std::print_format_line(std::err(), "INCOMING CLIENT MESSAGE STRING: {}", (:[]std::formatter)[std::formatter::init[[[]byte]](&data)]);
+                #std::print_format_line(std::err(), "INCOMING CLIENT MESSAGE LENGTH: {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
                 var result = bubby::value::init_from_str(data);
                 assert result.is_value(); # XXX: Need to handle decoding error.
                 var value = result.value();
