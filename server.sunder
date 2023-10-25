@@ -18,10 +18,6 @@ struct server_state {
         self.*.board.fini();
     }
 
-    func to_server_message(self: *server_state) server_message {
-        return server_message::init_board(&self.*.board);
-    }
-
     func place_road(self: *server_state, road: road) void {
         insert_road(&self.*.board.roads, road);
     }
@@ -57,7 +53,7 @@ struct server_state {
 }
 
 func server_update(sstate: *server_state, sender: *message_sender[[server_message]]) void {
-    var message = sstate.*.to_server_message();
+    var message = server_message::init_board(&sstate.*.board);
     sender.*.send(&message);
     message.fini();
 }
