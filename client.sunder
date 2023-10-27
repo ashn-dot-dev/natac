@@ -529,26 +529,9 @@ struct client_state {
 }
 
 func client_update(cstate: *client_state, sender: *message_sender[[client_message]]) void {
-    if IsKeyPressed(KEY_F3) {
-        cstate.*.debug = not cstate.*.debug;
-    }
-    if IsKeyPressed(KEY_F11) {
-        ToggleFullscreen();
-    }
-
-    if IsKeyPressed(KEY_ONE) {
-        cstate.*.player = player::RED;
-    }
-    if IsKeyPressed(KEY_TWO) {
-        cstate.*.player = player::BLUE;
-    }
-    if IsKeyPressed(KEY_THREE) {
-        cstate.*.player = player::WHITE;
-    }
-    if IsKeyPressed(KEY_FOUR) {
-        cstate.*.player = player::ORANGE;
-    }
-
+    # Collect basic information about the state of the window/camera, position
+    # of the mouse in screen space & world space, and objects that the mouse is
+    # currently hovering over.
     var render_w = GetRenderWidth();
     var render_h = GetRenderHeight();
     var camera = camera(HEX_RADIUS, (:f32)render_w, (:f32)render_h);
@@ -604,73 +587,108 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         }
     }
 
-    if world_node.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
-        var should_build_town = cstate.*.action == client_action::NONE;
-        var existing = cstate.*.board.towns.lookup(world_node.value());
-        if should_build_town and existing.is_value() and existing.value().player == cstate.*.player {
-            var cmessage = client_message::init_build_town(town::init(
-                cstate.*.player,
-                world_node.value(),
-                town::CITY));
-            sender.*.send(&cmessage);
-        }
-        elif should_build_town {
-            var cmessage = client_message::init_build_town(town::init(
-                cstate.*.player,
-                world_node.value(),
-                town::SETTLEMENT));
-            sender.*.send(&cmessage);
-        }
-    }
-    elif world_edge.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
-        var tile_a = cstate.*.board.tiles.lookup(world_edge.value().hexes[0]);
-        var tile_b = cstate.*.board.tiles.lookup(world_edge.value().hexes[1]);
-        assert tile_a.is_value() and tile_b.is_value();
-        var should_build_road = cstate.*.action == client_action::NONE;
-        var is_road_across_water =
-            tile_a.value().kind == tile::OCEAN and
-            tile_b.value().kind == tile::OCEAN;
-        if should_build_road and not is_road_across_water {
-            var cmessage = client_message::init_build_road(road::init(
-                cstate.*.player,
-                world_edge.value()));
-            sender.*.send(&cmessage);
-        }
-    }
-    elif world_tile.is_value() and IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
-        var world_tile = world_tile.value();
-        if std::eq[[hex]](&world_tile.hex, &cstate.*.board.robber) {
-            cstate.*.action = client_action::SELECTED_ROBBER;
-        }
-        elif cstate.*.action == client_action::SELECTED_ROBBER {
-            var cmessage = client_message::init_move_robber(world_tile.hex);
-            sender.*.send(&cmessage);
-            cstate.*.action = client_action::NONE;
-        }
-    }
-    elif IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
-        # LMB pressed while hovering over nothing.
-        cstate.*.action = client_action::NONE;
-    }
-    elif world_node.is_value() and IsMouseButtonDown(MOUSE_BUTTON_RIGHT) {
-        var cmessage = client_message::init_remove_town(world_node.value());
-        sender.*.send(&cmessage);
-    }
-    elif world_edge.is_value() and IsMouseButtonDown(MOUSE_BUTTON_RIGHT) {
-        var cmessage = client_message::init_remove_road(world_edge.value());
-        sender.*.send(&cmessage);
-    }
-    elif IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) {
-        # RMB pressed while hovering over nothing.
-        cstate.*.action = client_action::NONE;
-    }
-
     cstate.*.mouse = mouse;
     cstate.*.world = world;
     cstate.*.world_hex = world_hex;
     cstate.*.world_tile = world_tile;
     cstate.*.world_edge = world_edge;
     cstate.*.world_node = world_node;
+
+    # Actions processed regardless of the client's current action state.
+    if IsKeyPressed(KEY_F3) {
+        cstate.*.debug = not cstate.*.debug;
+    }
+    if IsKeyPressed(KEY_F11) {
+        ToggleFullscreen();
+    }
+    if IsKeyPressed(KEY_ONE) {
+        cstate.*.player = player::RED;
+    }
+    if IsKeyPressed(KEY_TWO) {
+        cstate.*.player = player::BLUE;
+    }
+    if IsKeyPressed(KEY_THREE) {
+        cstate.*.player = player::WHITE;
+    }
+    if IsKeyPressed(KEY_FOUR) {
+        cstate.*.player = player::ORANGE;
+    }
+
+    # Actions processed depending on the client's current action state.
+    switch cstate.*.action {
+    client_action::NONE {
+        if IsMouseButtonPressed(MOUSE_BUTTON_LEFT) and cstate.*.world_node.is_value() {
+            var existing = cstate.*.board.towns.lookup(cstate.*.world_node.value());
+            if existing.is_value() and existing.value().player == cstate.*.player {
+                var cmessage = client_message::init_build_town(town::init(
+                    cstate.*.player,
+                    cstate.*.world_node.value(),
+                    town::CITY));
+                sender.*.send(&cmessage);
+                return;
+            }
+
+            var cmessage = client_message::init_build_town(town::init(
+                cstate.*.player,
+                cstate.*.world_node.value(),
+                town::SETTLEMENT));
+            sender.*.send(&cmessage);
+            return;
+        }
+
+        if IsMouseButtonPressed(MOUSE_BUTTON_LEFT) and cstate.*.world_edge.is_value() {
+            var tile_a = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[0]);
+            var tile_b = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[1]);
+            assert tile_a.is_value() and tile_b.is_value();
+            var is_road_across_water =
+                tile_a.value().kind == tile::OCEAN and
+                tile_b.value().kind == tile::OCEAN;
+            if not is_road_across_water {
+                var cmessage = client_message::init_build_road(road::init(
+                    cstate.*.player,
+                    cstate.*.world_edge.value()));
+                sender.*.send(&cmessage);
+            }
+            return;
+        }
+
+        if IsMouseButtonPressed(MOUSE_BUTTON_LEFT) and cstate.*.world_tile.is_value() {
+            var world_tile = cstate.*.world_tile.value();
+            if std::eq[[hex]](&world_tile.hex, &cstate.*.board.robber) {
+                cstate.*.action = client_action::SELECTED_ROBBER;
+            }
+            return;
+        }
+
+        if IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) and cstate.*.world_node.is_value() {
+            var cmessage = client_message::init_remove_town(cstate.*.world_node.value());
+            sender.*.send(&cmessage);
+            return;
+        }
+
+        if IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) and cstate.*.world_edge.is_value() {
+            var cmessage = client_message::init_remove_road(cstate.*.world_edge.value());
+            sender.*.send(&cmessage);
+            return;
+        }
+    }
+    client_action::SELECTED_ROBBER {
+        if IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
+            if cstate.*.world_tile.is_value() {
+                var world_tile = cstate.*.world_tile.value();
+                if not std::eq[[hex]](&world_tile.hex, &cstate.*.board.robber) {
+                    var cmessage = client_message::init_move_robber(world_tile.hex);
+                    sender.*.send(&cmessage);
+                    cstate.*.action = client_action::NONE;
+                }
+            }
+            # De-select the robber regardless of whether a tile was clicked or
+            # not, and regardless of whether that click was successful.
+            cstate.*.action = client_action::NONE;
+            return;
+        }
+    }
+    }
 }
 
 func client_render(cstate: *client_state) void {

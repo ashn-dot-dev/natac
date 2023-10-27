@@ -47,7 +47,23 @@ struct server_state {
             }
             adjacent_roads.insert(adjacent);
         }
-        if adjacent_roads.count() == 0 {
+        var adjacent_nodes = adjacent_nodes_to_edge(road.edge, &self.*.board.nodes);
+        defer adjacent_nodes.fini();
+        var adjacent_towns = std::hash_set[[town]]::init();
+        defer adjacent_towns.fini();
+        var iter = std::hash_set_iterator[[node]]::init(&adjacent_nodes);
+        for iter.advance() {
+            var adjacent = self.*.board.towns.lookup(*iter.current());
+            if adjacent.is_empty() {
+                continue;
+            }
+            var adjacent = adjacent.value();
+            if adjacent.player != road.player {
+                continue;
+            }
+            adjacent_towns.insert(adjacent);
+        }
+        if adjacent_roads.count() == 0 and adjacent_towns.count() == 0 {
             var message = server_message::init_rejected("cannot build road (no adjacent road or town)");
             defer message.fini();
             sender.*.send(&message);
@@ -80,7 +96,7 @@ struct server_state {
                 continue;
             }
         }
-        if unobstructed_road_count == 0 {
+        if adjacent_towns.count() == 0 and unobstructed_road_count == 0 {
             var message = server_message::init_rejected("cannot build road (road is obstructed by town)");
             defer message.fini();
             sender.*.send(&message);

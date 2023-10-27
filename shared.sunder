@@ -571,18 +571,18 @@ struct road {
         };
     }
 
-    func init_from_bubby(value: *bubby::value) road {
-        return road::init(
-            (:player)value.*.map_xlookup_str("player").*.int(),
-            edge::init_from_bubby(value.*.map_xlookup_str("edge")));
-    }
-
     func hash(self: *road) usize {
         return self.*.edge.hash();
     }
 
     func compare(lhs: *road, rhs: *road) ssize {
         return std::compare[[edge]](&lhs.*.edge, &rhs.*.edge);
+    }
+
+    func init_from_bubby(value: *bubby::value) road {
+        return road::init(
+            (:player)value.*.map_xlookup_str("player").*.int(),
+            edge::init_from_bubby(value.*.map_xlookup_str("edge")));
     }
 
     func to_bubby(self: *road) bubby::value {
@@ -609,6 +609,14 @@ struct town {
             .node = node,
             .kind = kind,
         };
+    }
+
+    func hash(self: *town) usize {
+        return self.*.node.hash();
+    }
+
+    func compare(lhs: *town, rhs: *town) ssize {
+        return std::compare[[node]](&lhs.*.node, &rhs.*.node);
     }
 
     func init_from_bubby(value: *bubby::value) town {
