@@ -438,16 +438,16 @@ func camera_zoom(radius: f32, h: f32) f32 {
 }
 
 func camera(radius: f32, w: f32, h: f32) Camera2D {
-    var render_center = (:Vector2){
+    var center = (:Vector2){
         .x = (:f32)w / 2.0,
         .y = (:f32)h / 2.0,
     };
     return (:Camera2D){
         .target = (:Vector2){
             .x = 0.0f32,
-            .y = 0.0f32
+            .y = 0.0f32,
         },
-        .offset = render_center,
+        .offset = center,
         .rotation = 0.0f32,
         .zoom = camera_zoom(radius, (:f32)h),
     };
@@ -532,9 +532,9 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     # Collect basic information about the state of the window/camera, position
     # of the mouse in screen space & world space, and objects that the mouse is
     # currently hovering over.
-    var render_w = GetRenderWidth();
-    var render_h = GetRenderHeight();
-    var camera = camera(HEX_RADIUS, (:f32)render_w, (:f32)render_h);
+    var screen_w = GetScreenWidth();
+    var screen_h = GetScreenHeight();
+    var camera = camera(HEX_RADIUS, (:f32)screen_w, (:f32)screen_h);
 
     var mouse = GetMousePosition();
     var world = GetScreenToWorld2D(mouse, camera);
@@ -695,9 +695,9 @@ func client_render(cstate: *client_state) void {
     BeginDrawing();
     ClearBackground((:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF});
 
-    var render_w = GetRenderWidth();
-    var render_h = GetRenderHeight();
-    var camera = camera(HEX_RADIUS, (:f32)render_w, (:f32)render_h);
+    var screen_w = GetScreenWidth();
+    var screen_h = GetScreenHeight();
+    var camera = camera(HEX_RADIUS, (:f32)screen_w, (:f32)screen_h);
 
     BeginMode2D(camera);
 
@@ -891,7 +891,7 @@ func client_render(cstate: *client_state) void {
         let SQUARE_SIZE = (:Vector2){.x = 32.0, .y = 32.0};
         let SQUARE_OFFSET = 8.0f32;
         let SQUARE_BORDER = 2.0f32;
-        var square_xpos = (:f32)render_w - 4.0 * SQUARE_SIZE.x - 4.0 * SQUARE_OFFSET;
+        var square_xpos = (:f32)screen_w - 4.0 * SQUARE_SIZE.x - 4.0 * SQUARE_OFFSET;
         var square_ypos = SQUARE_OFFSET;
 
         var square_background = BLACK;
