@@ -429,27 +429,48 @@ func draw_text_format(font: Font, size: f32, color: Color, position: Vector2, fo
     DrawTextEx(font, s.cstr(), position, size, SPACING, color);
 }
 
-func camera_zoom(radius: f32, h: f32) f32 {
+
+# NOTE: It appears that raylib 5.0 seems to have changed the behavior the
+# Get(Screen|Render)(Width|Height) functions on MacOS from version 4.5,
+# requiring the `screen_w` and `screen_h` helper functions to make Camera2D
+# work properly in both non-fullscreen and fullscreen modes. At the time of
+# writing (2023-12-03) I am not sure whether the current raylib 5.0 behavior is
+# intended or whether the 4.5->5.0 behavior change is a bug.
+
+func screen_w() f32 {
+    if IsWindowFullscreen() {
+        return (:f32)GetRenderWidth();
+    }
+    return (:f32)GetScreenWidth();
+}
+
+func screen_h() f32 {
+    if IsWindowFullscreen() {
+        return (:f32)GetRenderHeight();
+    }
+    return (:f32)GetScreenHeight();
+}
+
+func camera_zoom(radius: f32) f32 {
     # Return a camera zoom such that the board and board-adjacent ocean tiles
     # fit on the screen. Approximate the length of the board and board-adjacent
     # ocean tiles as six tile diameters (five board tiles plus two ocean tiles
     # on either side minus one tile to somewhat account for radius overlap).
-    return h / (6.0 * 2.0 * radius);
+    return screen_h() / (6.0 * 2.0 * radius);
 }
 
-func camera(radius: f32, w: f32, h: f32) Camera2D {
-    var center = (:Vector2){
-        .x = (:f32)w / 2.0,
-        .y = (:f32)h / 2.0,
-    };
+func camera(radius: f32) Camera2D {
     return (:Camera2D){
         .target = (:Vector2){
             .x = 0.0f32,
             .y = 0.0f32,
         },
-        .offset = center,
+        .offset = (:Vector2){
+            .x = screen_w() / 2.0,
+            .y = screen_h() / 2.0,
+        },
         .rotation = 0.0f32,
-        .zoom = camera_zoom(radius, (:f32)h),
+        .zoom = camera_zoom(radius),
     };
 }
 
@@ -532,9 +553,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     # Collect basic information about the state of the window/camera, position
     # of the mouse in screen space & world space, and objects that the mouse is
     # currently hovering over.
-    var screen_w = GetScreenWidth();
-    var screen_h = GetScreenHeight();
-    var camera = camera(HEX_RADIUS, (:f32)screen_w, (:f32)screen_h);
+    var camera = camera(HEX_RADIUS);
 
     var mouse = GetMousePosition();
     var world = GetScreenToWorld2D(mouse, camera);
@@ -695,9 +714,8 @@ func client_render(cstate: *client_state) void {
     BeginDrawing();
     ClearBackground((:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF});
 
-    var screen_w = GetScreenWidth();
-    var screen_h = GetScreenHeight();
-    var camera = camera(HEX_RADIUS, (:f32)screen_w, (:f32)screen_h);
+    var screen_w = screen_w();
+    var camera = camera(HEX_RADIUS);
 
     BeginMode2D(camera);
 
