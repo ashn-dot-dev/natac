@@ -1380,9 +1380,9 @@ struct server_message {
         REJECTED;
     };
     var data: union {
+        var board: board;
         var accepted: std::string;
         var rejected: std::string;
-        var board: board;
     };
 
     let SELF: server_message = uninit;
