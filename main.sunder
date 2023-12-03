@@ -328,6 +328,7 @@ func run_server() void {
 }
 
 func main() void {
+    # Application Global Allocator.
     var allocator = std::general_allocator::init();
     defer allocator.fini();
     defer {
@@ -341,9 +342,33 @@ func main() void {
                     std::formatter::init[[usize]](&size)]);
         }
     }
-
     var allocator = std::allocator::init[[typeof(allocator)]](&allocator);
     std::set_global_allocator(allocator);
+
+    # Message Allocator.
+    #
+    # NOTE: At the time of writing (2023-12-03), at program exit there will
+    # occasionally be a leak reported from an allocation within the function
+    # `message::create`. The reason for this leak is currently unknown, but it
+    # may be that some or all outstanding nbnet messages are *not* destroyed
+    # when `NBN_GameClient_Stop` is invoked. The message allocator and message
+    # allocation leak reporting below have been added to track these leaks.
+    var allocator = std::general_allocator::init();
+    defer allocator.fini();
+    defer {
+        var iter = std::general_allocator_iterator::init(&allocator);
+        for iter.advance() {
+            var size = iter.current().*.size();
+            std::print_format_line(
+                std::err(),
+                "leaked message allocation of size {}",
+                (:[]std::formatter)[
+                    std::formatter::init[[usize]](&size)]);
+        }
+    }
+    message_allocator = std::allocator::init[[typeof(allocator)]](&allocator);
+
+    # Argument Parsing.
     var argparser = std::argument_parser::init((:[][]byte)[
         "debug",
         "fullscreen",
