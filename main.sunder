@@ -237,6 +237,22 @@ func run_client(debug: bool, fullscreen: bool, address: *byte) void {
 
         client_render(&cstate);
     }
+
+    # Poll remaining nbnet events and clean up outstanding messages.
+    for true {
+        var ev = NBN_GameClient_Poll();
+
+        if ev < 0 or ev == NBN_NO_EVENT {
+            break;
+        }
+
+        if ev == NBN_MESSAGE_RECEIVED {
+            var info = NBN_GameClient_GetMessageInfo();
+            assert info.type == message::TYPE;
+            var incoming = (:*message)info.data;
+            message::destroy(incoming);
+        }
+    }
 }
 
 func run_server() void {
@@ -315,7 +331,6 @@ func run_server() void {
 
                 message::destroy(incoming);
             }
-
         }
 
         server_update(&sstate, &message_sender);
@@ -323,6 +338,22 @@ func run_server() void {
         if NBN_GameServer_SendPackets() < 0 {
             std::print_line(std::err(), "error: failed to send nbnet packets");
             break;
+        }
+    }
+
+    # Poll remaining nbnet events and clean up outstanding messages.
+    for true {
+        var ev = NBN_GameClient_Poll();
+
+        if ev < 0 or ev == NBN_NO_EVENT {
+            break;
+        }
+
+        if ev == NBN_CLIENT_MESSAGE_RECEIVED {
+            var info = NBN_GameServer_GetMessageInfo();
+            assert info.type == message::TYPE;
+            var incoming = (:*message)info.data;
+            message::destroy(incoming);
         }
     }
 }
@@ -344,29 +375,6 @@ func main() void {
     }
     var allocator = std::allocator::init[[typeof(allocator)]](&allocator);
     std::set_global_allocator(allocator);
-
-    # Message Allocator.
-    #
-    # NOTE: At the time of writing (2023-12-03), at program exit there will
-    # occasionally be a leak reported from an allocation within the function
-    # `message::create`. The reason for this leak is currently unknown, but it
-    # may be that some or all outstanding nbnet messages are *not* destroyed
-    # when `NBN_GameClient_Stop` is invoked. The message allocator and message
-    # allocation leak reporting below have been added to track these leaks.
-    var allocator = std::general_allocator::init();
-    defer allocator.fini();
-    defer {
-        var iter = std::general_allocator_iterator::init(&allocator);
-        for iter.advance() {
-            var size = iter.current().*.size();
-            std::print_format_line(
-                std::err(),
-                "leaked message allocation of size {}",
-                (:[]std::formatter)[
-                    std::formatter::init[[usize]](&size)]);
-        }
-    }
-    message_allocator = std::allocator::init[[typeof(allocator)]](&allocator);
 
     # Argument Parsing.
     var argparser = std::argument_parser::init((:[][]byte)[
@@ -406,11 +414,11 @@ func main() void {
         }
     }
 
+    # Start the Application Main Loop.
     var network = network::LOCAL;
     if opt_network.is_value() {
         network = opt_network.value();
     }
-
     switch network {
     ::network::LOCAL {
         run_local(opt_debug, opt_fullscreen);

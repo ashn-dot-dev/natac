@@ -1243,8 +1243,6 @@ func adjacent_nodes_to_node(target: node, nodes: *std::hash_set[[node]]) std::ha
 
 let BUSY_CODE = (:sint)42; # nbnet busy code
 
-var message_allocator: std::allocator = uninit;
-
 struct message {
     let TYPE: u8 = 0;
     let SIZE: usize = 4096 * 4;
@@ -1253,11 +1251,11 @@ struct message {
     var buf: [SIZE]char;
 
     func create() *message {
-        return std::new_with_allocator[[message]](message_allocator);
+        return std::new[[message]]();
     }
 
     func destroy(self: *message) void {
-        std::delete_with_allocator[[message]](message_allocator, self);
+        std::delete[[message]](self);
     }
 
     func serialize(self: *message, stream: *NBN_Stream) sint {
