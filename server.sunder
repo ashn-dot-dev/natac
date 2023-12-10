@@ -23,6 +23,18 @@ struct server_state {
     }
 
     func process_place_road(self: *server_state, road: road, sender: *message_sender[[server_message]]) void {
+        var tile_a = self.*.board.tiles.lookup(road.edge.hexes[0]);
+        var tile_b = self.*.board.tiles.lookup(road.edge.hexes[1]);
+        var is_road_across_water =
+            tile_a.value().kind == tile::OCEAN and
+            tile_b.value().kind == tile::OCEAN;
+        if is_road_across_water {
+            var message = server_message::init_rejected("cannot build road (cannot build on water)");
+            defer message.fini();
+            sender.*.send(&message);
+            return;
+        }
+
         var existing = self.*.board.roads.lookup(road.edge);
         if existing.is_value() {
             var message = server_message::init_rejected("cannot build road (road exists at location)");
