@@ -3,7 +3,7 @@ NATAC
 
 ## Dependencies
 + [sunder](https://github.com/ashn-dot-dev/sunder)
-+ [raylib-sunder](https://github.com/ashn-dot-dev/raylib-sunder) 5.0-dev
++ [raylib-sunder](https://github.com/ashn-dot-dev/raylib-sunder) with raylib [version 5.0](https://github.com/raysan5/raylib/releases/tag/5.0)
 + [nbnet-sunder](https://github.com/ashn-dot-dev/nbnet-sunder)
 + [bubby](https://github.com/ashn-dot-dev/bubby)
 
