@@ -760,6 +760,17 @@ func client_render(cstate: *client_state) void {
         draw_pointy_hexagon_border(point, HEX_RADIUS, BLACK);
     }
 
+    # Re-draw the hexagon outline and boarder for the currently hovered-over
+    # tile if the robber is being moved. This is done before towns and roads
+    # are drawn so that the hovered-over tile appears highlighted.
+    if cstate.*.action == client_action::SELECTED_ROBBER {
+        var tile = cstate.*.board.tiles.lookup(cstate.*.world_hex);
+        if tile.is_value() and tile.value().kind != ::tile::OCEAN {
+            draw_pointy_hexagon_outline(world_hex_center, HEX_RADIUS, YELLOW);
+            draw_pointy_hexagon_border(world_hex_center, HEX_RADIUS, BLACK);
+        }
+    }
+
     var iter = std::hash_set_iterator[[port]]::init(&cstate.*.board.ports);
     for iter.advance() {
         var port = iter.current();
