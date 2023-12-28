@@ -429,6 +429,47 @@ func draw_text_format(font: Font, size: f32, color: Color, position: Vector2, fo
     DrawTextEx(font, s.cstr(), position, size, SPACING, color);
 }
 
+func draw_d6(font: Font, font_size: f32, position: Vector2, number: sint) void {
+    assert 1 <= number and number <= 6;
+    var size = (:Vector2){.x = font_size * 2.0, .y = font_size * 2.0};
+    DrawRectangleV(
+        (:Vector2){
+            .x = position.x,
+            .y = position.y,
+        },
+        (:Vector2){
+            .x = size.x,
+            .y = size.y,
+        },
+        BLACK);
+
+    let BOARDER = 2.0f32;
+    DrawRectangleV(
+        (:Vector2){
+            .x = position.x + BOARDER,
+            .y = position.y + BOARDER,
+        },
+        (:Vector2){
+            .x = size.x - BOARDER * 2.0,
+            .y = size.y - BOARDER * 2.0,
+        },
+        RED);
+
+    var text_size = measure_text_format(font, font_size,
+        "{}",
+        (:[]std::formatter)[
+            std::formatter::init[[sint]](&number)]);
+    draw_text_format(
+        font,
+        font_size,
+        WHITE,
+        (:Vector2){
+            .x = position.x + size.x / 2.0 - text_size.x / 2.0,
+            .y = position.y + size.y / 2.0 - text_size.y / 2.0,
+        },
+        "{}",
+        (:[]std::formatter)[std::formatter::init[[sint]](&number)]);
+}
 
 # NOTE: It appears that raylib 5.0 seems to have changed the behavior the
 # Get(Screen|Render)(Width|Height) functions on MacOS from version 4.5,
@@ -853,6 +894,13 @@ func client_render(cstate: *client_state) void {
     }
 
     EndMode2D();
+
+    draw_d6(cstate.*.font, cstate.*.font_size, (:Vector2){.x = 100.0, .y = 100.0}, 1);
+    draw_d6(cstate.*.font, cstate.*.font_size, (:Vector2){.x = 100.0, .y = 150.0}, 2);
+    draw_d6(cstate.*.font, cstate.*.font_size, (:Vector2){.x = 100.0, .y = 200.0}, 3);
+    draw_d6(cstate.*.font, cstate.*.font_size, (:Vector2){.x = 100.0, .y = 250.0}, 4);
+    draw_d6(cstate.*.font, cstate.*.font_size, (:Vector2){.x = 100.0, .y = 300.0}, 5);
+    draw_d6(cstate.*.font, cstate.*.font_size, (:Vector2){.x = 100.0, .y = 350.0}, 6);
 
     if cstate.*.debug {
         var fps = GetFPS();

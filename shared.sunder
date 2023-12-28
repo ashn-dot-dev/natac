@@ -4,6 +4,48 @@ import "std";
 import "bubby";
 import "nbnet";
 
+# Simplified Permuted Congruential Generator algorithms (32 and 64 bit).
+# Originally created by Christopher Wellons[1].
+#
+# [1]: https://nullprogram.com/blog/2017/09/21/
+var spcg32_state = 0xBADF00D01DC0FFEEu64;
+var spcg64_state = (:[2]u64)[0xBADF00D01DC0FFEE, 0xCAFED00DCAFEBABE];
+
+func spcg32(s: *u64) u32 {
+    var m: u64 = 0x9b60933458e17d7d;
+    var a: u64 = 0xd737232eeccdf7ed;
+    *s = *s *% m +% a;
+    var shift = 29 - (*s >> 61);
+    return (:u32)(*s >> (:usize)shift);
+}
+
+func spcg64(s: *[2]u64) u64 {
+    var m:  u64 = 0x9b60933458e17d7d;
+    var a0: u64 = 0xd737232eeccdf7ed;
+    var a1: u64 = 0x8b260b70b8e98891;
+    var p0: u64 = s.*[0];
+    var p1: u64 = s.*[1];
+    s.*[0] = p0 *% m +% a0;
+    s.*[1] = p1 *% m +% a1;
+    var r0 = 29 - (p0 >> 61);
+    var r1 = 29 - (p1 >> 61);
+    var hi = p0 >> (:usize)r0;
+    var lo = p1 >> (:usize)r1;
+    return (hi << 32) | (lo & 0xFFFFFFFF);
+}
+
+func random32() u32 {
+    return spcg32(&spcg32_state);
+}
+
+func random64() u64 {
+    return spcg64(&spcg64_state);
+}
+
+func d6() sint {
+    return (:sint)(random32() % 6 + 1);
+}
+
 func xstr_to_int[[T]](str: []byte) T {
     var parsed = T::init_from_str(str, 0);
     return parsed.value();
