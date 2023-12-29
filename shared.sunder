@@ -709,6 +709,8 @@ struct board {
     var roads: std::hash_map[[edge, road]];
     var towns: std::hash_map[[node, town]];
     var robber: hex;
+    var d6_a: sint;
+    var d6_b: sint;
 
     func init() board {
         var tiles = std::hash_map[[hex, tile]]::init();
@@ -718,6 +720,7 @@ struct board {
         var roads = std::hash_map[[edge, road]]::init();
         var towns = std::hash_map[[node, town]]::init();
         var robber = hex::init(+0, +0, +0);
+        var d6 = (:sint)1;
 
         return (:board){
             .tiles = tiles,
@@ -727,6 +730,8 @@ struct board {
             .roads = roads,
             .towns = towns,
             .robber = robber,
+            .d6_a = d6,
+            .d6_b = d6,
         };
     }
 
@@ -743,8 +748,8 @@ struct board {
         var ports = init_starter_map_for_beginners_ports();
         var roads = init_starter_map_for_beginners_roads();
         var towns = init_starter_map_for_beginners_towns();
-
         var robber = hex::init(+0, +0, +0);
+        var d6 = (:sint)1;
 
         return (:board){
             .tiles = tiles,
@@ -754,6 +759,8 @@ struct board {
             .roads = roads,
             .towns = towns,
             .robber = robber,
+            .d6_a = d6,
+            .d6_b = d6,
         };
     }
 
@@ -774,6 +781,8 @@ struct board {
         std::hash_map[[edge, road]]::assign(&self.*.roads, &from.*.roads);
         std::hash_map[[node, town]]::assign(&self.*.towns, &from.*.towns);
         self.*.robber = from.*.robber;
+        self.*.d6_a = from.*.d6_a;
+        self.*.d6_b = from.*.d6_b;
     }
 
     func init_from_bubby(value: *bubby::value) board {
@@ -1318,6 +1327,7 @@ struct message {
 
 struct client_message {
     var kind: enum {
+        ROLL;
         BUILD_ROAD;
         BUILD_TOWN;
         REMOVE_ROAD;
@@ -1333,6 +1343,13 @@ struct client_message {
     };
 
     let SELF: client_message = uninit;
+
+    func init_roll() client_message {
+        return (:client_message){
+            .kind = client_message::ROLL,
+            .data = uninit,
+        };
+    }
 
     func init_build_road(road: road) client_message {
         return (:client_message){
@@ -1371,6 +1388,9 @@ struct client_message {
 
     func init_from_bubby(value: *bubby::value) client_message {
         var kind = value.*.map_xlookup_str("kind");
+        if std::str::eq(kind.*.str(), "roll") {
+            return client_message::init_roll();
+        }
         if std::str::eq(kind.*.str(), "build-road") {
             var road = road::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_build_road(road);
@@ -1399,6 +1419,9 @@ struct client_message {
     func to_bubby(self: *client_message) bubby::value {
         var out = bubby::value::init_map();
         switch self.*.kind {
+        client_message::ROLL {
+            out.map_insert_str("kind", bubby::value::init_str("roll"));
+        }
         client_message::BUILD_ROAD {
             out.map_insert_str("kind", bubby::value::init_str("build-road"));
             out.map_insert_str("data", self.*.data.build_road.to_bubby());
@@ -1452,10 +1475,24 @@ struct server_message {
         };
     }
 
+    func init_accepted_format(format: []byte, args: []std::formatter) server_message {
+        return (:server_message){
+            .kind = server_message::ACCEPTED,
+            .data = (:typeof(SELF.data)){.accepted = std::string::init_from_format(format, args)},
+        };
+    }
+
     func init_rejected(text: []byte) server_message {
         return (:server_message){
             .kind = server_message::REJECTED,
             .data = (:typeof(SELF.data)){.rejected = std::string::init_from_str(text)},
+        };
+    }
+
+    func init_rejected_format(format: []byte, args: []std::formatter) server_message {
+        return (:server_message){
+            .kind = server_message::REJECTED,
+            .data = (:typeof(SELF.data)){.rejected = std::string::init_from_format(format, args)},
         };
     }
 

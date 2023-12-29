@@ -18,6 +18,22 @@ struct server_state {
         self.*.board.fini();
     }
 
+    func process_roll(self: *server_state, sender: *message_sender[[server_message]]) void {
+        var roll_a = d6();
+        var roll_b = d6();
+        var roll = roll_a + roll_b;
+        self.*.board.d6_a = roll_a;
+        self.*.board.d6_b = roll_b;
+        var message = server_message::init_accepted_format(
+            "rolled {} + {} = {}",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(roll_a)]](&roll_a),
+                std::formatter::init[[typeof(roll_b)]](&roll_b),
+                std::formatter::init[[typeof(roll)]](&roll)]);
+        defer message.fini();
+        sender.*.send(&message);
+    }
+
     func place_road(self: *server_state, road: road) void {
         insert_road(&self.*.board.roads, road);
     }
@@ -275,6 +291,9 @@ struct server_state {
 
     func update_from_client_message(self: *server_state, message: *client_message, sender: *message_sender[[server_message]]) void {
         switch message.*.kind {
+        client_message::ROLL {
+            self.*.process_roll(sender);
+        }
         client_message::BUILD_ROAD {
             self.*.process_place_road(message.*.data.build_road, sender);
         }

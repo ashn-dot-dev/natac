@@ -677,6 +677,12 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     # Actions processed depending on the client's current player state.
     switch cstate.*.pstate {
     player_state::NONE {
+        if IsKeyPressed(KEY_SPACE) {
+            var cmessage = client_message::init_roll();
+            sender.*.send(&cmessage);
+            return;
+        }
+
         if IsMouseButtonPressed(MOUSE_BUTTON_LEFT) and cstate.*.world_node.is_value() {
             var existing = cstate.*.board.towns.lookup(cstate.*.world_node.value());
             if existing.is_value() and existing.value().player == cstate.*.player {
@@ -756,6 +762,7 @@ func client_render(cstate: *client_state) void {
     ClearBackground((:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF});
 
     var screen_w = screen_w();
+    var screen_h = screen_h();
     var camera = camera(HEX_RADIUS);
 
     BeginMode2D(camera);
@@ -895,12 +902,8 @@ func client_render(cstate: *client_state) void {
 
     EndMode2D();
 
-    draw_d6(cstate.*.font, cstate.*.font_size, (:Vector2){.x = 100.0, .y = 100.0}, 1);
-    draw_d6(cstate.*.font, cstate.*.font_size, (:Vector2){.x = 100.0, .y = 150.0}, 2);
-    draw_d6(cstate.*.font, cstate.*.font_size, (:Vector2){.x = 100.0, .y = 200.0}, 3);
-    draw_d6(cstate.*.font, cstate.*.font_size, (:Vector2){.x = 100.0, .y = 250.0}, 4);
-    draw_d6(cstate.*.font, cstate.*.font_size, (:Vector2){.x = 100.0, .y = 300.0}, 5);
-    draw_d6(cstate.*.font, cstate.*.font_size, (:Vector2){.x = 100.0, .y = 350.0}, 6);
+    draw_d6(cstate.*.font, cstate.*.font_size, (:Vector2){.x = 20.0, .y = screen_h - 50.0}, cstate.*.board.d6_a);
+    draw_d6(cstate.*.font, cstate.*.font_size, (:Vector2){.x = 60.0, .y = screen_h - 50.0}, cstate.*.board.d6_b);
 
     if cstate.*.debug {
         var fps = GetFPS();
