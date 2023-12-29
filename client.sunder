@@ -515,9 +515,9 @@ func camera(radius: f32) Camera2D {
     };
 }
 
-enum client_action {
+enum player_state {
     NONE;
-    SELECTED_ROBBER;
+    MOVE_ROBBER;
 }
 
 struct client_state {
@@ -527,8 +527,8 @@ struct client_state {
     var font_size: f32;
 
     var player: player;
+    var pstate: player_state;
     var board: board;
-    var action: client_action;
 
     var mouse: Vector2;
     var world: Vector2;
@@ -558,8 +558,8 @@ struct client_state {
             .font_size = font_size,
 
             .player = player::NIL,
+            .pstate = player_state::NONE,
             .board = board,
-            .action = client_action::NONE,
 
             .mouse = uninit,
             .world = uninit,
@@ -654,7 +654,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     cstate.*.world_edge = world_edge;
     cstate.*.world_node = world_node;
 
-    # Actions processed regardless of the client's current action state.
+    # Actions processed regardless of the client's current player state.
     if IsKeyPressed(KEY_F3) {
         cstate.*.debug = not cstate.*.debug;
     }
@@ -674,9 +674,9 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         cstate.*.player = player::ORANGE;
     }
 
-    # Actions processed depending on the client's current action state.
-    switch cstate.*.action {
-    client_action::NONE {
+    # Actions processed depending on the client's current player state.
+    switch cstate.*.pstate {
+    player_state::NONE {
         if IsMouseButtonPressed(MOUSE_BUTTON_LEFT) and cstate.*.world_node.is_value() {
             var existing = cstate.*.board.towns.lookup(cstate.*.world_node.value());
             if existing.is_value() and existing.value().player == cstate.*.player {
@@ -715,7 +715,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         if IsMouseButtonPressed(MOUSE_BUTTON_LEFT) and cstate.*.world_tile.is_value() {
             var world_tile = cstate.*.world_tile.value();
             if std::eq[[hex]](&world_tile.hex, &cstate.*.board.robber) {
-                cstate.*.action = client_action::SELECTED_ROBBER;
+                cstate.*.pstate = player_state::MOVE_ROBBER;
             }
             return;
         }
@@ -732,19 +732,19 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             return;
         }
     }
-    client_action::SELECTED_ROBBER {
+    player_state::MOVE_ROBBER {
         if IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
             if cstate.*.world_tile.is_value() {
                 var world_tile = cstate.*.world_tile.value();
                 if not std::eq[[hex]](&world_tile.hex, &cstate.*.board.robber) {
                     var cmessage = client_message::init_move_robber(world_tile.hex);
                     sender.*.send(&cmessage);
-                    cstate.*.action = client_action::NONE;
+                    cstate.*.pstate = player_state::NONE;
                 }
             }
             # De-select the robber regardless of whether a tile was clicked or
             # not, and regardless of whether that click was successful.
-            cstate.*.action = client_action::NONE;
+            cstate.*.pstate = player_state::NONE;
             return;
         }
     }
@@ -804,7 +804,7 @@ func client_render(cstate: *client_state) void {
     # Re-draw the hexagon outline and boarder for the currently hovered-over
     # tile if the robber is being moved. This is done before towns and roads
     # are drawn so that the hovered-over tile appears highlighted.
-    if cstate.*.action == client_action::SELECTED_ROBBER {
+    if cstate.*.pstate == player_state::MOVE_ROBBER {
         var tile = cstate.*.board.tiles.lookup(cstate.*.world_hex);
         if tile.is_value() and tile.value().kind != ::tile::OCEAN {
             draw_pointy_hexagon_outline(world_hex_center, HEX_RADIUS, YELLOW);
@@ -829,7 +829,7 @@ func client_render(cstate: *client_state) void {
         cstate.*.world_edge.is_value() and
         not cstate.*.board.roads.contains(cstate.*.world_edge.value()) and
         not cstate.*.world_node.is_value() and
-        cstate.*.action == client_action::NONE;
+        cstate.*.pstate == player_state::NONE;
     if show_world_edge_road {
         var tile_a = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[0]);
         var tile_b = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[1]);
@@ -859,7 +859,7 @@ func client_render(cstate: *client_state) void {
     var show_world_node_town =
         cstate.*.world_node.is_value() and
         not cstate.*.board.towns.contains(cstate.*.world_node.value()) and
-        cstate.*.action == client_action::NONE;
+        cstate.*.pstate == player_state::NONE;
     if show_world_node_town {
         var point = node_to_point(cstate.*.world_node.value(), HEX_RADIUS);
         draw_circle(point, 6.0, YELLOW);
@@ -867,7 +867,7 @@ func client_render(cstate: *client_state) void {
     }
 
     var robber_outline = BLACK;
-    if cstate.*.action == client_action::SELECTED_ROBBER {
+    if cstate.*.pstate == player_state::MOVE_ROBBER {
         robber_outline = YELLOW;
     }
     draw_robber(pointy_hex_to_point(cstate.*.board.robber, HEX_RADIUS), HEX_RADIUS, robber_outline);
