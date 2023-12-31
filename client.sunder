@@ -173,9 +173,63 @@ func draw_circle(center: Vector2, radius: f32, color: Color) void {
 }
 
 func draw_circle_outline(center: Vector2, radius: f32, thickness: f32, color: Color) void {
+    assert thickness <= radius;
     let SIDES: sint = 36;
     let ANGLE: f32 = 0.0;
     DrawPolyLinesEx(center, SIDES, radius, ANGLE, thickness, color);
+}
+
+func draw_rect(position: Vector2, w: f32, h: f32, color: Color) void {
+    DrawRectangleV(position, (:Vector2){.x = w, .y = h}, color);
+}
+
+func draw_rect_outline(position: Vector2, w: f32, h: f32, thickness: f32, color: Color) void {
+    assert thickness <= w;
+    assert thickness <= h;
+    # left side
+    DrawRectangleV(
+        (:Vector2){
+            .x = position.x,
+            .y = position.y,
+        },
+        (:Vector2){
+            .x = thickness,
+            .y = h,
+        },
+        color);
+    # right side
+    DrawRectangleV(
+        (:Vector2){
+            .x = position.x + w - thickness,
+            .y = position.y,
+        },
+        (:Vector2){
+            .x = thickness,
+            .y = h,
+        },
+        color);
+    # top side
+    DrawRectangleV(
+        (:Vector2){
+            .x = position.x,
+            .y = position.y,
+        },
+        (:Vector2){
+            .x = w,
+            .y = thickness,
+        },
+        color);
+    # bottom side
+    DrawRectangleV(
+        (:Vector2){
+            .x = position.x,
+            .y = position.y + h - thickness,
+        },
+        (:Vector2){
+            .x = w,
+            .y = thickness,
+        },
+        color);
 }
 
 func draw_number_token(center: Vector2, number: sint, radius: f32, font: Font) void {
@@ -431,30 +485,10 @@ func draw_text_format(font: Font, size: f32, color: Color, position: Vector2, fo
 
 func draw_d6(font: Font, font_size: f32, position: Vector2, number: sint) void {
     assert 1 <= number and number <= 6;
-    var size = (:Vector2){.x = font_size * 2.0, .y = font_size * 2.0};
-    DrawRectangleV(
-        (:Vector2){
-            .x = position.x,
-            .y = position.y,
-        },
-        (:Vector2){
-            .x = size.x,
-            .y = size.y,
-        },
-        BLACK);
-
+    var side = font_size * 2.0;
     let BOARDER = 2.0f32;
-    DrawRectangleV(
-        (:Vector2){
-            .x = position.x + BOARDER,
-            .y = position.y + BOARDER,
-        },
-        (:Vector2){
-            .x = size.x - BOARDER * 2.0,
-            .y = size.y - BOARDER * 2.0,
-        },
-        RED);
-
+    draw_rect(position, side, side, RED);
+    draw_rect_outline(position, side, side, BOARDER, BLACK);
     var text_size = measure_text_format(font, font_size,
         "{}",
         (:[]std::formatter)[
@@ -464,8 +498,8 @@ func draw_d6(font: Font, font_size: f32, position: Vector2, number: sint) void {
         font_size,
         WHITE,
         (:Vector2){
-            .x = position.x + size.x / 2.0 - text_size.x / 2.0,
-            .y = position.y + size.y / 2.0 - text_size.y / 2.0,
+            .x = position.x + font_size - text_size.x / 2.0,
+            .y = position.y + font_size - text_size.y / 2.0,
         },
         "{}",
         (:[]std::formatter)[std::formatter::init[[sint]](&number)]);
