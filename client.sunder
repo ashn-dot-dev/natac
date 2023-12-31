@@ -1003,7 +1003,6 @@ func client_render(cstate: *client_state) void {
         }
 
         let SQUARE_SIDE = 32.0f32;
-        let SQUARE_SIZE = (:Vector2){.x = SQUARE_SIDE, .y = SQUARE_SIDE};
         let SQUARE_OFFSET = 8.0f32;
         let SQUARE_BORDER = 2.0f32;
         var square_xpos = (:f32)screen_w - 4.0 * SQUARE_SIDE - 4.0 * SQUARE_OFFSET;
@@ -1013,89 +1012,89 @@ func client_render(cstate: *client_state) void {
         if cstate.*.player == player::RED {
             square_background = YELLOW;
         }
-        DrawRectangleV(
-            (:Vector2){
-                .x = square_xpos - SQUARE_BORDER + SQUARE_SIDE * 0.0 + SQUARE_OFFSET * 0.0,
-                .y = square_ypos - SQUARE_BORDER,
-            },
-            (:Vector2){
-                .x = SQUARE_SIDE + 2.0 * SQUARE_BORDER,
-                .y = SQUARE_SIDE + 2.0 * SQUARE_BORDER,
-            },
-            square_background);
-        DrawRectangleV(
+        draw_rect(
             (:Vector2){
                 .x = square_xpos + SQUARE_SIDE * 0.0 + SQUARE_OFFSET * 0.0,
                 .y = square_ypos,
             },
-            SQUARE_SIZE,
+            SQUARE_SIDE,
+            SQUARE_SIDE,
             player_color(player::RED));
+        draw_rect_outline(
+            (:Vector2){
+                .x = square_xpos + SQUARE_SIDE * 0.0 + SQUARE_OFFSET * 0.0,
+                .y = square_ypos,
+            },
+            SQUARE_SIDE,
+            SQUARE_SIDE,
+            SQUARE_BORDER,
+            square_background);
 
         var square_background = BLACK;
         if cstate.*.player == player::BLUE {
             square_background = YELLOW;
         }
-        DrawRectangleV(
-            (:Vector2){
-                .x = square_xpos - SQUARE_BORDER + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
-                .y = square_ypos - SQUARE_BORDER,
-            },
-            (:Vector2){
-                .x = SQUARE_SIDE + 2.0 * SQUARE_BORDER,
-                .y = SQUARE_SIDE + 2.0 * SQUARE_BORDER,
-            },
-            square_background);
-        DrawRectangleV(
+        draw_rect(
             (:Vector2){
                 .x = square_xpos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
                 .y = square_ypos,
             },
-            SQUARE_SIZE,
+            SQUARE_SIDE,
+            SQUARE_SIDE,
             player_color(player::BLUE));
+        draw_rect_outline(
+            (:Vector2){
+                .x = square_xpos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
+                .y = square_ypos,
+            },
+            SQUARE_SIDE,
+            SQUARE_SIDE,
+            SQUARE_BORDER,
+            square_background);
 
         var square_background = BLACK;
         if cstate.*.player == player::WHITE {
             square_background = YELLOW;
         }
-        DrawRectangleV(
-            (:Vector2){
-                .x = square_xpos - SQUARE_BORDER + SQUARE_SIDE * 2.0 + SQUARE_OFFSET * 2.0,
-                .y = square_ypos - SQUARE_BORDER,
-            },
-            (:Vector2){
-                .x = SQUARE_SIDE + 2.0 * SQUARE_BORDER,
-                .y = SQUARE_SIDE + 2.0 * SQUARE_BORDER,
-            },
-            square_background);
-        DrawRectangleV(
+        draw_rect(
             (:Vector2){
                 .x = square_xpos + SQUARE_SIDE * 2.0 + SQUARE_OFFSET * 2.0,
                 .y = square_ypos,
             },
-            SQUARE_SIZE,
+            SQUARE_SIDE,
+            SQUARE_SIDE,
             player_color(player::WHITE));
+        draw_rect_outline(
+            (:Vector2){
+                .x = square_xpos + SQUARE_SIDE * 2.0 + SQUARE_OFFSET * 2.0,
+                .y = square_ypos,
+            },
+            SQUARE_SIDE,
+            SQUARE_SIDE,
+            SQUARE_BORDER,
+            square_background);
 
         var square_background = BLACK;
         if cstate.*.player == player::ORANGE {
             square_background = YELLOW;
         }
-        DrawRectangleV(
-            (:Vector2){
-                .x = square_xpos - SQUARE_BORDER + SQUARE_SIDE * 3.0 + SQUARE_OFFSET * 3.0,
-                .y = square_ypos - SQUARE_BORDER,
-            },
-            (:Vector2){
-                .x = SQUARE_SIDE + 2.0 * SQUARE_BORDER,
-                .y = SQUARE_SIDE + 2.0 * SQUARE_BORDER,
-            },
-            square_background);
-        DrawRectangleV(
+        draw_rect(
             (:Vector2){
                 .x = square_xpos + SQUARE_SIDE * 3.0 + SQUARE_OFFSET * 3.0,
                 .y = square_ypos,
             },
-            SQUARE_SIZE,
+            SQUARE_SIDE,
+            SQUARE_SIDE,
             player_color(player::ORANGE));
+        draw_rect_outline(
+            (:Vector2){
+                .x = square_xpos + SQUARE_SIDE * 3.0 + SQUARE_OFFSET * 3.0,
+                .y = square_ypos,
+            },
+            SQUARE_SIDE,
+            SQUARE_SIDE,
+            SQUARE_BORDER,
+            square_background);
     }
 
     EndDrawing();
