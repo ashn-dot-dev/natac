@@ -133,7 +133,6 @@ func run_local(debug: bool, fullscreen: bool) void {
     var cstate = client_state::init();
     defer cstate.fini();
     cstate.debug = debug;
-    cstate.player = player::RED;
 
     var smessage_sender = (:local_server_message_sender){
         .client = &cstate,
@@ -174,7 +173,6 @@ func run_client(debug: bool, fullscreen: bool, address: *byte) void {
     var cstate = client_state::init();
     defer cstate.fini();
     cstate.debug = debug;
-    cstate.player = player::RED;
 
     var client_message_sender = nbnet_client_message_sender::init();
     var message_sender = message_sender[[client_message]]::init[[nbnet_client_message_sender]](&client_message_sender);

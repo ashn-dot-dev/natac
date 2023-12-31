@@ -695,6 +695,9 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     if IsKeyPressed(KEY_F11) {
         ToggleFullscreen();
     }
+    if IsKeyPressed(KEY_ZERO) {
+        cstate.*.player = player::NIL;
+    }
     if IsKeyPressed(KEY_ONE) {
         cstate.*.player = player::RED;
     }
