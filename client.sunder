@@ -936,8 +936,8 @@ func client_render(cstate: *client_state) void {
 
     EndMode2D();
 
-    draw_d6(cstate.*.font, cstate.*.font_size, (:Vector2){.x = 20.0, .y = screen_h - 50.0}, cstate.*.board.d6_a);
-    draw_d6(cstate.*.font, cstate.*.font_size, (:Vector2){.x = 60.0, .y = screen_h - 50.0}, cstate.*.board.d6_b);
+    draw_d6(cstate.*.font, 16.0, (:Vector2){.x = 20.0, .y = screen_h - 50.0}, cstate.*.board.d6_a);
+    draw_d6(cstate.*.font, 16.0, (:Vector2){.x = 60.0, .y = screen_h - 50.0}, cstate.*.board.d6_b);
 
     if cstate.*.debug {
         var fps = GetFPS();
@@ -1002,10 +1002,11 @@ func client_render(cstate: *client_state) void {
                     std::formatter::init[[tile]](&world_tile)]);
         }
 
-        let SQUARE_SIZE = (:Vector2){.x = 32.0, .y = 32.0};
+        let SQUARE_SIDE = 32.0f32;
+        let SQUARE_SIZE = (:Vector2){.x = SQUARE_SIDE, .y = SQUARE_SIDE};
         let SQUARE_OFFSET = 8.0f32;
         let SQUARE_BORDER = 2.0f32;
-        var square_xpos = (:f32)screen_w - 4.0 * SQUARE_SIZE.x - 4.0 * SQUARE_OFFSET;
+        var square_xpos = (:f32)screen_w - 4.0 * SQUARE_SIDE - 4.0 * SQUARE_OFFSET;
         var square_ypos = SQUARE_OFFSET;
 
         var square_background = BLACK;
@@ -1014,17 +1015,17 @@ func client_render(cstate: *client_state) void {
         }
         DrawRectangleV(
             (:Vector2){
-                .x = square_xpos - SQUARE_BORDER + SQUARE_SIZE.x * 0.0 + SQUARE_OFFSET * 0.0,
+                .x = square_xpos - SQUARE_BORDER + SQUARE_SIDE * 0.0 + SQUARE_OFFSET * 0.0,
                 .y = square_ypos - SQUARE_BORDER,
             },
             (:Vector2){
-                .x = SQUARE_SIZE.x + 2.0 * SQUARE_BORDER,
-                .y = SQUARE_SIZE.y + 2.0 * SQUARE_BORDER,
+                .x = SQUARE_SIDE + 2.0 * SQUARE_BORDER,
+                .y = SQUARE_SIDE + 2.0 * SQUARE_BORDER,
             },
             square_background);
         DrawRectangleV(
             (:Vector2){
-                .x = square_xpos + SQUARE_SIZE.x * 0.0 + SQUARE_OFFSET * 0.0,
+                .x = square_xpos + SQUARE_SIDE * 0.0 + SQUARE_OFFSET * 0.0,
                 .y = square_ypos,
             },
             SQUARE_SIZE,
@@ -1036,17 +1037,17 @@ func client_render(cstate: *client_state) void {
         }
         DrawRectangleV(
             (:Vector2){
-                .x = square_xpos - SQUARE_BORDER + SQUARE_SIZE.x * 1.0 + SQUARE_OFFSET * 1.0,
+                .x = square_xpos - SQUARE_BORDER + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
                 .y = square_ypos - SQUARE_BORDER,
             },
             (:Vector2){
-                .x = SQUARE_SIZE.x + 2.0 * SQUARE_BORDER,
-                .y = SQUARE_SIZE.y + 2.0 * SQUARE_BORDER,
+                .x = SQUARE_SIDE + 2.0 * SQUARE_BORDER,
+                .y = SQUARE_SIDE + 2.0 * SQUARE_BORDER,
             },
             square_background);
         DrawRectangleV(
             (:Vector2){
-                .x = square_xpos + SQUARE_SIZE.x * 1.0 + SQUARE_OFFSET * 1.0,
+                .x = square_xpos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
                 .y = square_ypos,
             },
             SQUARE_SIZE,
@@ -1058,17 +1059,17 @@ func client_render(cstate: *client_state) void {
         }
         DrawRectangleV(
             (:Vector2){
-                .x = square_xpos - SQUARE_BORDER + SQUARE_SIZE.x * 2.0 + SQUARE_OFFSET * 2.0,
+                .x = square_xpos - SQUARE_BORDER + SQUARE_SIDE * 2.0 + SQUARE_OFFSET * 2.0,
                 .y = square_ypos - SQUARE_BORDER,
             },
             (:Vector2){
-                .x = SQUARE_SIZE.x + 2.0 * SQUARE_BORDER,
-                .y = SQUARE_SIZE.y + 2.0 * SQUARE_BORDER,
+                .x = SQUARE_SIDE + 2.0 * SQUARE_BORDER,
+                .y = SQUARE_SIDE + 2.0 * SQUARE_BORDER,
             },
             square_background);
         DrawRectangleV(
             (:Vector2){
-                .x = square_xpos + SQUARE_SIZE.x * 2.0 + SQUARE_OFFSET * 2.0,
+                .x = square_xpos + SQUARE_SIDE * 2.0 + SQUARE_OFFSET * 2.0,
                 .y = square_ypos,
             },
             SQUARE_SIZE,
@@ -1080,17 +1081,17 @@ func client_render(cstate: *client_state) void {
         }
         DrawRectangleV(
             (:Vector2){
-                .x = square_xpos - SQUARE_BORDER + SQUARE_SIZE.x * 3.0 + SQUARE_OFFSET * 3.0,
+                .x = square_xpos - SQUARE_BORDER + SQUARE_SIDE * 3.0 + SQUARE_OFFSET * 3.0,
                 .y = square_ypos - SQUARE_BORDER,
             },
             (:Vector2){
-                .x = SQUARE_SIZE.x + 2.0 * SQUARE_BORDER,
-                .y = SQUARE_SIZE.y + 2.0 * SQUARE_BORDER,
+                .x = SQUARE_SIDE + 2.0 * SQUARE_BORDER,
+                .y = SQUARE_SIDE + 2.0 * SQUARE_BORDER,
             },
             square_background);
         DrawRectangleV(
             (:Vector2){
-                .x = square_xpos + SQUARE_SIZE.x * 3.0 + SQUARE_OFFSET * 3.0,
+                .x = square_xpos + SQUARE_SIDE * 3.0 + SQUARE_OFFSET * 3.0,
                 .y = square_ypos,
             },
             SQUARE_SIZE,
