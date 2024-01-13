@@ -207,7 +207,7 @@ func run_client(debug: bool, fullscreen: bool, address: *byte) void {
             if ev == NBN_MESSAGE_RECEIVED {
                 std::print_line(std::err(), "info: message received");
                 var info = NBN_GameClient_GetMessageInfo();
-                assert info.type == message::TYPE;
+                assert info.type_ == message::TYPE;
                 var incoming = (:*message)info.data;
 
                 var count = (:usize)incoming.*.len;
@@ -246,7 +246,7 @@ func run_client(debug: bool, fullscreen: bool, address: *byte) void {
 
         if ev == NBN_MESSAGE_RECEIVED {
             var info = NBN_GameClient_GetMessageInfo();
-            assert info.type == message::TYPE;
+            assert info.type_ == message::TYPE;
             var incoming = (:*message)info.data;
             message::destroy(incoming);
         }
@@ -310,7 +310,7 @@ func run_server() void {
                 std::print_line(std::err(), "info: message received");
 
                 var info = NBN_GameServer_GetMessageInfo();
-                assert info.type == message::TYPE;
+                assert info.type_ == message::TYPE;
                 var incoming = (:*message)info.data;
 
                 var count = (:usize)incoming.*.len;
@@ -349,7 +349,7 @@ func run_server() void {
 
         if ev == NBN_CLIENT_MESSAGE_RECEIVED {
             var info = NBN_GameServer_GetMessageInfo();
-            assert info.type == message::TYPE;
+            assert info.type_ == message::TYPE;
             var incoming = (:*message)info.data;
             message::destroy(incoming);
         }
