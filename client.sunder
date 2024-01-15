@@ -829,6 +829,23 @@ func client_render(cstate: *client_state) void {
     # UI Panel
     smol::handle_input(cstate.*.ui.context);
     mu_begin(cstate.*.ui.context);
+    var pcolor = player_color(cstate.*.player);
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].r = pcolor.r;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].g = pcolor.g;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].b = pcolor.b;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].a = 0xFF;
+    if (cstate.*.player == player::WHITE) {
+        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].r = BLACK.r;
+        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].g = BLACK.g;
+        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].b = BLACK.b;
+        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].a = 0xFF;
+    }
+    else {
+        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].r = WHITE.r;
+        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].g = WHITE.g;
+        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].b = WHITE.b;
+        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].a = 0xFF;
+    }
     let UI_BORDER: sint = 8;
     var ui_w = (:sint)screen_w / 4;
     var ui_h = (:sint)screen_h - 2 * UI_BORDER;
