@@ -15,6 +15,7 @@ build:
 		-o $(TARGET) \
 		$$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --libs) \
 		-L$(SUNDER_HOME)/lib/nbnet -lnbnet \
+		-L$(SUNDER_HOME)/lib/smolui -lsmolui \
 		main.sunder
 
 clean:

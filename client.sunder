@@ -2,6 +2,7 @@ import "c";
 import "std";
 
 import "raylib";
+import "smolui";
 
 import "shared.sunder";
 
@@ -541,7 +542,7 @@ func camera(radius: f32) Camera2D {
             .y = 0.0f32,
         },
         .offset = (:Vector2){
-            .x = screen_w() / 2.0,
+            .x = screen_w() / 2.0 - screen_w() / 8.0,
             .y = screen_h() / 2.0,
         },
         .rotation = 0.0f32,
@@ -559,6 +560,7 @@ struct client_state {
 
     var font: Font;
     var font_size: f32;
+    var ui: smol::ui;
 
     var player: player;
     var pstate: player_state;
@@ -583,6 +585,11 @@ struct client_state {
             std::ptr[[sint]]::NULL,
             FONT_NUMCHARS);
 
+        var ctx = std::new[[mu_Context]]();
+        mu_init(ctx);
+        smol::setup_font(ctx, std::ptr[[Font]]::NULL);
+        var ui = smol::ui::init(ctx);
+
         var board = board::init();
 
         return (:client_state){
@@ -590,6 +597,7 @@ struct client_state {
 
             .font = font,
             .font_size = font_size,
+            .ui = ui,
 
             .player = player::NIL,
             .pstate = player_state::NONE,
@@ -605,6 +613,7 @@ struct client_state {
     }
 
     func fini(self: *client_state) void {
+        std::delete[[mu_Context]](self.*.ui.context);
         UnloadFont(self.*.font);
         self.*.board.fini();
     }
@@ -798,6 +807,7 @@ func client_render(cstate: *client_state) void {
     BeginDrawing();
     ClearBackground((:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF});
 
+    var screen_w = screen_w();
     var screen_h = screen_h();
     var camera = camera(HEX_RADIUS);
 
@@ -815,6 +825,24 @@ func client_render(cstate: *client_state) void {
     }
 
     var world_hex_center = pointy_hex_to_point(cstate.*.world_hex, HEX_RADIUS);
+
+    # UI Panel
+    smol::handle_input(cstate.*.ui.context);
+    mu_begin(cstate.*.ui.context);
+    let UI_BORDER: sint = 8;
+    var ui_w = (:sint)screen_w / 4;
+    var ui_h = (:sint)screen_h - 2 * UI_BORDER;
+    var ui_x = (:sint)screen_w - ui_w - UI_BORDER;
+    var ui_y = UI_BORDER;
+    if cstate.*.ui.begin_window_ex("UI", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = sint::max(win.*.rect.w, 200);
+        win.*.rect.h = sint::max(win.*.rect.h, 300);
+
+        cstate.*.ui.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit.");
+        cstate.*.ui.end_window();
+    }
+    mu_end(cstate.*.ui.context);
 
     if cstate.*.debug {
         if cstate.*.world_node.is_value() {
@@ -1048,6 +1076,8 @@ func client_render(cstate: *client_state) void {
         SQUARE_SIDE,
         SQUARE_BORDER,
         square_background);
+
+    smol::render(cstate.*.ui.context);
 
     if cstate.*.debug {
         var fps = GetFPS();
