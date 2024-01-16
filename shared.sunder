@@ -63,6 +63,46 @@ enum player {
     ORANGE = 4;
 }
 
+func name_to_player(name: []byte) player {
+    if std::str::eq(name, "RED") {
+        return ::player::RED;
+    }
+    if std::str::eq(name, "BLUE") {
+        return ::player::BLUE;
+    }
+    if std::str::eq(name, "WHITE") {
+        return ::player::WHITE;
+    }
+    if std::str::eq(name, "ORANGE") {
+        return ::player::ORANGE;
+    }
+
+    return ::player::NIL;
+}
+
+func player_to_name(player: player) []byte {
+    switch player {
+    ::player::NIL {
+        return "SPECTATOR";
+    }
+    ::player::RED {
+        return "RED";
+    }
+    ::player::BLUE {
+        return "BLUE";
+    }
+    ::player::WHITE {
+        return "WHITE";
+    }
+    ::player::ORANGE {
+        return "ORANGE";
+    }
+    }
+
+    std::unreachable(fileof(), lineof());
+    return std::zeroed[[[]byte]]();
+}
+
 # Hex position using the cube coordinate system satisfying q + r + s == 0.
 struct hex {
     var q: sint;
@@ -1326,6 +1366,11 @@ struct message {
 }
 
 struct client_message {
+    # TODO: In the final game the server *should* be able to determine the
+    # player from the connection ID. However, for local testing, where the
+    # developer can switch the player they are controlling at any time, we
+    # require this field to determine which player is sending the message.
+    var player: player;
     var kind: enum {
         ROLL;
         BUILD_ROAD;
@@ -1344,72 +1389,80 @@ struct client_message {
 
     let SELF: client_message = uninit;
 
-    func init_roll() client_message {
+    func init_roll(player: player) client_message {
         return (:client_message){
+            .player = player,
             .kind = client_message::ROLL,
             .data = uninit,
         };
     }
 
-    func init_build_road(road: road) client_message {
+    func init_build_road(player: player, road: road) client_message {
         return (:client_message){
+            .player = player,
             .kind = client_message::BUILD_ROAD,
             .data = (:typeof(SELF.data)){.build_road = road},
         };
     }
 
-    func init_build_town(town: town) client_message {
+    func init_build_town(player: player, town: town) client_message {
         return (:client_message){
+            .player = player,
             .kind = client_message::BUILD_TOWN,
             .data = (:typeof(SELF.data)){.build_town = town},
         };
     }
 
-    func init_remove_road(road: edge) client_message {
+    func init_remove_road(player: player, road: edge) client_message {
         return (:client_message){
+            .player = player,
             .kind = client_message::REMOVE_ROAD,
             .data = (:typeof(SELF.data)){.remove_road = road},
         };
     }
 
-    func init_remove_town(town: node) client_message {
+    func init_remove_town(player: player, town: node) client_message {
         return (:client_message){
+            .player = player,
             .kind = client_message::REMOVE_TOWN,
             .data = (:typeof(SELF.data)){.remove_town = town},
         };
     }
 
-    func init_move_robber(hex: hex) client_message {
+    func init_move_robber(player: player, hex: hex) client_message {
         return (:client_message){
+            .player = player,
             .kind = client_message::MOVE_ROBBER,
             .data = (:typeof(SELF.data)){.move_robber = hex},
         };
     }
 
     func init_from_bubby(value: *bubby::value) client_message {
+        var player = value.*.map_xlookup_str("player");
+        var player = name_to_player(player.*.str());
         var kind = value.*.map_xlookup_str("kind");
         if std::str::eq(kind.*.str(), "roll") {
-            return client_message::init_roll();
+            return client_message::init_roll(player);
         }
         if std::str::eq(kind.*.str(), "build-road") {
             var road = road::init_from_bubby(value.*.map_xlookup_str("data"));
-            return client_message::init_build_road(road);
+            return client_message::init_build_road(player, road);
         }
         if std::str::eq(kind.*.str(), "build-town") {
             var town = town::init_from_bubby(value.*.map_xlookup_str("data"));
-            return client_message::init_build_town(town);
+            return client_message::init_build_town(player, town);
         }
         if std::str::eq(kind.*.str(), "remove-road") {
             var edge = edge::init_from_bubby(value.*.map_xlookup_str("data"));
-            return client_message::init_remove_road(edge);
+            return client_message::init_remove_road(player, edge);
         }
         if std::str::eq(kind.*.str(), "remove-town") {
             var node = node::init_from_bubby(value.*.map_xlookup_str("data"));
-            return client_message::init_remove_town(node);
+            return client_message::init_remove_town(player, node);
         }
         if std::str::eq(kind.*.str(), "move-robber") {
             var hex = hex::init_from_bubby(value.*.map_xlookup_str("data"));
-            return client_message::init_move_robber(hex);
+            return client_message::init_move_robber(player, hex);
         }
 
         std::unreachable(fileof(), lineof());
@@ -1449,11 +1502,13 @@ struct client_message {
 
 struct server_message {
     var kind: enum {
+        LOG;
         BOARD;
         ACCEPTED;
         REJECTED;
     };
     var data: union {
+        var log: std::string;
         var board: board;
         var accepted: std::string;
         var rejected: std::string;
@@ -1465,6 +1520,20 @@ struct server_message {
         return (:server_message){
             .kind = server_message::BOARD,
             .data = (:typeof(SELF.data)){.board = ::board::init_assign(board)},
+        };
+    }
+
+    func init_log(text: []byte) server_message {
+        return (:server_message){
+            .kind = server_message::LOG,
+            .data = (:typeof(SELF.data)){.log = std::string::init_from_str(text)},
+        };
+    }
+
+    func init_log_format(format: []byte, args: []std::formatter) server_message {
+        return (:server_message){
+            .kind = server_message::LOG,
+            .data = (:typeof(SELF.data)){.log = std::string::init_from_format(format, args)},
         };
     }
 
@@ -1498,6 +1567,9 @@ struct server_message {
 
     func fini(self: *server_message) void {
         switch self.*.kind {
+        server_message::LOG {
+            self.*.data.log.fini();
+        }
         server_message::BOARD {
             self.*.data.board.fini();
         }
@@ -1512,6 +1584,9 @@ struct server_message {
 
     func init_from_bubby(value: *bubby::value) server_message {
         var kind = value.*.map_xlookup_str("kind").*.str();
+        if std::str::eq(kind, "log") {
+            return server_message::init_log(value.*.map_xlookup_str("data").*.str());
+        }
         if std::str::eq(kind, "board") {
             var board = board::init_from_bubby(value.*.map_xlookup_str("data"));
             defer board.fini();
@@ -1531,6 +1606,10 @@ struct server_message {
     func to_bubby(self: *server_message) bubby::value {
         var out = bubby::value::init_map();
         switch self.*.kind {
+        server_message::LOG {
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("log"));
+            out.map().*.insert(bubby::value::init_str("data"), bubby::value::init_str(self.*.data.log.data()));
+        }
         server_message::BOARD {
             out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("board"));
             out.map().*.insert(bubby::value::init_str("data"), self.*.data.board.to_bubby());

@@ -18,7 +18,7 @@ struct server_state {
         self.*.board.fini();
     }
 
-    func process_roll(self: *server_state, sender: *message_sender[[server_message]]) void {
+    func process_roll(self: *server_state, sender: *message_sender[[server_message]], player: player) void {
         var roll_a = d6();
         var roll_b = d6();
         var roll = roll_a + roll_b;
@@ -32,13 +32,23 @@ struct server_state {
                 std::formatter::init[[typeof(roll)]](&roll)]);
         defer message.fini();
         sender.*.send(&message);
+        var name = player_to_name(player);
+        var message = server_message::init_log_format(
+            "{} rolled {} + {} = {}.",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name),
+                std::formatter::init[[typeof(roll_a)]](&roll_a),
+                std::formatter::init[[typeof(roll_b)]](&roll_b),
+                std::formatter::init[[typeof(roll)]](&roll)]);
+        defer message.fini();
+        sender.*.send(&message);
     }
 
     func place_road(self: *server_state, road: road) void {
         insert_road(&self.*.board.roads, road);
     }
 
-    func process_place_road(self: *server_state, road: road, sender: *message_sender[[server_message]]) void {
+    func process_place_road(self: *server_state, road: road, sender: *message_sender[[server_message]], player: player) void {
         var tile_a = self.*.board.tiles.lookup(road.edge.hexes[0]);
         var tile_b = self.*.board.tiles.lookup(road.edge.hexes[1]);
         var is_road_across_water =
@@ -149,6 +159,13 @@ struct server_state {
         var message = server_message::init_accepted("built road");
         defer message.fini();
         sender.*.send(&message);
+        var name = player_to_name(player);
+        var message = server_message::init_log_format(
+            "{} built a road.",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name)]);
+        defer message.fini();
+        sender.*.send(&message);
     }
 
     func remove_road(self: *server_state, edge: edge) void {
@@ -166,7 +183,7 @@ struct server_state {
         insert_town(&self.*.board.towns, town);
     }
 
-    func process_place_town(self: *server_state, town: town, sender: *message_sender[[server_message]]) void {
+    func process_place_town(self: *server_state, town: town, sender: *message_sender[[server_message]], player: player) void {
         var existing = self.*.board.towns.lookup(town.node);
         if existing.is_value() {
             var existing = existing.value();
@@ -242,6 +259,18 @@ struct server_state {
         var message = server_message::init_accepted("built town");
         defer message.fini();
         sender.*.send(&message);
+        var name = player_to_name(player);
+        var kind = "settlement";
+        if town.kind == ::town::CITY {
+            kind = "city";
+        }
+        var message = server_message::init_log_format(
+            "{} built a {}.",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name),
+                std::formatter::init[[typeof(kind)]](&kind)]);
+        defer message.fini();
+        sender.*.send(&message);
     }
 
     func remove_town(self: *server_state, node: node) void {
@@ -292,13 +321,13 @@ struct server_state {
     func update_from_client_message(self: *server_state, message: *client_message, sender: *message_sender[[server_message]]) void {
         switch message.*.kind {
         client_message::ROLL {
-            self.*.process_roll(sender);
+            self.*.process_roll(sender, message.*.player);
         }
         client_message::BUILD_ROAD {
-            self.*.process_place_road(message.*.data.build_road, sender);
+            self.*.process_place_road(message.*.data.build_road, sender, message.*.player);
         }
         client_message::BUILD_TOWN {
-            self.*.process_place_town(message.*.data.build_town, sender);
+            self.*.process_place_town(message.*.data.build_town, sender, message.*.player);
         }
         client_message::REMOVE_ROAD {
             self.*.process_remove_road(message.*.data.remove_road, sender);

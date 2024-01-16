@@ -591,8 +591,6 @@ struct client_state {
         smol::setup_font(ctx, std::ptr[[Font]]::NULL);
         var ui = smol::ui::init(ctx);
         var log = std::string::init();
-        std::print_line(std::writer::init[[typeof(log)]](&log), "log line 1");
-        std::print_line(std::writer::init[[typeof(log)]](&log), "log line 2");
 
         var board = board::init();
 
@@ -626,14 +624,26 @@ struct client_state {
 
     func update_from_server_message(self: *client_state, message: *server_message) void {
         switch message.*.kind {
+        server_message::LOG {
+            var log_writer = std::writer::init[[std::string]](&self.*.log);
+            std::print_line(log_writer, message.*.data.log.data());
+        }
         server_message::BOARD {
             board::assign(&self.*.board, &message.*.data.board);
         }
         server_message::ACCEPTED {
-            std::print_format_line(std::err(), "action accepted by server: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.accepted)]);
+            std::print_format_line(std::err(), "[ACTION ACCEPTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.accepted)]);
+            if self.*.debug {
+                var log_writer = std::writer::init[[std::string]](&self.*.log);
+                std::print_format_line(log_writer, "[ACTION ACCEPTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.accepted)]);
+            }
         }
         server_message::REJECTED {
-            std::print_format_line(std::err(), "action rejected by server: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.rejected)]);
+            std::print_format_line(std::err(), "[ACTION REJECTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.rejected)]);
+            if self.*.debug {
+                var log_writer = std::writer::init[[std::string]](&self.*.log);
+                std::print_format_line(log_writer, "[ACTION REJECTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.rejected)]);
+            }
         }
         }
     }
@@ -730,7 +740,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     switch cstate.*.pstate {
     player_state::NONE {
         if IsKeyPressed(KEY_SPACE) {
-            var cmessage = client_message::init_roll();
+            var cmessage = client_message::init_roll(cstate.*.player);
             sender.*.send(&cmessage);
             return;
         }
@@ -738,18 +748,22 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         if IsMouseButtonPressed(MOUSE_BUTTON_LEFT) and cstate.*.world_node.is_value() {
             var existing = cstate.*.board.towns.lookup(cstate.*.world_node.value());
             if existing.is_value() and existing.value().player == cstate.*.player {
-                var cmessage = client_message::init_build_town(town::init(
+                var cmessage = client_message::init_build_town(
                     cstate.*.player,
-                    cstate.*.world_node.value(),
-                    town::CITY));
+                    town::init(
+                        cstate.*.player,
+                        cstate.*.world_node.value(),
+                        town::CITY));
                 sender.*.send(&cmessage);
                 return;
             }
 
-            var cmessage = client_message::init_build_town(town::init(
+            var cmessage = client_message::init_build_town(
                 cstate.*.player,
-                cstate.*.world_node.value(),
-                town::SETTLEMENT));
+                town::init(
+                    cstate.*.player,
+                    cstate.*.world_node.value(),
+                    town::SETTLEMENT));
             sender.*.send(&cmessage);
             return;
         }
@@ -762,9 +776,11 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                 tile_a.value().kind == tile::OCEAN and
                 tile_b.value().kind == tile::OCEAN;
             if not is_road_across_water {
-                var cmessage = client_message::init_build_road(road::init(
+                var cmessage = client_message::init_build_road(
                     cstate.*.player,
-                    cstate.*.world_edge.value()));
+                    road::init(
+                        cstate.*.player,
+                        cstate.*.world_edge.value()));
                 sender.*.send(&cmessage);
             }
             return;
@@ -779,13 +795,13 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         }
 
         if IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) and cstate.*.world_node.is_value() {
-            var cmessage = client_message::init_remove_town(cstate.*.world_node.value());
+            var cmessage = client_message::init_remove_town(cstate.*.player, cstate.*.world_node.value());
             sender.*.send(&cmessage);
             return;
         }
 
         if IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) and cstate.*.world_edge.is_value() {
-            var cmessage = client_message::init_remove_road(cstate.*.world_edge.value());
+            var cmessage = client_message::init_remove_road(cstate.*.player, cstate.*.world_edge.value());
             sender.*.send(&cmessage);
             return;
         }
@@ -795,7 +811,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             if cstate.*.world_tile.is_value() {
                 var world_tile = cstate.*.world_tile.value();
                 if not std::eq[[hex]](&world_tile.hex, &cstate.*.board.robber) {
-                    var cmessage = client_message::init_move_robber(world_tile.hex);
+                    var cmessage = client_message::init_move_robber(cstate.*.player, world_tile.hex);
                     sender.*.send(&cmessage);
                     cstate.*.pstate = player_state::NONE;
                 }
