@@ -829,6 +829,7 @@ func client_render(cstate: *client_state) void {
     # UI Panel
     smol::handle_input(cstate.*.ui.context);
     mu_begin(cstate.*.ui.context);
+    let UI_BORDER: sint = 8;
     var pcolor = player_color(cstate.*.player);
     cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].r = pcolor.r;
     cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].g = pcolor.g;
@@ -846,17 +847,30 @@ func client_render(cstate: *client_state) void {
         cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].b = WHITE.b;
         cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].a = 0xFF;
     }
-    let UI_BORDER: sint = 8;
-    var ui_w = (:sint)screen_w / 4;
-    var ui_h = (:sint)screen_h - 2 * UI_BORDER;
+    var ui_w = (:sint)screen_w * 1 / 4;
+    var ui_h = (:sint)screen_h * 1 / 2 - 4 * UI_BORDER;
     var ui_x = (:sint)screen_w - ui_w - UI_BORDER;
     var ui_y = UI_BORDER;
-    if cstate.*.ui.begin_window_ex("UI", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = sint::max(win.*.rect.w, 200);
-        win.*.rect.h = sint::max(win.*.rect.h, 300);
-
+    if cstate.*.ui.begin_window_ex("INFO", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
+        cstate.*.ui.layout_row((:[]sint)[-1], -1);
         cstate.*.ui.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit.");
+        cstate.*.ui.end_window();
+    }
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].r = BLACK.r;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].g = BLACK.g;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].b = BLACK.b;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].a = 0xFF;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].r = WHITE.r;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].g = WHITE.g;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].b = WHITE.b;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].a = 0xFF;
+    var ui_w = (:sint)screen_w * 1 / 4;
+    var ui_h = (:sint)screen_h * 1 / 2 - 4 * UI_BORDER;
+    var ui_x = (:sint)screen_w - ui_w - UI_BORDER;
+    var ui_y = (:sint)screen_h * 1 / 2 + 3 * UI_BORDER;
+    if cstate.*.ui.begin_window_ex("LOG", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
+        cstate.*.ui.text("Log line");
+        cstate.*.ui.text("Another log line");
         cstate.*.ui.end_window();
     }
     mu_end(cstate.*.ui.context);
