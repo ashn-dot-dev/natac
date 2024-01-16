@@ -561,6 +561,7 @@ struct client_state {
     var font: Font;
     var font_size: f32;
     var ui: smol::ui;
+    var log: std::string;
 
     var player: player;
     var pstate: player_state;
@@ -589,6 +590,9 @@ struct client_state {
         mu_init(ctx);
         smol::setup_font(ctx, std::ptr[[Font]]::NULL);
         var ui = smol::ui::init(ctx);
+        var log = std::string::init();
+        std::print_line(std::writer::init[[typeof(log)]](&log), "log line 1");
+        std::print_line(std::writer::init[[typeof(log)]](&log), "log line 2");
 
         var board = board::init();
 
@@ -598,6 +602,7 @@ struct client_state {
             .font = font,
             .font_size = font_size,
             .ui = ui,
+            .log = log,
 
             .player = player::NIL,
             .pstate = player_state::NONE,
@@ -613,6 +618,7 @@ struct client_state {
     }
 
     func fini(self: *client_state) void {
+        self.*.log.fini();
         std::delete[[mu_Context]](self.*.ui.context);
         UnloadFont(self.*.font);
         self.*.board.fini();
@@ -826,7 +832,7 @@ func client_render(cstate: *client_state) void {
 
     var world_hex_center = pointy_hex_to_point(cstate.*.world_hex, HEX_RADIUS);
 
-    # UI Panel
+    # UI Panels
     smol::handle_input(cstate.*.ui.context);
     mu_begin(cstate.*.ui.context);
     let UI_BORDER: sint = 8;
@@ -869,8 +875,8 @@ func client_render(cstate: *client_state) void {
     var ui_x = (:sint)screen_w - ui_w - UI_BORDER;
     var ui_y = (:sint)screen_h * 1 / 2 + 3 * UI_BORDER;
     if cstate.*.ui.begin_window_ex("LOG", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
-        cstate.*.ui.text("Log line");
-        cstate.*.ui.text("Another log line");
+        cstate.*.ui.layout_row((:[]sint)[-1], -1);
+        cstate.*.ui.text(cstate.*.log.data());
         cstate.*.ui.end_window();
     }
     mu_end(cstate.*.ui.context);
