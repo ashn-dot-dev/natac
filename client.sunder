@@ -560,8 +560,10 @@ struct client_state {
 
     var font: Font;
     var font_size: f32;
-    var ui: smol::ui;
+    var ui_font: *Font;
+    var ui_font_size: f32;
     var ui_log: std::string;
+    var ui: smol::ui;
 
     var player: player;
     var pstate: player_state;
@@ -575,8 +577,8 @@ struct client_state {
     var world_node: std::optional[[node]];
 
     func init() client_state {
-        let PUBLIC_PIXEL_TTF = embed("assets/PublicPixel.ttf");
         let FONT_NUMCHARS: sint = '~' - ' ' + 1; # Printable ASCII
+        let PUBLIC_PIXEL_TTF = embed("assets/PublicPixel.ttf");
         var font_size = 16.0f32;
         var font = LoadFontFromMemory(
             startof(".ttf"),
@@ -586,11 +588,22 @@ struct client_state {
             std::ptr[[sint]]::NULL,
             FONT_NUMCHARS);
 
+        let RUNESCAPE_UF_TTF = embed("assets/RuneScapeUF.ttf");
+        var ui_font_size = 16.0f32;
+        var ui_font = std::new[[Font]]();
+        *ui_font = LoadFontFromMemory(
+            startof(".ttf"),
+            (:*u8)startof(RUNESCAPE_UF_TTF),
+            (:sint)countof(RUNESCAPE_UF_TTF),
+            (:sint)font_size,
+            std::ptr[[sint]]::NULL,
+            FONT_NUMCHARS);
+
         var ctx = std::new[[mu_Context]]();
         mu_init(ctx);
-        smol::setup_font(ctx, std::ptr[[Font]]::NULL);
-        var ui = smol::ui::init(ctx);
+        smol::setup_font(ctx, ui_font);
         var ui_log = std::string::init();
+        var ui = smol::ui::init(ctx);
 
         var board = board::init();
 
@@ -599,8 +612,10 @@ struct client_state {
 
             .font = font,
             .font_size = font_size,
-            .ui = ui,
+            .ui_font = ui_font,
+            .ui_font_size = ui_font_size,
             .ui_log = ui_log,
+            .ui = ui,
 
             .player = player::NIL,
             .pstate = player_state::NONE,
@@ -616,8 +631,10 @@ struct client_state {
     }
 
     func fini(self: *client_state) void {
-        self.*.ui_log.fini();
         std::delete[[mu_Context]](self.*.ui.context);
+        self.*.ui_log.fini();
+        UnloadFont(*self.*.ui_font);
+        std::delete[[Font]](self.*.ui_font);
         UnloadFont(self.*.font);
         self.*.board.fini();
     }
