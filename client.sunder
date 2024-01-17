@@ -561,7 +561,7 @@ struct client_state {
     var font: Font;
     var font_size: f32;
     var ui: smol::ui;
-    var log: std::string;
+    var ui_log: std::string;
 
     var player: player;
     var pstate: player_state;
@@ -590,7 +590,7 @@ struct client_state {
         mu_init(ctx);
         smol::setup_font(ctx, std::ptr[[Font]]::NULL);
         var ui = smol::ui::init(ctx);
-        var log = std::string::init();
+        var ui_log = std::string::init();
 
         var board = board::init();
 
@@ -600,7 +600,7 @@ struct client_state {
             .font = font,
             .font_size = font_size,
             .ui = ui,
-            .log = log,
+            .ui_log = ui_log,
 
             .player = player::NIL,
             .pstate = player_state::NONE,
@@ -616,7 +616,7 @@ struct client_state {
     }
 
     func fini(self: *client_state) void {
-        self.*.log.fini();
+        self.*.ui_log.fini();
         std::delete[[mu_Context]](self.*.ui.context);
         UnloadFont(self.*.font);
         self.*.board.fini();
@@ -625,7 +625,7 @@ struct client_state {
     func update_from_server_message(self: *client_state, message: *server_message) void {
         switch message.*.kind {
         server_message::LOG {
-            var log_writer = std::writer::init[[std::string]](&self.*.log);
+            var log_writer = std::writer::init[[std::string]](&self.*.ui_log);
             std::print_line(log_writer, message.*.data.log.data());
         }
         server_message::BOARD {
@@ -634,14 +634,14 @@ struct client_state {
         server_message::ACCEPTED {
             std::print_format_line(std::err(), "[ACTION ACCEPTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.accepted)]);
             if self.*.debug {
-                var log_writer = std::writer::init[[std::string]](&self.*.log);
+                var log_writer = std::writer::init[[std::string]](&self.*.ui_log);
                 std::print_format_line(log_writer, "[ACTION ACCEPTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.accepted)]);
             }
         }
         server_message::REJECTED {
             std::print_format_line(std::err(), "[ACTION REJECTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.rejected)]);
             if self.*.debug {
-                var log_writer = std::writer::init[[std::string]](&self.*.log);
+                var log_writer = std::writer::init[[std::string]](&self.*.ui_log);
                 std::print_format_line(log_writer, "[ACTION REJECTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.rejected)]);
             }
         }
@@ -908,7 +908,7 @@ func client_render(cstate: *client_state) void {
 
         # Draw window.
         cstate.*.ui.layout_row((:[]sint)[-1], -1);
-        cstate.*.ui.text(cstate.*.log.data());
+        cstate.*.ui.text(cstate.*.ui_log.data());
         cstate.*.ui.end_window();
     }
     mu_end(cstate.*.ui.context);
