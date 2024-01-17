@@ -717,7 +717,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     if IsKeyPressed(KEY_F3) {
         cstate.*.debug = not cstate.*.debug;
     }
-    if IsKeyPressed(KEY_F11) {
+    if IsKeyPressed(KEY_F4) {
         ToggleFullscreen();
     }
     if IsKeyPressed(KEY_ZERO) {
@@ -874,6 +874,14 @@ func client_render(cstate: *client_state) void {
     var ui_x = (:sint)screen_w - ui_w - UI_BORDER;
     var ui_y = UI_BORDER;
     if cstate.*.ui.begin_window_ex("INFO", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Draw window.
         cstate.*.ui.layout_row((:[]sint)[-1], -1);
         cstate.*.ui.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit.");
         cstate.*.ui.end_window();
@@ -891,6 +899,14 @@ func client_render(cstate: *client_state) void {
     var ui_x = (:sint)screen_w - ui_w - UI_BORDER;
     var ui_y = (:sint)screen_h * 1 / 2 + 3 * UI_BORDER;
     if cstate.*.ui.begin_window_ex("LOG", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Draw window.
         cstate.*.ui.layout_row((:[]sint)[-1], -1);
         cstate.*.ui.text(cstate.*.log.data());
         cstate.*.ui.end_window();
@@ -1019,9 +1035,9 @@ func client_render(cstate: *client_state) void {
 
     EndMode2D();
 
-    let SQUARE_SIDE = 32.0f32;
+    var SQUARE_SIDE = f32::min(screen_w / 24.0, screen_h / 24.0);
     let SQUARE_OFFSET = 8.0f32;
-    let SQUARE_BORDER = 2.0f32;
+    var SQUARE_BORDER = f32::max(2.0f32, SQUARE_SIDE / 16.0);
     var square_xpos = SQUARE_OFFSET;
     var square_ypos = screen_h - SQUARE_SIDE * 2.0 - SQUARE_OFFSET * 2.0;
 
