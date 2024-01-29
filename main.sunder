@@ -112,7 +112,7 @@ enum network {
 func raylib_init(fullscreen: bool) void {
     SetTraceLogLevel(LOG_WARNING);
     SetConfigFlags(FLAG_MSAA_4X_HINT);
-    InitWindow(800, 600, startof("NATAC"));
+    InitWindow(960, 720, startof("NATAC"));
     SetTargetFPS(60);
     if fullscreen {
         ToggleFullscreen();

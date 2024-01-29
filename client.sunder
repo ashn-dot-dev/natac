@@ -595,7 +595,7 @@ struct client_state {
             startof(".ttf"),
             (:*u8)startof(RUNESCAPE_UF_TTF),
             (:sint)countof(RUNESCAPE_UF_TTF),
-            (:sint)font_size,
+            (:sint)ui_font_size,
             std::ptr[[sint]]::NULL,
             FONT_NUMCHARS);
 
@@ -869,39 +869,49 @@ func client_render(cstate: *client_state) void {
     smol::handle_input(cstate.*.ui.context);
     mu_begin(cstate.*.ui.context);
     let UI_BORDER: sint = 8;
-    var pcolor = player_color(cstate.*.player);
-    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].r = pcolor.r;
-    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].g = pcolor.g;
-    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].b = pcolor.b;
-    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].a = 0xFF;
-    if (cstate.*.player == player::WHITE) {
-        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].r = BLACK.r;
-        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].g = BLACK.g;
-        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].b = BLACK.b;
-        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].a = 0xFF;
-    }
-    else {
-        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].r = WHITE.r;
-        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].g = WHITE.g;
-        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].b = WHITE.b;
-        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].a = 0xFF;
-    }
-    var ui_w = (:sint)screen_w * 1 / 4;
-    var ui_h = (:sint)screen_h * 1 / 2 - 4 * UI_BORDER;
-    var ui_x = (:sint)screen_w - ui_w - UI_BORDER;
-    var ui_y = UI_BORDER;
-    if cstate.*.ui.begin_window_ex("INFO", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+    let UI_PLAYERS = (:[4]player)[player::RED, player::BLUE, player::WHITE, player::ORANGE];
+    var ui_players_w = (:sint)screen_w * 1 / 4;
+    var ui_players_h = ((:sint)screen_h * 1 / 2 - 2 * UI_BORDER) / (:sint)countof(UI_PLAYERS);
+    for i in countof(UI_PLAYERS) {
+        var player = UI_PLAYERS[i];
+        var pcolor = player_color(player);
+        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].r = pcolor.r;
+        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].g = pcolor.g;
+        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].b = pcolor.b;
+        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].a = 0xFF;
+        if (player == ::player::WHITE) {
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].r = BLACK.r;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].g = BLACK.g;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].b = BLACK.b;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].a = 0xFF;
+        }
+        else {
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].r = WHITE.r;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].g = WHITE.g;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].b = WHITE.b;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].a = 0xFF;
+        }
 
-        # Draw window.
-        cstate.*.ui.layout_row((:[]sint)[-1], -1);
-        cstate.*.ui.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit.");
-        cstate.*.ui.end_window();
+        var ui_w = ui_players_w;
+        var ui_h = ui_players_h;
+        var ui_x = (:sint)screen_w - ui_w - UI_BORDER;
+        var ui_y = UI_BORDER + (:sint)i * (ui_players_h + UI_BORDER);
+        if cstate.*.ui.begin_window_ex(player_to_name(player), smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
+            # Re-set cached window rect in case the screen was resized.
+            var win = cstate.*.ui.get_current_container();
+            win.*.rect.w = ui_w;
+            win.*.rect.h = ui_h;
+            win.*.rect.x = ui_x;
+            win.*.rect.y = ui_y;
+
+            # Draw window.
+            cstate.*.ui.layout_row((:[]sint)[-1], 1);
+            cstate.*.ui.text("LINE 1");
+            cstate.*.ui.layout_row((:[]sint)[-1], 1);
+            cstate.*.ui.text("LINE 2");
+
+            cstate.*.ui.end_window();
+        }
     }
     cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].r = BLACK.r;
     cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].g = BLACK.g;
