@@ -3,19 +3,37 @@ import "std";
 
 import "shared.sunder";
 
+struct connection {
+    var player: player;
+    var sender: message_sender[[server_message]];
+
+    func send(self: *connection, message: *server_message) void {
+        self.*.sender.send(message);
+    }
+}
+
 struct server_state {
     var ticks: usize;
     var board: board;
+    var connections: std::vector[[connection]];
 
     func init() server_state {
         return (:server_state){
             .ticks = 0,
             .board = board::init_starter_map_for_beginners(),
+            .connections = std::vector[[connection]]::init(),
         };
     }
 
     func fini(self: *server_state) void {
         self.*.board.fini();
+        self.*.connections.fini();
+    }
+
+    func send_all(self: *server_state, message: *server_message) void {
+        for i in self.*.connections.count() {
+            self.*.connections.data()[i].send(message);
+        }
     }
 
     func process_roll(self: *server_state, sender: *message_sender[[server_message]], player: player) void {
@@ -41,7 +59,7 @@ struct server_state {
                 std::formatter::init[[typeof(roll_b)]](&roll_b),
                 std::formatter::init[[typeof(roll)]](&roll)]);
         defer message.fini();
-        sender.*.send(&message);
+        self.*.send_all(&message);
     }
 
     func place_road(self: *server_state, road: road) void {
@@ -165,7 +183,7 @@ struct server_state {
             (:[]std::formatter)[
                 std::formatter::init[[typeof(name)]](&name)]);
         defer message.fini();
-        sender.*.send(&message);
+        self.*.send_all(&message);
     }
 
     func remove_road(self: *server_state, edge: edge) void {
@@ -270,7 +288,7 @@ struct server_state {
                 std::formatter::init[[typeof(name)]](&name),
                 std::formatter::init[[typeof(kind)]](&kind)]);
         defer message.fini();
-        sender.*.send(&message);
+        self.*.send_all(&message);
     }
 
     func remove_town(self: *server_state, node: node) void {
@@ -332,40 +350,40 @@ struct server_state {
         sender.*.send(&message);
     }
 
-    func update_from_client_message(self: *server_state, message: *client_message, sender: *message_sender[[server_message]]) void {
+    func update_from_client_message(self: *server_state, message: *client_message, connection: *connection) void {
         switch message.*.kind {
         client_message::ROLL {
-            self.*.process_roll(sender, message.*.player);
+            self.*.process_roll(&connection.*.sender, message.*.player);
         }
         client_message::BUILD_ROAD {
-            self.*.process_place_road(message.*.data.build_road, sender, message.*.player);
+            self.*.process_place_road(message.*.data.build_road, &connection.*.sender, message.*.player);
         }
         client_message::BUILD_TOWN {
-            self.*.process_place_town(message.*.data.build_town, sender, message.*.player);
+            self.*.process_place_town(message.*.data.build_town, &connection.*.sender, message.*.player);
         }
         client_message::REMOVE_ROAD {
-            self.*.process_remove_road(message.*.data.remove_road, sender);
+            self.*.process_remove_road(message.*.data.remove_road, &connection.*.sender);
         }
         client_message::REMOVE_TOWN {
-            self.*.process_remove_town(message.*.data.remove_town, sender);
+            self.*.process_remove_town(message.*.data.remove_town, &connection.*.sender);
         }
         client_message::MOVE_ROBBER {
-            self.*.process_move_robber(message.*.data.move_robber, sender);
+            self.*.process_move_robber(message.*.data.move_robber, &connection.*.sender);
         }
         client_message::SELECT_PLAYER {
-            self.*.process_select_player(message.*.data.select_player, sender);
+            self.*.process_select_player(message.*.data.select_player, &connection.*.sender);
         }
         }
     }
 }
 
-func server_update(sstate: *server_state, sender: *message_sender[[server_message]]) void {
+func server_update(sstate: *server_state) void {
     # The state of the board changes relatively infrequently, so it is not
     # necessary to serialize and send the entire board state every game tick.
     if sstate.*.ticks % 4 == 0 {
         var message = server_message::init_board(&sstate.*.board);
         defer message.fini();
-        sender.*.send(&message);
+        sstate.*.send_all(&message);
     }
 
     sstate.*.ticks = sstate.*.ticks +% 1;

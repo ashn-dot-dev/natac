@@ -12,12 +12,18 @@ import "shared.sunder";
 struct local_client_message_sender {
     # Server state immediately updated from client messages.
     var server: *server_state;
-    # Server message sender passed to passed to the function updating server
-    # state from client messages. Required for the server to send responses.
-    var sender: *message_sender[[server_message]];
+    # Server connection passed to the function updating server state from
+    # client messages. Required for the server to send responses.
+    var connection: *connection;
 
     func send(self: *local_client_message_sender, message: *client_message) void {
-        self.*.server.*.update_from_client_message(message, self.*.sender);
+        # Serialize and deserialize the message as if it were being sent over a
+        # non-local connection. Ensures to/from bubby routines work correctly.
+        var message = message.*.to_bubby();
+        defer message.fini();
+        var message = client_message::init_from_bubby(&message);
+        # Update the local server based on the deserialized client message.
+        self.*.server.*.update_from_client_message(&message, self.*.connection);
     }
 }
 
@@ -26,7 +32,14 @@ struct local_server_message_sender {
     var client: *client_state;
 
     func send(self: *local_server_message_sender, message: *server_message) void {
-        self.*.client.*.update_from_server_message(message);
+        # Serialize and deserialize the message as if it were being sent over a
+        # non-local connection. Ensures to/from bubby routines work correctly.
+        var message = message.*.to_bubby();
+        defer message.fini();
+        var message = server_message::init_from_bubby(&message);
+        defer message.fini();
+        # Update the local client based on the deserialized server message.
+        self.*.client.*.update_from_server_message(&message);
     }
 }
 
@@ -68,16 +81,16 @@ struct nbnet_client_message_sender {
 }
 
 struct nbnet_server_message_sender {
-    var client: NBN_ConnectionHandle;
+    var handle: NBN_ConnectionHandle; # Client handle (zero -> disconnected)
 
-    func init() nbnet_server_message_sender {
+    func init(handle: NBN_ConnectionHandle) nbnet_server_message_sender {
         return (:nbnet_server_message_sender){
-            .client = (:NBN_ConnectionHandle)0,
+            .handle = handle,
         };
     }
 
     func send(self: *nbnet_server_message_sender, message: *server_message) void {
-        if self.*.client == 0 {
+        if self.*.handle == 0 {
             return;
         }
 
@@ -97,7 +110,7 @@ struct nbnet_server_message_sender {
         outgoing.*.len = (:uint)count;
         std::slice[[byte]]::copy(outgoing.*.buf[0:count], data);
 
-        if NBN_GameServer_SendReliableMessageTo(self.*.client, ::message::TYPE, outgoing) < 0 {
+        if NBN_GameServer_SendReliableMessageTo(self.*.handle, ::message::TYPE, outgoing) < 0 {
             std::print_line(std::err(), "error: failed to send server message");
         }
     }
@@ -137,15 +150,20 @@ func run_local(debug: bool, fullscreen: bool) void {
     var smessage_sender = (:local_server_message_sender){
         .client = &cstate,
     };
-    var smessage_sender = message_sender[[server_message]]::init[[local_server_message_sender]](&smessage_sender);
+    sstate.connections.push((:connection){
+        .player = player::NIL,
+        .sender = message_sender[[server_message]]::init[[local_server_message_sender]](&smessage_sender)
+    });
+    var connection = &sstate.connections.data()[0]; # The one and only connection.
+
     var cmessage_sender = (:local_client_message_sender){
         .server = &sstate,
-        .sender = &smessage_sender,
+        .connection = connection,
     };
     var cmessage_sender = message_sender[[client_message]]::init[[local_client_message_sender]](&cmessage_sender);
 
     for not WindowShouldClose() {
-        server_update(&sstate, &smessage_sender);
+        server_update(&sstate);
         client_update(&cstate, &cmessage_sender);
         client_render(&cstate);
     }
@@ -205,7 +223,6 @@ func run_client(debug: bool, fullscreen: bool, address: *byte) void {
             }
 
             if ev == NBN_MESSAGE_RECEIVED {
-                std::print_line(std::err(), "info: message received");
                 var info = NBN_GameClient_GetMessageInfo();
                 assert info.type_ == message::TYPE;
                 var incoming = (:*message)info.data;
@@ -272,9 +289,6 @@ func run_server() void {
     var sstate = server_state::init();
     defer sstate.fini();
 
-    var server_message_sender = nbnet_server_message_sender::init();
-    var message_sender = message_sender[[server_message]]::init[[nbnet_server_message_sender]](&server_message_sender);
-
     for true {
         for true {
             var ev = NBN_GameServer_Poll();
@@ -290,25 +304,36 @@ func run_server() void {
 
             if ev == NBN_NEW_CONNECTION {
                 std::print_line(std::err(), "info: new connection");
-                if server_message_sender.client == 0 {
-                    server_message_sender.client = NBN_GameServer_GetIncomingConnection();
-                    NBN_GameServer_AcceptIncomingConnection();
-                }
-                else {
+                let MAX_CONNECTIONS = 32u; # arbitary
+                if sstate.connections.count() == MAX_CONNECTIONS {
                     NBN_GameServer_RejectIncomingConnectionWithCode(BUSY_CODE);
+                    break;
                 }
+
+                var server_message_sender = std::new[[nbnet_server_message_sender]]();
+                *server_message_sender = nbnet_server_message_sender::init(NBN_GameServer_GetIncomingConnection());
+                NBN_GameServer_AcceptIncomingConnection();
+                sstate.connections.push((:connection){
+                    .player = player::NIL,
+                    .sender = message_sender[[server_message]]::init[[nbnet_server_message_sender]](server_message_sender)
+                });
             }
 
             if ev == NBN_CLIENT_DISCONNECTED {
                 std::print_line(std::err(), "info: disconnected");
-                if server_message_sender.client != 0 and NBN_GameServer_GetDisconnectedClient() == server_message_sender.client {
-                    server_message_sender.client = 0;
+                var handle = NBN_GameServer_GetDisconnectedClient();
+                for i in sstate.connections.count() {
+                    if ((:*nbnet_server_message_sender)sstate.connections.data()[i].sender.object).*.handle != handle {
+                        continue;
+                    }
+                    var server_message_sender = (:*nbnet_server_message_sender)sstate.connections.data()[i].sender.object;
+                    std::delete[[nbnet_server_message_sender]](server_message_sender);
+                    sstate.connections.remove(i);
+                    break;
                 }
             }
 
             if ev == NBN_CLIENT_MESSAGE_RECEIVED {
-                std::print_line(std::err(), "info: message received");
-
                 var info = NBN_GameServer_GetMessageInfo();
                 assert info.type_ == message::TYPE;
                 var incoming = (:*message)info.data;
@@ -323,15 +348,19 @@ func run_server() void {
                 defer value.fini();
 
                 var client_message = client_message::init_from_bubby(&value);
-                if info.sender == server_message_sender.client {
-                    sstate.update_from_client_message(&client_message, &message_sender);
+                var handle = info.sender;
+                for i in sstate.connections.count() {
+                    if ((:*nbnet_server_message_sender)sstate.connections.data()[i].sender.object).*.handle != handle {
+                        continue;
+                    }
+                    sstate.update_from_client_message(&client_message, &sstate.connections.data()[i]);
+                    break;
                 }
-
                 message::destroy(incoming);
             }
         }
 
-        server_update(&sstate, &message_sender);
+        server_update(&sstate);
 
         if NBN_GameServer_SendPackets() < 0 {
             std::print_line(std::err(), "error: failed to send nbnet packets");

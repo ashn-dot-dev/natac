@@ -109,8 +109,8 @@ func player_to_bubby(player: player) bubby::value {
 }
 
 func bubby_to_player(value: *bubby::value) player {
-    var name = value.*.map_xlookup_str("player");
-    return name_to_player(name.*.str());
+    var name = value.*.str();
+    return name_to_player(name);
 }
 
 # Hex position using the cube coordinate system satisfying q + r + s == 0.
@@ -1495,6 +1495,7 @@ struct client_message {
 
     func to_bubby(self: *client_message) bubby::value {
         var out = bubby::value::init_map();
+        out.map_insert_str("player", player_to_bubby(self.*.player));
         switch self.*.kind {
         client_message::ROLL {
             out.map_insert_str("kind", bubby::value::init_str("roll"));
