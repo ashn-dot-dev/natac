@@ -648,6 +648,9 @@ struct client_state {
         server_message::BOARD {
             board::assign(&self.*.board, &message.*.data.board);
         }
+        server_message::PLAYER {
+            self.*.player = message.*.data.player;
+        }
         server_message::ACCEPTED {
             std::print_format_line(std::err(), "[ACTION ACCEPTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.accepted)]);
             if self.*.debug {
@@ -738,19 +741,24 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         ToggleFullscreen();
     }
     if IsKeyPressed(KEY_ZERO) {
-        cstate.*.player = player::NIL;
+        var cmessage = client_message::init_select_player(cstate.*.player, player::NIL);
+        sender.*.send(&cmessage);
     }
     if IsKeyPressed(KEY_ONE) {
-        cstate.*.player = player::RED;
+        var cmessage = client_message::init_select_player(cstate.*.player, player::RED);
+        sender.*.send(&cmessage);
     }
     if IsKeyPressed(KEY_TWO) {
-        cstate.*.player = player::BLUE;
+        var cmessage = client_message::init_select_player(cstate.*.player, player::BLUE);
+        sender.*.send(&cmessage);
     }
     if IsKeyPressed(KEY_THREE) {
-        cstate.*.player = player::WHITE;
+        var cmessage = client_message::init_select_player(cstate.*.player, player::WHITE);
+        sender.*.send(&cmessage);
     }
     if IsKeyPressed(KEY_FOUR) {
-        cstate.*.player = player::ORANGE;
+        var cmessage = client_message::init_select_player(cstate.*.player, player::ORANGE);
+        sender.*.send(&cmessage);
     }
 
     # Actions processed depending on the client's current player state.

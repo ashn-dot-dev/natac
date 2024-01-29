@@ -103,6 +103,16 @@ func player_to_name(player: player) []byte {
     return std::zeroed[[[]byte]]();
 }
 
+func player_to_bubby(player: player) bubby::value {
+    var name = player_to_name(player);
+    return bubby::value::init_str(name);
+}
+
+func bubby_to_player(value: *bubby::value) player {
+    var name = value.*.map_xlookup_str("player");
+    return name_to_player(name.*.str());
+}
+
 # Hex position using the cube coordinate system satisfying q + r + s == 0.
 struct hex {
     var q: sint;
@@ -1378,6 +1388,7 @@ struct client_message {
         REMOVE_ROAD;
         REMOVE_TOWN;
         MOVE_ROBBER;
+        SELECT_PLAYER;
     };
     var data: union {
         var build_road: road;
@@ -1385,6 +1396,7 @@ struct client_message {
         var remove_road: edge;
         var remove_town: node;
         var move_robber: hex;
+        var select_player: player;
     };
 
     let SELF: client_message = uninit;
@@ -1437,6 +1449,14 @@ struct client_message {
         };
     }
 
+    func init_select_player(player: player, selected: player) client_message {
+        return (:client_message){
+            .player = player,
+            .kind = client_message::SELECT_PLAYER,
+            .data = (:typeof(SELF.data)){.select_player = selected},
+        };
+    }
+
     func init_from_bubby(value: *bubby::value) client_message {
         var player = value.*.map_xlookup_str("player");
         var player = name_to_player(player.*.str());
@@ -1463,6 +1483,10 @@ struct client_message {
         if std::str::eq(kind.*.str(), "move-robber") {
             var hex = hex::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_move_robber(player, hex);
+        }
+        if std::str::eq(kind.*.str(), "select-player") {
+            var selected = bubby_to_player(value.*.map_xlookup_str("data"));
+            return client_message::init_select_player(player, selected);
         }
 
         std::unreachable(fileof(), lineof());
@@ -1495,6 +1519,10 @@ struct client_message {
             out.map_insert_str("kind", bubby::value::init_str("move-robber"));
             out.map_insert_str("data", self.*.data.move_robber.to_bubby());
         }
+        client_message::SELECT_PLAYER {
+            out.map_insert_str("kind", bubby::value::init_str("select-player"));
+            out.map_insert_str("data", player_to_bubby(self.*.data.select_player));
+        }
         }
         return out;
     }
@@ -1504,12 +1532,14 @@ struct server_message {
     var kind: enum {
         LOG;
         BOARD;
+        PLAYER;
         ACCEPTED;
         REJECTED;
     };
     var data: union {
         var log: std::string;
         var board: board;
+        var player: player;
         var accepted: std::string;
         var rejected: std::string;
     };
@@ -1534,6 +1564,13 @@ struct server_message {
         return (:server_message){
             .kind = server_message::LOG,
             .data = (:typeof(SELF.data)){.log = std::string::init_from_format(format, args)},
+        };
+    }
+
+    func init_player(player: player) server_message {
+        return (:server_message){
+            .kind = server_message::PLAYER,
+            .data = (:typeof(SELF.data)){.player = player},
         };
     }
 
@@ -1573,6 +1610,9 @@ struct server_message {
         server_message::BOARD {
             self.*.data.board.fini();
         }
+        server_message::PLAYER {
+            # nothing
+        }
         server_message::ACCEPTED {
             self.*.data.accepted.fini();
         }
@@ -1591,6 +1631,10 @@ struct server_message {
             var board = board::init_from_bubby(value.*.map_xlookup_str("data"));
             defer board.fini();
             return server_message::init_board(&board);
+        }
+        if std::str::eq(kind, "player") {
+            var player = bubby_to_player(value.*.map_xlookup_str("data"));
+            return server_message::init_player(player);
         }
         if std::str::eq(kind, "accepted") {
             return server_message::init_accepted(value.*.map_xlookup_str("data").*.str());
@@ -1613,6 +1657,10 @@ struct server_message {
         server_message::BOARD {
             out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("board"));
             out.map().*.insert(bubby::value::init_str("data"), self.*.data.board.to_bubby());
+        }
+        server_message::PLAYER{
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("player"));
+            out.map().*.insert(bubby::value::init_str("data"), player_to_bubby(self.*.data.player));
         }
         server_message::ACCEPTED {
             out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("accepted"));

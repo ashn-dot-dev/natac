@@ -318,6 +318,20 @@ struct server_state {
         sender.*.send(&message);
     }
 
+    func process_select_player(self: *server_state, selected: player, sender: *message_sender[[server_message]]) void {
+        self; # currently unused
+        var name = player_to_name(selected);
+        var message = server_message::init_accepted_format(
+            "selected player {}",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name)]);
+        defer message.fini();
+        sender.*.send(&message);
+        var message = server_message::init_player(selected);
+        defer message.fini();
+        sender.*.send(&message);
+    }
+
     func update_from_client_message(self: *server_state, message: *client_message, sender: *message_sender[[server_message]]) void {
         switch message.*.kind {
         client_message::ROLL {
@@ -337,6 +351,9 @@ struct server_state {
         }
         client_message::MOVE_ROBBER {
             self.*.process_move_robber(message.*.data.move_robber, sender);
+        }
+        client_message::SELECT_PLAYER {
+            self.*.process_select_player(message.*.data.select_player, sender);
         }
         }
     }
