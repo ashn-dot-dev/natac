@@ -484,11 +484,11 @@ func draw_text_format(font: Font, size: f32, color: Color, position: Vector2, fo
     DrawTextEx(font, s.cstr(), position, size, SPACING, color);
 }
 
-func draw_d6(font: Font, font_size: f32, position: Vector2, number: sint) void {
+func draw_d6(font: Font, font_size: f32, position: Vector2, number: sint, fg: Color, bg: Color) void {
     assert 1 <= number and number <= 6;
     var side = font_size * 2.0;
     let BOARDER = 2.0f32;
-    draw_rect(position, side, side, RED);
+    draw_rect(position, side, side, bg);
     draw_rect_outline(position, side, side, BOARDER, BLACK);
     var text_size = measure_text_format(font, font_size,
         "{}",
@@ -497,7 +497,7 @@ func draw_d6(font: Font, font_size: f32, position: Vector2, number: sint) void {
     draw_text_format(
         font,
         font_size,
-        WHITE,
+        fg,
         (:Vector2){
             .x = position.x + font_size - text_size.x / 2.0,
             .y = position.y + font_size - text_size.y / 2.0,
@@ -1156,7 +1156,9 @@ func client_render(cstate: *client_state) void {
             .x = square_xpos + SQUARE_SIDE * 0.0 + SQUARE_OFFSET * 0.0,
             .y = square_ypos + SQUARE_SIDE * 0.0 + SQUARE_OFFSET * 0.0,
         },
-        cstate.*.board.d6_a);
+        cstate.*.board.d6_a,
+        YELLOW,
+        RED);
     draw_d6(
         cstate.*.font,
         SQUARE_SIDE / 2.0,
@@ -1164,7 +1166,9 @@ func client_render(cstate: *client_state) void {
             .x = square_xpos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
             .y = square_ypos + SQUARE_SIDE * 0.0 + SQUARE_OFFSET * 0.0,
         },
-        cstate.*.board.d6_b);
+        cstate.*.board.d6_b,
+        RED,
+        YELLOW);
 
     var square_background = BLACK;
     if cstate.*.player == player::RED {
