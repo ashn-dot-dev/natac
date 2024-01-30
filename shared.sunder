@@ -1474,16 +1474,12 @@ struct client_message {
         END_TURN;
         BUILD_ROAD;
         BUILD_TOWN;
-        REMOVE_ROAD;
-        REMOVE_TOWN;
         MOVE_ROBBER;
         SELECT_PLAYER;
     };
     var data: union {
         var build_road: road;
         var build_town: town;
-        var remove_road: edge;
-        var remove_town: node;
         var move_robber: hex;
         var select_player: player;
     };
@@ -1518,20 +1514,6 @@ struct client_message {
         };
     }
 
-    func init_remove_road(road: edge) client_message {
-        return (:client_message){
-            .kind = client_message::REMOVE_ROAD,
-            .data = (:typeof(SELF.data)){.remove_road = road},
-        };
-    }
-
-    func init_remove_town(town: node) client_message {
-        return (:client_message){
-            .kind = client_message::REMOVE_TOWN,
-            .data = (:typeof(SELF.data)){.remove_town = town},
-        };
-    }
-
     func init_move_robber(hex: hex) client_message {
         return (:client_message){
             .kind = client_message::MOVE_ROBBER,
@@ -1562,14 +1544,6 @@ struct client_message {
             var town = town::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_build_town(town);
         }
-        if std::str::eq(kind.*.str(), "remove-road") {
-            var edge = edge::init_from_bubby(value.*.map_xlookup_str("data"));
-            return client_message::init_remove_road(edge);
-        }
-        if std::str::eq(kind.*.str(), "remove-town") {
-            var node = node::init_from_bubby(value.*.map_xlookup_str("data"));
-            return client_message::init_remove_town(node);
-        }
         if std::str::eq(kind.*.str(), "move-robber") {
             var hex = hex::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_move_robber(hex);
@@ -1599,14 +1573,6 @@ struct client_message {
         client_message::BUILD_TOWN {
             out.map_insert_str("kind", bubby::value::init_str("build-town"));
             out.map_insert_str("data", self.*.data.build_town.to_bubby());
-        }
-        client_message::REMOVE_ROAD {
-            out.map_insert_str("kind", bubby::value::init_str("remove-road"));
-            out.map_insert_str("data", self.*.data.remove_road.to_bubby());
-        }
-        client_message::REMOVE_TOWN {
-            out.map_insert_str("kind", bubby::value::init_str("remove-town"));
-            out.map_insert_str("data", self.*.data.remove_town.to_bubby());
         }
         client_message::MOVE_ROBBER {
             out.map_insert_str("kind", bubby::value::init_str("move-robber"));

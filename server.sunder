@@ -346,13 +346,6 @@ struct server_state {
         self.*.send_all(&message);
     }
 
-    func process_remove_road(self: *server_state, edge: edge, sender: *message_sender[[server_message]]) void {
-        self.*.board.roads.remove(edge);
-        var message = server_message::init_accepted("removed road");
-        defer message.fini();
-        sender.*.send(&message);
-    }
-
     func process_build_town(self: *server_state, connection: *connection, town: town) void {
         if self.*.turn.player != connection.*.player {
             var message = server_message::init_rejected("cannot build town (it is not your turn)");
@@ -488,13 +481,6 @@ struct server_state {
         self.*.send_all(&message);
     }
 
-    func process_remove_town(self: *server_state, node: node, sender: *message_sender[[server_message]]) void {
-        self.*.board.towns.remove(node);
-        var message = server_message::init_accepted("removed town");
-        defer message.fini();
-        sender.*.send(&message);
-    }
-
     func process_move_robber(self: *server_state, connection: *connection, hex: hex) void {
         if self.*.turn.player != connection.*.player {
             var message = server_message::init_rejected("cannot move robber (it is not your turn)");
@@ -582,12 +568,6 @@ struct server_state {
         }
         client_message::BUILD_TOWN {
             self.*.process_build_town(connection, message.*.data.build_town);
-        }
-        client_message::REMOVE_ROAD {
-            self.*.process_remove_road(message.*.data.remove_road, &connection.*.sender);
-        }
-        client_message::REMOVE_TOWN {
-            self.*.process_remove_town(message.*.data.remove_town, &connection.*.sender);
         }
         client_message::MOVE_ROBBER {
             self.*.process_move_robber(connection, message.*.data.move_robber);

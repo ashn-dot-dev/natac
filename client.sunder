@@ -843,18 +843,6 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             }
             return;
         }
-
-        if IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) and cstate.*.world_node.is_value() {
-            var cmessage = client_message::init_remove_town(cstate.*.world_node.value());
-            sender.*.send(&cmessage);
-            return;
-        }
-
-        if IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) and cstate.*.world_edge.is_value() {
-            var cmessage = client_message::init_remove_road(cstate.*.world_edge.value());
-            sender.*.send(&cmessage);
-            return;
-        }
     }
     player_state::MOVE_ROBBER {
         if IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
