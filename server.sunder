@@ -13,21 +13,31 @@ struct connection {
 }
 
 struct server_state {
+    var connections: std::vector[[connection]];
     var ticks: usize;
     var board: board;
-    var connections: std::vector[[connection]];
+    var rhand: hand;
+    var bhand: hand;
+    var whand: hand;
+    var ohand: hand;
+    var turn: turn;
 
     func init() server_state {
         return (:server_state){
+            .connections = std::vector[[connection]]::init(),
             .ticks = 0,
             .board = board::init_starter_map_for_beginners(),
-            .connections = std::vector[[connection]]::init(),
+            .rhand = uninit,
+            .bhand = uninit,
+            .whand = uninit,
+            .ohand = uninit,
+            .turn = turn::init(player::NIL),
         };
     }
 
     func fini(self: *server_state) void {
-        self.*.board.fini();
         self.*.connections.fini();
+        self.*.board.fini();
     }
 
     func send_all(self: *server_state, message: *server_message) void {
@@ -36,12 +46,60 @@ struct server_state {
         }
     }
 
-    func process_roll(self: *server_state, sender: *message_sender[[server_message]], player: player) void {
+    func phand(self: *server_state, player: player) *hand {
+        switch player {
+        ::player::NIL {
+            std::unreachable(fileof(), lineof());
+        }
+        ::player::RED {
+            return &self.*.rhand;
+        }
+        ::player::BLUE {
+            return &self.*.bhand;
+        }
+        ::player::WHITE {
+            return &self.*.whand;
+        }
+        ::player::ORANGE {
+            return &self.*.ohand;
+        }
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[*hand]]();
+    }
+
+    func change_turn(self: *server_state, player: player) void {
+        self.*.turn = turn::init(player);
+        var name = player_to_name(player);
+        var message = server_message::init_log_format(
+            "It's {}'s turn!",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name)]);
+        defer message.fini();
+        self.*.send_all(&message);
+    }
+
+    func process_roll(self: *server_state, connection: *connection) void {
+        if self.*.turn.player != connection.*.player {
+            var message = server_message::init_rejected("cannot roll dice (it is not your turn)");
+            defer message.fini();
+            connection.*.sender.send(&message);
+            return;
+        }
+        if self.*.turn.phase != phase::RESOURCE_PRODUCTION {
+            var message = server_message::init_rejected("cannot roll dice (it is not the resource production phase)");
+            defer message.fini();
+            connection.*.sender.send(&message);
+            return;
+        }
+
         var roll_a = d6();
         var roll_b = d6();
         var roll = roll_a + roll_b;
         self.*.board.d6_a = roll_a;
         self.*.board.d6_b = roll_b;
+
         var message = server_message::init_accepted_format(
             "rolled {} + {} = {}",
             (:[]std::formatter)[
@@ -49,8 +107,8 @@ struct server_state {
                 std::formatter::init[[typeof(roll_b)]](&roll_b),
                 std::formatter::init[[typeof(roll)]](&roll)]);
         defer message.fini();
-        sender.*.send(&message);
-        var name = player_to_name(player);
+        connection.*.sender.send(&message);
+        var name = player_to_name(connection.*.player);
         var message = server_message::init_log_format(
             "{} rolled {} + {} = {}.",
             (:[]std::formatter)[
@@ -60,13 +118,104 @@ struct server_state {
                 std::formatter::init[[typeof(roll)]](&roll)]);
         defer message.fini();
         self.*.send_all(&message);
+
+        if roll == 7 {
+            var message = server_message::init_log("TODO: discard resources + robber");
+            defer message.fini();
+            self.*.send_all(&message);
+        }
+        else {
+            var iter = std::hash_map_iterator[[node, town]]::init(&self.*.board.towns);
+            for iter.advance() {
+                var amount: sint = uninit;
+                var town = *iter.current().*.value;
+                switch town.kind {
+                ::town::SETTLEMENT {
+                    amount = 1;
+                }
+                ::town::CITY {
+                    amount = 2;
+                }
+                }
+                var node = *iter.current().*.key;
+                for i in countof(node.hexes) {
+                    var tile = self.*.board.tiles.lookup(node.hexes[i]);
+                    var tile = tile.value();
+                    if tile.number != roll {
+                        continue;
+                    }
+                    var hand = self.*.phand(town.player);
+                    hand.*.brick += amount * (:sint)(tile.kind == ::tile::HILL);
+                    hand.*.ore += amount * (:sint)(tile.kind == ::tile::MOUNTAIN);
+                    hand.*.sheep += amount * (:sint)(tile.kind == ::tile::PASTURE);
+                    hand.*.wheat += amount * (:sint)(tile.kind == ::tile::FIELD);
+                    hand.*.wood += amount * (:sint)(tile.kind == ::tile::FOREST);
+                }
+            }
+        }
+        self.*.turn.phase = phase::MAIN;
     }
 
-    func place_road(self: *server_state, road: road) void {
-        insert_road(&self.*.board.roads, road);
+    func process_end_turn(self: *server_state, connection: *connection) void {
+        if self.*.turn.player != connection.*.player {
+            var message = server_message::init_rejected("cannot end turn (it is not your turn)");
+            defer message.fini();
+            connection.*.sender.send(&message);
+            return;
+        }
+        if self.*.turn.phase != phase::MAIN {
+            var message = server_message::init_rejected("cannot end turn (it is not the main)");
+            defer message.fini();
+            connection.*.sender.send(&message);
+            return;
+        }
+
+        var message = server_message::init_accepted("ended turn");
+        defer message.fini();
+        connection.*.sender.send(&message);
+        var name = player_to_name(connection.*.player);
+        var message = server_message::init_log_format(
+            "{} ended their turn.",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name)]);
+        defer message.fini();
+        self.*.send_all(&message);
+
+        if self.*.turn.player == player::RED {
+            self.*.change_turn(player::BLUE);
+        }
+        elif self.*.turn.player == player::BLUE {
+            self.*.change_turn(player::WHITE);
+        }
+        elif self.*.turn.player == player::WHITE {
+            self.*.change_turn(player::ORANGE);
+        }
+        elif self.*.turn.player == player::ORANGE {
+            self.*.change_turn(player::RED);
+        }
     }
 
-    func process_place_road(self: *server_state, road: road, sender: *message_sender[[server_message]], player: player) void {
+
+    func process_build_road(self: *server_state, connection: *connection, road: road) void {
+        if self.*.turn.player != connection.*.player {
+            var message = server_message::init_rejected("cannot build road (it is not your turn)");
+            defer message.fini();
+            connection.*.sender.send(&message);
+            return;
+        }
+        if self.*.turn.player != road.player {
+            var message = server_message::init_rejected("cannot build road (it is not your road)");
+            defer message.fini();
+            connection.*.sender.send(&message);
+            return;
+        }
+        if self.*.turn.phase != phase::MAIN {
+            var message = server_message::init_rejected("cannot build road (it is not the main phase)");
+            defer message.fini();
+            connection.*.sender.send(&message);
+            return;
+        }
+
         var tile_a = self.*.board.tiles.lookup(road.edge.hexes[0]);
         var tile_b = self.*.board.tiles.lookup(road.edge.hexes[1]);
         var is_road_across_water =
@@ -75,7 +224,7 @@ struct server_state {
         if is_road_across_water {
             var message = server_message::init_rejected("cannot build road (cannot build on water)");
             defer message.fini();
-            sender.*.send(&message);
+            connection.*.sender.send(&message);
             return;
         }
 
@@ -83,7 +232,7 @@ struct server_state {
         if existing.is_value() {
             var message = server_message::init_rejected("cannot build road (road exists at location)");
             defer message.fini();
-            sender.*.send(&message);
+            connection.*.sender.send(&message);
             return;
         }
 
@@ -122,7 +271,7 @@ struct server_state {
         if adjacent_roads.count() == 0 and adjacent_towns.count() == 0 {
             var message = server_message::init_rejected("cannot build road (no adjacent road or town)");
             defer message.fini();
-            sender.*.send(&message);
+            connection.*.sender.send(&message);
             return;
         }
 
@@ -155,7 +304,7 @@ struct server_state {
         if adjacent_towns.count() == 0 and unobstructed_road_count == 0 {
             var message = server_message::init_rejected("cannot build road (road is obstructed by town)");
             defer message.fini();
-            sender.*.send(&message);
+            connection.*.sender.send(&message);
             return;
         }
 
@@ -169,15 +318,26 @@ struct server_state {
         if player_road_count >= 15 {
             var message = server_message::init_rejected("cannot build road (all roads placed)");
             defer message.fini();
-            sender.*.send(&message);
+            connection.*.sender.send(&message);
             return;
         }
 
-        self.*.place_road(road);
+        var hand = self.*.phand(self.*.turn.player);
+        if not (hand.*.brick >= 1 and hand.*.wood >= 1) {
+            var message = server_message::init_rejected("cannot build road (insufficient resources)");
+            defer message.fini();
+            connection.*.sender.send(&message);
+            return;
+        }
+
+        hand.*.brick -= 1;
+        hand.*.wood -= 1;
+        insert_road(&self.*.board.roads, road);
+
         var message = server_message::init_accepted("built road");
         defer message.fini();
-        sender.*.send(&message);
-        var name = player_to_name(player);
+        connection.*.sender.send(&message);
+        var name = player_to_name(self.*.turn.player);
         var message = server_message::init_log_format(
             "{} built a road.",
             (:[]std::formatter)[
@@ -186,22 +346,33 @@ struct server_state {
         self.*.send_all(&message);
     }
 
-    func remove_road(self: *server_state, edge: edge) void {
-        self.*.board.roads.remove(edge);
-    }
-
     func process_remove_road(self: *server_state, edge: edge, sender: *message_sender[[server_message]]) void {
-        self.*.remove_road(edge);
+        self.*.board.roads.remove(edge);
         var message = server_message::init_accepted("removed road");
         defer message.fini();
         sender.*.send(&message);
     }
 
-    func place_town(self: *server_state, town: town) void {
-        insert_town(&self.*.board.towns, town);
-    }
+    func process_build_town(self: *server_state, connection: *connection, town: town) void {
+        if self.*.turn.player != connection.*.player {
+            var message = server_message::init_rejected("cannot build town (it is not your turn)");
+            defer message.fini();
+            connection.*.sender.send(&message);
+            return;
+        }
+        if self.*.turn.player != town.player {
+            var message = server_message::init_rejected("cannot build town (it is not your town)");
+            defer message.fini();
+            connection.*.sender.send(&message);
+            return;
+        }
+        if self.*.turn.phase != phase::MAIN {
+            var message = server_message::init_rejected("cannot build town (it is not the main phase)");
+            defer message.fini();
+            connection.*.sender.send(&message);
+            return;
+        }
 
-    func process_place_town(self: *server_state, town: town, sender: *message_sender[[server_message]], player: player) void {
         var existing = self.*.board.towns.lookup(town.node);
         if existing.is_value() {
             var existing = existing.value();
@@ -209,7 +380,7 @@ struct server_state {
             if not (existing.player == town.player and existing.kind == ::town::SETTLEMENT and town.kind == ::town::CITY) {
                 var message = server_message::init_rejected("cannot build town (town exists at location)");
                 defer message.fini();
-                sender.*.send(&message);
+                connection.*.sender.send(&message);
                 return;
             }
         }
@@ -226,7 +397,7 @@ struct server_state {
         if adjacent_town_count != 0 {
             var message = server_message::init_rejected("cannot build town (adjacent town)");
             defer message.fini();
-            sender.*.send(&message);
+            connection.*.sender.send(&message);
             return;
         }
 
@@ -249,7 +420,7 @@ struct server_state {
         if not is_road_adjacent {
             var message = server_message::init_rejected("cannot build town (no adjacent road)");
             defer message.fini();
-            sender.*.send(&message);
+            connection.*.sender.send(&message);
             return;
         }
 
@@ -263,21 +434,47 @@ struct server_state {
         if town.kind == ::town::SETTLEMENT and player_town_count >= 5 {
             var message = server_message::init_rejected("cannot build town (all settlements placed)");
             defer message.fini();
-            sender.*.send(&message);
+            connection.*.sender.send(&message);
             return;
         }
         if town.kind == ::town::CITY and player_town_count >= 4 {
             var message = server_message::init_rejected("cannot build town (all cities placed)");
             defer message.fini();
-            sender.*.send(&message);
+            connection.*.sender.send(&message);
             return;
         }
 
-        self.*.place_town(town);
+        var hand = self.*.phand(self.*.turn.player);
+        switch town.kind {
+        ::town::SETTLEMENT {
+            if not (hand.*.brick >= 1 and hand.*.sheep >= 1 and hand.*.wheat >= 1 and hand.*.wood >= 1) {
+                var message = server_message::init_rejected("cannot build road (insufficient resources)");
+                defer message.fini();
+                connection.*.sender.send(&message);
+                return;
+            }
+            hand.*.brick -= 1;
+            hand.*.sheep -= 1;
+            hand.*.wheat -= 1;
+            hand.*.wood -= 1;
+        }
+        ::town::CITY {
+            if not (hand.*.ore >= 3 and hand.*.wheat >= 2) {
+                var message = server_message::init_rejected("cannot build road (insufficient resources)");
+                defer message.fini();
+                connection.*.sender.send(&message);
+                return;
+            }
+            hand.*.ore -= 3;
+            hand.*.wheat -= 2;
+        }
+        }
+        insert_town(&self.*.board.towns, town);
+
         var message = server_message::init_accepted("built town");
         defer message.fini();
-        sender.*.send(&message);
-        var name = player_to_name(player);
+        connection.*.sender.send(&message);
+        var name = player_to_name(self.*.turn.player);
         var kind = "settlement";
         if town.kind == ::town::CITY {
             kind = "city";
@@ -291,26 +488,34 @@ struct server_state {
         self.*.send_all(&message);
     }
 
-    func remove_town(self: *server_state, node: node) void {
-        self.*.board.towns.remove(node);
-    }
-
     func process_remove_town(self: *server_state, node: node, sender: *message_sender[[server_message]]) void {
-        self.*.remove_town(node);
+        self.*.board.towns.remove(node);
         var message = server_message::init_accepted("removed town");
         defer message.fini();
         sender.*.send(&message);
     }
 
-    func move_robber(self: *server_state, hex: hex) void {
-        self.*.board.robber = hex;
-    }
+    func process_move_robber(self: *server_state, connection: *connection, hex: hex) void {
+        if self.*.turn.player != connection.*.player {
+            var message = server_message::init_rejected("cannot move robber (it is not your turn)");
+            defer message.fini();
+            connection.*.sender.send(&message);
+            return;
+        }
+        # TODO: The robber should only be able to get moved during a specific
+        # "move robber" turn phase. Currently is can always be moved during any
+        # player's main phase.
+        if self.*.turn.phase != phase::MAIN {
+            var message = server_message::init_rejected("cannot move robber (it is not the main phase)");
+            defer message.fini();
+            connection.*.sender.send(&message);
+            return;
+        }
 
-    func process_move_robber(self: *server_state, hex: hex, sender: *message_sender[[server_message]]) void {
         if std::eq[[::hex]](&hex, &self.*.board.robber) {
             var message = server_message::init_rejected("cannot move robber (robber already at location)");
             defer message.fini();
-            sender.*.send(&message);
+            connection.*.sender.send(&message);
             return;
         }
 
@@ -318,7 +523,7 @@ struct server_state {
         if tile.is_empty() {
             var message = server_message::init_rejected("cannot move robber (invalid location)");
             defer message.fini();
-            sender.*.send(&message);
+            connection.*.sender.send(&message);
             return;
         }
 
@@ -326,40 +531,57 @@ struct server_state {
         if tile.kind == ::tile::OCEAN {
             var message = server_message::init_rejected("cannot move robber (tile is ocean)");
             defer message.fini();
-            sender.*.send(&message);
+            connection.*.sender.send(&message);
             return;
         }
 
-        self.*.move_robber(hex);
+        self.*.board.robber = hex;
         var message = server_message::init_accepted("moved robber");
         defer message.fini();
-        sender.*.send(&message);
+        connection.*.sender.send(&message);
+        var name = player_to_name(self.*.turn.player);
+        var message = server_message::init_log_format(
+            "{} moved the robber.",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name)]);
+        defer message.fini();
+        self.*.send_all(&message);
     }
 
-    func process_select_player(self: *server_state, selected: player, sender: *message_sender[[server_message]]) void {
-        self; # currently unused
+    func process_select_player(self: *server_state, connection: *connection, selected: player) void {
+        connection.*.player = selected;
+        if connection.*.player != player::NIL {
+            var hand = self.*.phand(connection.*.player);
+            var message = server_message::init_hand(*hand);
+            defer message.fini();
+            connection.*.sender.send(&message);
+        }
+
         var name = player_to_name(selected);
         var message = server_message::init_accepted_format(
             "selected player {}",
             (:[]std::formatter)[
                 std::formatter::init[[typeof(name)]](&name)]);
         defer message.fini();
-        sender.*.send(&message);
+        connection.*.sender.send(&message);
         var message = server_message::init_player(selected);
         defer message.fini();
-        sender.*.send(&message);
+        connection.*.sender.send(&message);
     }
 
     func update_from_client_message(self: *server_state, message: *client_message, connection: *connection) void {
         switch message.*.kind {
         client_message::ROLL {
-            self.*.process_roll(&connection.*.sender, message.*.player);
+            self.*.process_roll(connection);
+        }
+        client_message::END_TURN {
+            self.*.process_end_turn(connection);
         }
         client_message::BUILD_ROAD {
-            self.*.process_place_road(message.*.data.build_road, &connection.*.sender, message.*.player);
+            self.*.process_build_road(connection, message.*.data.build_road);
         }
         client_message::BUILD_TOWN {
-            self.*.process_place_town(message.*.data.build_town, &connection.*.sender, message.*.player);
+            self.*.process_build_town(connection, message.*.data.build_town);
         }
         client_message::REMOVE_ROAD {
             self.*.process_remove_road(message.*.data.remove_road, &connection.*.sender);
@@ -368,23 +590,47 @@ struct server_state {
             self.*.process_remove_town(message.*.data.remove_town, &connection.*.sender);
         }
         client_message::MOVE_ROBBER {
-            self.*.process_move_robber(message.*.data.move_robber, &connection.*.sender);
+            self.*.process_move_robber(connection, message.*.data.move_robber);
         }
         client_message::SELECT_PLAYER {
-            self.*.process_select_player(message.*.data.select_player, &connection.*.sender);
+            self.*.process_select_player(connection, message.*.data.select_player);
         }
         }
     }
 }
 
 func server_update(sstate: *server_state) void {
+    # Initial server messages sent on the first game tick.
+    if sstate.*.ticks == 0 {
+        var message = server_message::init_log("Welcome to Natac!");
+        defer message.fini();
+        sstate.*.send_all(&message);
+        sstate.*.change_turn(player::RED);
+    }
+
     # The state of the board changes relatively infrequently, so it is not
     # necessary to serialize and send the entire board state every game tick.
     if sstate.*.ticks % 4 == 0 {
-        var message = server_message::init_board(&sstate.*.board);
+        var message = server_message::init_state(
+            &sstate.*.board,
+            sstate.*.rhand.resources(),
+            sstate.*.bhand.resources(),
+            sstate.*.whand.resources(),
+            sstate.*.ohand.resources(),
+            sstate.*.turn);
         defer message.fini();
         sstate.*.send_all(&message);
+
+        for i in sstate.*.connections.count() {
+            if sstate.*.connections.data()[i].player == player::NIL {
+                continue;
+            }
+            var hand = sstate.*.phand(sstate.*.connections.data()[i].player);
+            var message = server_message::init_hand(*hand);
+            defer message.fini();
+            sstate.*.connections.data()[i].send(&message);
+        }
     }
 
-    sstate.*.ticks = sstate.*.ticks +% 1;
+    sstate.*.ticks +%= 1;
 }

@@ -266,15 +266,15 @@ struct tile {
         MOUNTAIN;
         PASTURE;
     };
-    var number_token: sint;
+    var number: sint;
 
     let SELF: tile = uninit;
 
-    func init(hex: hex, kind: typeof(SELF.kind), number_token: sint) tile {
+    func init(hex: hex, kind: typeof(SELF.kind), number: sint) tile {
         return (:tile){
             .hex = hex,
             .kind = kind,
-            .number_token = number_token,
+            .number = number,
         };
     }
 
@@ -347,7 +347,7 @@ struct tile {
                 (:[]std::formatter)[
                     std::formatter::init[[[]byte]](&kind),
                     std::formatter::init[[::resource]](&resource),
-                    std::formatter::init[[sint]](&self.*.number_token)]);
+                    std::formatter::init[[sint]](&self.*.number)]);
         }
 
         return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
@@ -409,7 +409,7 @@ struct tile {
             out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("pasture"));
         }
         }
-        out.map().*.insert(bubby::value::init_str("number"), int_to_bubby[[sint]](self.*.number_token));
+        out.map().*.insert(bubby::value::init_str("number"), int_to_bubby[[sint]](self.*.number));
         return out;
     }
 }
@@ -866,6 +866,8 @@ struct board {
             self.towns.insert(town.node, town);
         }
         self.robber = hex::init_from_bubby(value.*.map_xlookup_str("robber"));
+        self.d6_a = xstr_to_int[[sint]](value.*.map_xlookup_str("d6-a").*.str());
+        self.d6_b = xstr_to_int[[sint]](value.*.map_xlookup_str("d6-b").*.str());
         return self;
     }
 
@@ -896,6 +898,8 @@ struct board {
             out.map_xlookup_str("towns").*.set_insert(town);
         }
         out.map_insert_str("robber", self.*.robber.to_bubby());
+        out.map_insert_str("d6-a", int_to_bubby[[sint]](self.*.d6_a));
+        out.map_insert_str("d6-b", int_to_bubby[[sint]](self.*.d6_b));
         return out;
     }
 }
@@ -1351,6 +1355,95 @@ func adjacent_nodes_to_node(target: node, nodes: *std::hash_set[[node]]) std::ha
     return out;
 }
 
+struct hand {
+    var brick: sint;
+    var ore: sint;
+    var sheep: sint;
+    var wheat: sint;
+    var wood: sint;
+
+    func init_from_bubby(value: *bubby::value) hand {
+        var self: hand = uninit;
+        self.brick = xstr_to_int[[sint]](value.*.map_xlookup_str("brick").*.str());
+        self.ore = xstr_to_int[[sint]](value.*.map_xlookup_str("ore").*.str());
+        self.sheep = xstr_to_int[[sint]](value.*.map_xlookup_str("sheep").*.str());
+        self.wheat = xstr_to_int[[sint]](value.*.map_xlookup_str("wheat").*.str());
+        self.wood = xstr_to_int[[sint]](value.*.map_xlookup_str("wood").*.str());
+        return self;
+    }
+
+    func to_bubby(self: *hand) bubby::value {
+        var out = bubby::value::init_map();
+        out.map_insert_str("brick", int_to_bubby[[sint]](self.*.brick));
+        out.map_insert_str("ore", int_to_bubby[[sint]](self.*.ore));
+        out.map_insert_str("sheep", int_to_bubby[[sint]](self.*.sheep));
+        out.map_insert_str("wheat", int_to_bubby[[sint]](self.*.wheat));
+        out.map_insert_str("wood", int_to_bubby[[sint]](self.*.wood));
+        return out;
+    }
+
+    func resources(self: *hand) sint {
+        return self.*.brick + self.*.ore + self.*.sheep + self.*.wheat + self.*.wood;
+    }
+}
+
+enum phase {
+    RESOURCE_PRODUCTION;
+    MAIN;
+
+    func init_from_bubby(value: *bubby::value) phase {
+        if std::str::eq(value.*.str(), "resource-production") {
+            return RESOURCE_PRODUCTION;
+        }
+        if std::str::eq(value.*.str(), "main") {
+            return MAIN;
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[phase]]();
+    }
+
+    func to_bubby(self: *phase) bubby::value {
+        switch *self {
+        RESOURCE_PRODUCTION {
+            return bubby::value::init_str("resource-production");
+        }
+        MAIN {
+            return bubby::value::init_str("main");
+        }
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[bubby::value]]();
+    }
+}
+
+struct turn {
+    var player: player;
+    var phase: phase;
+
+    func init(player: player) turn {
+        return (:turn){
+            .player = player,
+            .phase = phase::RESOURCE_PRODUCTION,
+        };
+    }
+
+    func init_from_bubby(value: *bubby::value) turn {
+        var out: turn = uninit;
+        out.player = bubby_to_player(value.*.map_xlookup_str("player"));
+        out.phase = phase::init_from_bubby(value.*.map_xlookup_str("phase"));
+        return out;
+    }
+
+    func to_bubby(self: *turn) bubby::value {
+        var out = bubby::value::init_map();
+        out.map().*.insert(bubby::value::init_str("player"), player_to_bubby(self.*.player));
+        out.map().*.insert(bubby::value::init_str("phase"), self.*.phase.to_bubby());
+        return out;
+    }
+}
+
 let BUSY_CODE = (:sint)42; # nbnet busy code
 
 struct message {
@@ -1376,13 +1469,9 @@ struct message {
 }
 
 struct client_message {
-    # TODO: In the final game the server *should* be able to determine the
-    # player from the connection ID. However, for local testing, where the
-    # developer can switch the player they are controlling at any time, we
-    # require this field to determine which player is sending the message.
-    var player: player;
     var kind: enum {
         ROLL;
+        END_TURN;
         BUILD_ROAD;
         BUILD_TOWN;
         REMOVE_ROAD;
@@ -1401,92 +1490,93 @@ struct client_message {
 
     let SELF: client_message = uninit;
 
-    func init_roll(player: player) client_message {
+    func init_roll() client_message {
         return (:client_message){
-            .player = player,
             .kind = client_message::ROLL,
             .data = uninit,
         };
     }
 
-    func init_build_road(player: player, road: road) client_message {
+    func init_end_turn() client_message {
         return (:client_message){
-            .player = player,
+            .kind = client_message::END_TURN,
+            .data = uninit,
+        };
+    }
+
+    func init_build_road(road: road) client_message {
+        return (:client_message){
             .kind = client_message::BUILD_ROAD,
             .data = (:typeof(SELF.data)){.build_road = road},
         };
     }
 
-    func init_build_town(player: player, town: town) client_message {
+    func init_build_town(town: town) client_message {
         return (:client_message){
-            .player = player,
             .kind = client_message::BUILD_TOWN,
             .data = (:typeof(SELF.data)){.build_town = town},
         };
     }
 
-    func init_remove_road(player: player, road: edge) client_message {
+    func init_remove_road(road: edge) client_message {
         return (:client_message){
-            .player = player,
             .kind = client_message::REMOVE_ROAD,
             .data = (:typeof(SELF.data)){.remove_road = road},
         };
     }
 
-    func init_remove_town(player: player, town: node) client_message {
+    func init_remove_town(town: node) client_message {
         return (:client_message){
-            .player = player,
             .kind = client_message::REMOVE_TOWN,
             .data = (:typeof(SELF.data)){.remove_town = town},
         };
     }
 
-    func init_move_robber(player: player, hex: hex) client_message {
+    func init_move_robber(hex: hex) client_message {
         return (:client_message){
-            .player = player,
             .kind = client_message::MOVE_ROBBER,
             .data = (:typeof(SELF.data)){.move_robber = hex},
         };
     }
 
-    func init_select_player(player: player, selected: player) client_message {
+    func init_select_player(selected: player) client_message {
         return (:client_message){
-            .player = player,
             .kind = client_message::SELECT_PLAYER,
             .data = (:typeof(SELF.data)){.select_player = selected},
         };
     }
 
     func init_from_bubby(value: *bubby::value) client_message {
-        var player = value.*.map_xlookup_str("player");
-        var player = name_to_player(player.*.str());
         var kind = value.*.map_xlookup_str("kind");
         if std::str::eq(kind.*.str(), "roll") {
-            return client_message::init_roll(player);
+            return client_message::init_roll();
+        }
+        if std::str::eq(kind.*.str(), "end-turn") {
+            return client_message::init_end_turn();
         }
         if std::str::eq(kind.*.str(), "build-road") {
             var road = road::init_from_bubby(value.*.map_xlookup_str("data"));
-            return client_message::init_build_road(player, road);
+            return client_message::init_build_road(road);
         }
         if std::str::eq(kind.*.str(), "build-town") {
             var town = town::init_from_bubby(value.*.map_xlookup_str("data"));
-            return client_message::init_build_town(player, town);
+            return client_message::init_build_town(town);
         }
         if std::str::eq(kind.*.str(), "remove-road") {
             var edge = edge::init_from_bubby(value.*.map_xlookup_str("data"));
-            return client_message::init_remove_road(player, edge);
+            return client_message::init_remove_road(edge);
         }
         if std::str::eq(kind.*.str(), "remove-town") {
             var node = node::init_from_bubby(value.*.map_xlookup_str("data"));
-            return client_message::init_remove_town(player, node);
+            return client_message::init_remove_town(node);
         }
         if std::str::eq(kind.*.str(), "move-robber") {
             var hex = hex::init_from_bubby(value.*.map_xlookup_str("data"));
-            return client_message::init_move_robber(player, hex);
+            return client_message::init_move_robber(hex);
         }
         if std::str::eq(kind.*.str(), "select-player") {
             var selected = bubby_to_player(value.*.map_xlookup_str("data"));
-            return client_message::init_select_player(player, selected);
+            return client_message::init_select_player(selected);
         }
 
         std::unreachable(fileof(), lineof());
@@ -1495,10 +1585,12 @@ struct client_message {
 
     func to_bubby(self: *client_message) bubby::value {
         var out = bubby::value::init_map();
-        out.map_insert_str("player", player_to_bubby(self.*.player));
         switch self.*.kind {
         client_message::ROLL {
             out.map_insert_str("kind", bubby::value::init_str("roll"));
+        }
+        client_message::END_TURN {
+            out.map_insert_str("kind", bubby::value::init_str("end-turn"));
         }
         client_message::BUILD_ROAD {
             out.map_insert_str("kind", bubby::value::init_str("build-road"));
@@ -1532,27 +1624,29 @@ struct client_message {
 struct server_message {
     var kind: enum {
         LOG;
-        BOARD;
+        HAND;
+        STATE;
         PLAYER;
         ACCEPTED;
         REJECTED;
     };
     var data: union {
         var log: std::string;
-        var board: board;
+        var hand: hand;
+        var state: struct {
+            var board: board;
+            var r_resources: sint;
+            var b_resources: sint;
+            var w_resources: sint;
+            var o_resources: sint;
+            var turn: turn;
+        };
         var player: player;
         var accepted: std::string;
         var rejected: std::string;
     };
 
     let SELF: server_message = uninit;
-
-    func init_board(board: *board) server_message {
-        return (:server_message){
-            .kind = server_message::BOARD,
-            .data = (:typeof(SELF.data)){.board = ::board::init_assign(board)},
-        };
-    }
 
     func init_log(text: []byte) server_message {
         return (:server_message){
@@ -1565,6 +1659,29 @@ struct server_message {
         return (:server_message){
             .kind = server_message::LOG,
             .data = (:typeof(SELF.data)){.log = std::string::init_from_format(format, args)},
+        };
+    }
+
+    func init_hand(hand: hand) server_message {
+        return (:server_message){
+            .kind = server_message::HAND,
+            .data = (:typeof(SELF.data)){.hand = hand},
+        };
+    }
+
+    func init_state(board: *board, r_resources: sint, b_resources: sint, w_resources: sint, o_resources: sint, turn: turn) server_message {
+        return (:server_message){
+            .kind = server_message::STATE,
+            .data = (:typeof(SELF.data)){
+                .state = (:typeof(SELF.data.state)){
+                    .board = ::board::init_assign(board),
+                    .r_resources = r_resources,
+                    .b_resources = b_resources,
+                    .w_resources = w_resources,
+                    .o_resources = o_resources,
+                    .turn = turn,
+                }
+            },
         };
     }
 
@@ -1608,8 +1725,11 @@ struct server_message {
         server_message::LOG {
             self.*.data.log.fini();
         }
-        server_message::BOARD {
-            self.*.data.board.fini();
+        server_message::HAND {
+            # nothing
+        }
+        server_message::STATE {
+            self.*.data.state.board.fini();
         }
         server_message::PLAYER {
             # nothing
@@ -1628,10 +1748,20 @@ struct server_message {
         if std::str::eq(kind, "log") {
             return server_message::init_log(value.*.map_xlookup_str("data").*.str());
         }
-        if std::str::eq(kind, "board") {
-            var board = board::init_from_bubby(value.*.map_xlookup_str("data"));
+        if std::str::eq(kind, "hand") {
+            var hand = hand::init_from_bubby(value.*.map_xlookup_str("data"));
+            return server_message::init_hand(hand);
+        }
+        if std::str::eq(kind, "state") {
+            var state = value.*.map_xlookup_str("data");
+            var board = board::init_from_bubby(state.*.map_xlookup_str("board"));
             defer board.fini();
-            return server_message::init_board(&board);
+            var r_resources = xstr_to_int[[sint]](state.*.map_xlookup_str("r-resources").*.str());
+            var b_resources = xstr_to_int[[sint]](state.*.map_xlookup_str("b-resources").*.str());
+            var w_resources = xstr_to_int[[sint]](state.*.map_xlookup_str("w-resources").*.str());
+            var o_resources = xstr_to_int[[sint]](state.*.map_xlookup_str("o-resources").*.str());
+            var turn = turn::init_from_bubby(state.*.map_xlookup_str("turn"));
+            return server_message::init_state(&board, r_resources, b_resources, w_resources, o_resources, turn);
         }
         if std::str::eq(kind, "player") {
             var player = bubby_to_player(value.*.map_xlookup_str("data"));
@@ -1655,9 +1785,20 @@ struct server_message {
             out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("log"));
             out.map().*.insert(bubby::value::init_str("data"), bubby::value::init_str(self.*.data.log.data()));
         }
-        server_message::BOARD {
-            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("board"));
-            out.map().*.insert(bubby::value::init_str("data"), self.*.data.board.to_bubby());
+        server_message::HAND {
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("hand"));
+            out.map().*.insert(bubby::value::init_str("data"), self.*.data.hand.to_bubby());
+        }
+        server_message::STATE {
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("state"));
+            var state = bubby::value::init_map();
+            state.map().*.insert(bubby::value::init_str("board"), self.*.data.state.board.to_bubby());
+            state.map().*.insert(bubby::value::init_str("r-resources"), int_to_bubby[[sint]](self.*.data.state.r_resources));
+            state.map().*.insert(bubby::value::init_str("b-resources"), int_to_bubby[[sint]](self.*.data.state.b_resources));
+            state.map().*.insert(bubby::value::init_str("w-resources"), int_to_bubby[[sint]](self.*.data.state.w_resources));
+            state.map().*.insert(bubby::value::init_str("o-resources"), int_to_bubby[[sint]](self.*.data.state.o_resources));
+            state.map().*.insert(bubby::value::init_str("turn"), self.*.data.state.turn.to_bubby());
+            out.map().*.insert(bubby::value::init_str("data"), state);
         }
         server_message::PLAYER{
             out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("player"));
