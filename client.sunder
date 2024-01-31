@@ -765,23 +765,23 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     }
     if IsKeyPressed(KEY_ZERO) {
         var cmessage = client_message::init_select_player(player::NIL);
-        sender.*.send(&cmessage);
+        sender.*.sendc(cmessage);
     }
     if IsKeyPressed(KEY_ONE) {
         var cmessage = client_message::init_select_player(player::RED);
-        sender.*.send(&cmessage);
+        sender.*.sendc(cmessage);
     }
     if IsKeyPressed(KEY_TWO) {
         var cmessage = client_message::init_select_player(player::BLUE);
-        sender.*.send(&cmessage);
+        sender.*.sendc(cmessage);
     }
     if IsKeyPressed(KEY_THREE) {
         var cmessage = client_message::init_select_player(player::WHITE);
-        sender.*.send(&cmessage);
+        sender.*.sendc(cmessage);
     }
     if IsKeyPressed(KEY_FOUR) {
         var cmessage = client_message::init_select_player(player::ORANGE);
-        sender.*.send(&cmessage);
+        sender.*.sendc(cmessage);
     }
 
     # Actions processed depending on the client's current player state.
@@ -789,12 +789,12 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     player_state::NONE {
         if IsKeyPressed(KEY_SPACE) {
             var cmessage = client_message::init_roll();
-            sender.*.send(&cmessage);
+            sender.*.sendc(cmessage);
             return;
         }
         if IsKeyPressed(KEY_ENTER) {
             var cmessage = client_message::init_end_turn();
-            sender.*.send(&cmessage);
+            sender.*.sendc(cmessage);
             return;
         }
 
@@ -806,7 +806,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                         cstate.*.player,
                         cstate.*.world_node.value(),
                         town::CITY));
-                sender.*.send(&cmessage);
+                sender.*.sendc(cmessage);
                 return;
             }
 
@@ -815,7 +815,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                     cstate.*.player,
                     cstate.*.world_node.value(),
                     town::SETTLEMENT));
-            sender.*.send(&cmessage);
+            sender.*.sendc(cmessage);
             return;
         }
 
@@ -831,7 +831,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                     road::init(
                         cstate.*.player,
                         cstate.*.world_edge.value()));
-                sender.*.send(&cmessage);
+                sender.*.sendc(cmessage);
             }
             return;
         }
@@ -850,7 +850,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                 var world_tile = cstate.*.world_tile.value();
                 if not std::eq[[hex]](&world_tile.hex, &cstate.*.board.robber) {
                     var cmessage = client_message::init_move_robber(world_tile.hex);
-                    sender.*.send(&cmessage);
+                    sender.*.sendc(cmessage);
                     cstate.*.pstate = player_state::NONE;
                 }
             }

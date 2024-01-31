@@ -1801,7 +1801,16 @@ struct message_sender[[MESSAGE]] {
         };
     }
 
+    # Send a message with this sender.
     func send(self: *message_sender[[MESSAGE]], message: *MESSAGE) void {
         self.*.itable.*.send(self.*.object, message);
+    }
+
+    # Send a message, then consume the message with MESSAGE::fini (if defined).
+    func sendc(self: *message_sender[[MESSAGE]], message: MESSAGE) void {
+        self.*.send(&message);
+        when defined(MESSAGE::fini) {
+            message.fini();
+        }
     }
 }
