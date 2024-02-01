@@ -1302,6 +1302,21 @@ func adjacent_nodes_to_edge(target: edge, nodes: *std::hash_set[[node]]) std::ha
     return out;
 }
 
+func adjacent_nodes_to_hex(target: hex, nodes: *std::hash_set[[node]]) std::hash_set[[node]] {
+    var out = std::hash_set[[node]]::init();
+
+    var iter = std::hash_set_iterator[[node]]::init(nodes);
+    for iter.advance() {
+        if std::eq[[hex]](&iter.current().*.hexes[0], &target)
+        or std::eq[[hex]](&iter.current().*.hexes[1], &target)
+        or std::eq[[hex]](&iter.current().*.hexes[2], &target) {
+            out.insert(*iter.current());
+        }
+    }
+
+    return out;
+}
+
 func adjacent_edges_to_node(target: node, edges: *std::hash_set[[edge]]) std::hash_set[[edge]] {
     var out = std::hash_set[[edge]]::init();
 
@@ -1355,6 +1370,38 @@ func adjacent_nodes_to_node(target: node, nodes: *std::hash_set[[node]]) std::ha
     return out;
 }
 
+struct resources {
+    var brick: sint;
+    var ore: sint;
+    var sheep: sint;
+    var wheat: sint;
+    var wood: sint;
+
+    func init_from_bubby(value: *bubby::value) resources {
+        var self: resources = uninit;
+        self.brick = xstr_to_int[[sint]](value.*.map_xlookup_str("brick").*.str());
+        self.ore = xstr_to_int[[sint]](value.*.map_xlookup_str("ore").*.str());
+        self.sheep = xstr_to_int[[sint]](value.*.map_xlookup_str("sheep").*.str());
+        self.wheat = xstr_to_int[[sint]](value.*.map_xlookup_str("wheat").*.str());
+        self.wood = xstr_to_int[[sint]](value.*.map_xlookup_str("wood").*.str());
+        return self;
+    }
+
+    func to_bubby(self: *resources) bubby::value {
+        var out = bubby::value::init_map();
+        out.map_insert_str("brick", int_to_bubby[[sint]](self.*.brick));
+        out.map_insert_str("ore", int_to_bubby[[sint]](self.*.ore));
+        out.map_insert_str("sheep", int_to_bubby[[sint]](self.*.sheep));
+        out.map_insert_str("wheat", int_to_bubby[[sint]](self.*.wheat));
+        out.map_insert_str("wood", int_to_bubby[[sint]](self.*.wood));
+        return out;
+    }
+
+    func count(self: *resources) sint {
+        return self.*.brick + self.*.ore + self.*.sheep + self.*.wheat + self.*.wood;
+    }
+}
+
 struct hand {
     var brick: sint;
     var ore: sint;
@@ -1382,21 +1429,33 @@ struct hand {
         return out;
     }
 
-    func resources(self: *hand) sint {
+    func resource_count(self: *hand) sint {
         return self.*.brick + self.*.ore + self.*.sheep + self.*.wheat + self.*.wood;
     }
 }
 
 enum phase {
     RESOURCE_PRODUCTION;
+    DISCARD;
+    ROBBER;
+    STEAL;
     MAIN;
 
     func init_from_bubby(value: *bubby::value) phase {
         if std::str::eq(value.*.str(), "resource-production") {
-            return RESOURCE_PRODUCTION;
+            return phase::RESOURCE_PRODUCTION;
+        }
+        if std::str::eq(value.*.str(), "discard") {
+            return phase::DISCARD;
+        }
+        if std::str::eq(value.*.str(), "robber") {
+            return phase::ROBBER;
+        }
+        if std::str::eq(value.*.str(), "steal") {
+            return phase::STEAL;
         }
         if std::str::eq(value.*.str(), "main") {
-            return MAIN;
+            return phase::MAIN;
         }
 
         std::unreachable(fileof(), lineof());
@@ -1405,10 +1464,19 @@ enum phase {
 
     func to_bubby(self: *phase) bubby::value {
         switch *self {
-        RESOURCE_PRODUCTION {
+        phase::RESOURCE_PRODUCTION {
             return bubby::value::init_str("resource-production");
         }
-        MAIN {
+        phase::DISCARD {
+            return bubby::value::init_str("discard");
+        }
+        phase::ROBBER {
+            return bubby::value::init_str("robber");
+        }
+        phase::STEAL {
+            return bubby::value::init_str("steal");
+        }
+        phase::MAIN {
             return bubby::value::init_str("main");
         }
         }
@@ -1476,12 +1544,16 @@ struct client_message {
         BUILD_TOWN;
         MOVE_ROBBER;
         SELECT_PLAYER;
+        SUBMIT_PLAYER;
+        SUBMIT_RESOURCES;
     };
     var data: union {
         var build_road: road;
         var build_town: town;
         var move_robber: hex;
         var select_player: player;
+        var submit_player: player;
+        var submit_resources: resources;
     };
 
     let SELF: client_message = uninit;
@@ -1528,6 +1600,20 @@ struct client_message {
         };
     }
 
+    func init_submit_player(player: player) client_message {
+        return (:client_message){
+            .kind = client_message::SUBMIT_PLAYER,
+            .data = (:typeof(SELF.data)){.submit_player = player},
+        };
+    }
+
+    func init_submit_resources(resources: resources) client_message {
+        return (:client_message){
+            .kind = client_message::SUBMIT_RESOURCES,
+            .data = (:typeof(SELF.data)){.submit_resources = resources},
+        };
+    }
+
     func init_from_bubby(value: *bubby::value) client_message {
         var kind = value.*.map_xlookup_str("kind");
         if std::str::eq(kind.*.str(), "roll") {
@@ -1551,6 +1637,14 @@ struct client_message {
         if std::str::eq(kind.*.str(), "select-player") {
             var selected = bubby_to_player(value.*.map_xlookup_str("data"));
             return client_message::init_select_player(selected);
+        }
+        if std::str::eq(kind.*.str(), "submit-player") {
+            var player = bubby_to_player(value.*.map_xlookup_str("data"));
+            return client_message::init_submit_player(player);
+        }
+        if std::str::eq(kind.*.str(), "submit-resources") {
+            var resources = resources::init_from_bubby(value.*.map_xlookup_str("data"));
+            return client_message::init_submit_resources(resources);
         }
 
         std::unreachable(fileof(), lineof());
@@ -1581,6 +1675,14 @@ struct client_message {
         client_message::SELECT_PLAYER {
             out.map_insert_str("kind", bubby::value::init_str("select-player"));
             out.map_insert_str("data", player_to_bubby(self.*.data.select_player));
+        }
+        client_message::SUBMIT_PLAYER {
+            out.map_insert_str("kind", bubby::value::init_str("submit-player"));
+            out.map_insert_str("data", player_to_bubby(self.*.data.submit_player));
+        }
+        client_message::SUBMIT_RESOURCES {
+            out.map_insert_str("kind", bubby::value::init_str("submit-resources"));
+            out.map_insert_str("data", self.*.data.submit_resources.to_bubby());
         }
         }
         return out;

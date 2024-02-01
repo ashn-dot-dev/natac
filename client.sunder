@@ -543,7 +543,7 @@ func camera(radius: f32) Camera2D {
         },
         .offset = (:Vector2){
             .x = screen_w() / 2.0 - screen_w() / 6.0,
-            .y = screen_h() / 2.0,
+            .y = screen_h() / 2.0 - screen_h() / 8.0,
         },
         .rotation = 0.0f32,
         .zoom = camera_zoom(radius),
@@ -564,6 +564,7 @@ struct client_state {
     var ui_font_size: f32;
     var ui_log: std::string;
     var ui_log_updated: bool;
+    var ui_resources_select: resources;
     var ui: smol::ui;
 
     var player: player;
@@ -623,6 +624,7 @@ struct client_state {
             .ui_font_size = ui_font_size,
             .ui_log = ui_log,
             .ui_log_updated = false,
+            .ui_resources_select = uninit,
             .ui = ui,
 
             .player = player::NIL,
@@ -679,6 +681,7 @@ struct client_state {
             if self.*.debug {
                 var log_writer = std::writer::init[[std::string]](&self.*.ui_log);
                 std::print_format_line(log_writer, "[ACTION ACCEPTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.accepted)]);
+                self.*.ui_log_updated = true;
             }
         }
         server_message::REJECTED {
@@ -686,10 +689,43 @@ struct client_state {
             if self.*.debug {
                 var log_writer = std::writer::init[[std::string]](&self.*.ui_log);
                 std::print_format_line(log_writer, "[ACTION REJECTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.rejected)]);
+                self.*.ui_log_updated = true;
             }
         }
         }
     }
+}
+
+# In HTML this input element is has type "number", but elsewhere it is referred
+# to as a spinner for some reason. I'm calling it a "UI Number Select" for now.
+#
+# https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/number
+# https://jqueryui.com/spinner/
+# https://www.mathworks.com/help/matlab/ref/uispinner.html
+func ui_number_select(ui: *smol::ui, value: *sint, min: sint, max: sint) void {
+    ui.*.push_id(&value, sizeof(typeof(value)));
+    ui.*.layout_begin_column();
+
+    var button_w: sint = 32;
+    ui.*.layout_row((:[]sint)[button_w, button_w, -1], 0);
+
+    if ui.*.button("-1") {
+        *value -= 1;
+    }
+    if ui.*.button("+1") {
+        *value += 1;
+    }
+    *value = sint::max(min, *value);
+    *value = sint::min(max, *value);
+
+    ui.*.begin_panel_ex("PANEL", smol::OPT_NOSCROLL); # XXX: Duplicate IDs?
+    var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](value)]);
+    defer s.fini();
+    ui.*.text(s.data());
+    ui.*.end_panel();
+
+    ui.*.layout_end_column();
+    ui.*.pop_id();
 }
 
 func client_update(cstate: *client_state, sender: *message_sender[[client_message]]) void {
@@ -784,15 +820,218 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         sender.*.sendc(cmessage);
     }
 
+    # UI Panels
+    var screen_w = screen_w();
+    var screen_h = screen_h();
+    smol::handle_input(cstate.*.ui.context);
+    mu_begin(cstate.*.ui.context);
+    let UI_BORDER: sint = 8;
+    let UI_PLAYERS = (:[4]player)[player::RED, player::BLUE, player::WHITE, player::ORANGE];
+    var ui_players_w = (:sint)screen_w * 1 / 3;
+    var ui_players_h = ((:sint)screen_h * 1 / 2 - 2 * UI_BORDER) / (:sint)countof(UI_PLAYERS);
+    for i in countof(UI_PLAYERS) {
+        var player = UI_PLAYERS[i];
+        var pcolor = player_color(player);
+        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].r = pcolor.r;
+        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].g = pcolor.g;
+        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].b = pcolor.b;
+        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].a = 0xFF;
+        if player == ::player::WHITE {
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].r = BLACK.r;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].g = BLACK.g;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].b = BLACK.b;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].a = 0xFF;
+        }
+        else {
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].r = WHITE.r;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].g = WHITE.g;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].b = WHITE.b;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].a = 0xFF;
+        }
+        if cstate.*.turn.player == player {
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].r = YELLOW.r;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].g = YELLOW.g;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].b = YELLOW.b;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].a = 0xFF;
+        }
+        else {
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].r = BLACK.r;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].g = BLACK.g;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].b = BLACK.b;
+            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].a = 0xFF;
+        }
+
+        var ui_w = ui_players_w;
+        var ui_h = ui_players_h;
+        var ui_x = (:sint)screen_w - ui_w - UI_BORDER;
+        var ui_y = UI_BORDER + (:sint)i * (ui_players_h + UI_BORDER);
+        if cstate.*.ui.begin_window_ex(player_to_name(player), smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
+            # Re-set cached window rect in case the screen was resized.
+            var win = cstate.*.ui.get_current_container();
+            win.*.rect.w = ui_w;
+            win.*.rect.h = ui_h;
+            win.*.rect.x = ui_x;
+            win.*.rect.y = ui_y;
+
+            # Draw window.
+            var resources: sint = uninit;
+            switch player {
+            ::player::NIL {
+                std::unreachable(fileof(), lineof());
+            }
+            ::player::RED {
+                resources = cstate.*.r_resources;
+            }
+            ::player::BLUE {
+                resources = cstate.*.b_resources;
+            }
+            ::player::WHITE {
+                resources = cstate.*.w_resources;
+            }
+            ::player::ORANGE {
+                resources = cstate.*.o_resources;
+            }
+            }
+
+            cstate.*.ui.layout_row((:[]sint)[-1], 1);
+            var s = std::string::init_from_format(
+                "resources: {}",
+                (:[]std::formatter)[
+                    std::formatter::init[[sint]](&resources)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+
+            if player == cstate.*.player {
+                var s = std::string::init_from_format(
+                    "brick: {}, ore: {}, sheep: {}, wheat: {}, wood: {}",
+                    (:[]std::formatter)[
+                        std::formatter::init[[sint]](&cstate.*.phand.brick),
+                        std::formatter::init[[sint]](&cstate.*.phand.ore),
+                        std::formatter::init[[sint]](&cstate.*.phand.sheep),
+                        std::formatter::init[[sint]](&cstate.*.phand.wheat),
+                        std::formatter::init[[sint]](&cstate.*.phand.wood)]);
+                defer s.fini();
+                cstate.*.ui.text(s.data());
+            }
+
+            cstate.*.ui.end_window();
+        }
+    }
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].r = BLACK.r;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].g = BLACK.g;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].b = BLACK.b;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].a = 0xFF;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].r = BLACK.r;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].g = BLACK.g;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].b = BLACK.b;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].a = 0xFF;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].r = WHITE.r;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].g = WHITE.g;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].b = WHITE.b;
+    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].a = 0xFF;
+    var ui_w = (:sint)screen_w * 1 / 3;
+    var ui_h = (:sint)screen_h * 1 / 2 - 4 * UI_BORDER;
+    var ui_x = (:sint)screen_w - ui_w - UI_BORDER;
+    var ui_y = (:sint)screen_h * 1 / 2 + 3 * UI_BORDER;
+    if cstate.*.ui.begin_window_ex("LOG", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Draw window.
+        cstate.*.ui.layout_row((:[]sint)[-1], -1);
+        cstate.*.ui.text(std::ascii::view_trimmed(cstate.*.ui_log.data()));
+
+        # Re-set scroll if the log was updated.
+        if cstate.*.ui_log_updated {
+            win.*.scroll.y = win.*.content_size.y;
+            cstate.*.ui_log_updated = false;
+        }
+
+        cstate.*.ui.end_window();
+    }
+
+    var ui_w = (:sint)screen_w / 4;
+    var ui_h = (:sint)screen_h / 4;
+    var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
+    var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
+    if cstate.*.ui.begin_window_ex("Select Resources", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Draw window.
+        cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
+        cstate.*.ui.label("Brick:");
+        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.brick, 0, cstate.*.phand.brick);
+        cstate.*.ui.label("Ore:");
+        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.ore, 0,  cstate.*.phand.ore);
+        cstate.*.ui.label("Sheep:");
+        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.sheep, 0, cstate.*.phand.sheep);
+        cstate.*.ui.label("Wheat:");
+        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.wheat, 0, cstate.*.phand.wheat);
+        cstate.*.ui.label("Wood:");
+        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.wood, 0, cstate.*.phand.wood);
+        cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        var total = cstate.*.ui_resources_select.count();
+        var s = std::string::init_from_format("Total = {}", (:[]std::formatter)[std::formatter::init[[sint]](&total)]);
+        defer s.fini();
+        cstate.*.ui.text(s.data());
+        if cstate.*.ui.button("Submit") {
+            sender.*.sendc(client_message::init_submit_resources(cstate.*.ui_resources_select));
+            cstate.*.ui_resources_select = std::zeroed[[resources]]();
+        }
+
+        cstate.*.ui.end_window();
+    }
+
+    var ui_w = (:sint)screen_w / 8;
+    var ui_h = (:sint)screen_h / 4;
+    var ui_x = (:sint)screen_w * 2 / 3 - (:sint)screen_w / 4 - ui_w - 3 * UI_BORDER;
+    var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
+    if cstate.*.ui.begin_window_ex("Select Player", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Draw window.
+        cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        if cstate.*.ui.button("RED") {
+            sender.*.sendc(client_message::init_submit_player(player::RED));
+        }
+        if cstate.*.ui.button("BLUE") {
+            sender.*.sendc(client_message::init_submit_player(player::BLUE));
+        }
+        if cstate.*.ui.button("WHITE") {
+            sender.*.sendc(client_message::init_submit_player(player::WHITE));
+        }
+        if cstate.*.ui.button("ORANGE") {
+            sender.*.sendc(client_message::init_submit_player(player::ORANGE));
+        }
+
+        cstate.*.ui.end_window();
+    }
+
+    mu_end(cstate.*.ui.context);
+
     # Actions processed depending on the client's current player state.
     switch cstate.*.pstate {
     player_state::NONE {
-        if IsKeyPressed(KEY_SPACE) {
+        if IsKeyPressed(KEY_SPACE) and cstate.*.turn.phase == phase::RESOURCE_PRODUCTION {
             var cmessage = client_message::init_roll();
             sender.*.sendc(cmessage);
             return;
         }
-        if IsKeyPressed(KEY_ENTER) {
+        if IsKeyPressed(KEY_SPACE) and cstate.*.turn.phase == phase::MAIN {
             var cmessage = client_message::init_end_turn();
             sender.*.sendc(cmessage);
             return;
@@ -885,141 +1124,6 @@ func client_render(cstate: *client_state) void {
     }
 
     var world_hex_center = pointy_hex_to_point(cstate.*.world_hex, HEX_RADIUS);
-
-    # UI Panels
-    smol::handle_input(cstate.*.ui.context);
-    mu_begin(cstate.*.ui.context);
-    let UI_BORDER: sint = 8;
-    let UI_PLAYERS = (:[4]player)[player::RED, player::BLUE, player::WHITE, player::ORANGE];
-    var ui_players_w = (:sint)screen_w * 1 / 3;
-    var ui_players_h = ((:sint)screen_h * 1 / 2 - 2 * UI_BORDER) / (:sint)countof(UI_PLAYERS);
-    for i in countof(UI_PLAYERS) {
-        var player = UI_PLAYERS[i];
-        var pcolor = player_color(player);
-        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].r = pcolor.r;
-        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].g = pcolor.g;
-        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].b = pcolor.b;
-        cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].a = 0xFF;
-        if player == ::player::WHITE {
-            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].r = BLACK.r;
-            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].g = BLACK.g;
-            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].b = BLACK.b;
-            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].a = 0xFF;
-        }
-        else {
-            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].r = WHITE.r;
-            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].g = WHITE.g;
-            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].b = WHITE.b;
-            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].a = 0xFF;
-        }
-        if cstate.*.turn.player == player {
-            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].r = YELLOW.r;
-            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].g = YELLOW.g;
-            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].b = YELLOW.b;
-            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].a = 0xFF;
-        }
-        else {
-            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].r = BLACK.r;
-            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].g = BLACK.g;
-            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].b = BLACK.b;
-            cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].a = 0xFF;
-        }
-
-        var ui_w = ui_players_w;
-        var ui_h = ui_players_h;
-        var ui_x = (:sint)screen_w - ui_w - UI_BORDER;
-        var ui_y = UI_BORDER + (:sint)i * (ui_players_h + UI_BORDER);
-        if cstate.*.ui.begin_window_ex(player_to_name(player), smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
-            # Re-set cached window rect in case the screen was resized.
-            var win = cstate.*.ui.get_current_container();
-            win.*.rect.w = ui_w;
-            win.*.rect.h = ui_h;
-            win.*.rect.x = ui_x;
-            win.*.rect.y = ui_y;
-
-            # Draw window.
-            var resources: sint = uninit;
-            switch player {
-            ::player::NIL {
-                std::unreachable(fileof(), lineof());
-            }
-            ::player::RED {
-                resources = cstate.*.r_resources;
-            }
-            ::player::BLUE {
-                resources = cstate.*.b_resources;
-            }
-            ::player::WHITE {
-                resources = cstate.*.w_resources;
-            }
-            ::player::ORANGE {
-                resources = cstate.*.o_resources;
-            }
-            }
-
-            var s = std::string::init();
-            defer s.fini();
-            if player == cstate.*.player {
-                std::print_format(
-                    std::writer::init[[std::string]](&s),
-                    "brick: {}, ore: {}, sheep: {}, wheat: {}, wood: {}",
-                    (:[]std::formatter)[
-                        std::formatter::init[[sint]](&cstate.*.phand.brick),
-                        std::formatter::init[[sint]](&cstate.*.phand.ore),
-                        std::formatter::init[[sint]](&cstate.*.phand.sheep),
-                        std::formatter::init[[sint]](&cstate.*.phand.wheat),
-                        std::formatter::init[[sint]](&cstate.*.phand.wood)]);
-            }
-            else {
-                std::print_format(
-                    std::writer::init[[std::string]](&s),
-                    "resources: {}",
-                    (:[]std::formatter)[
-                        std::formatter::init[[sint]](&resources)]);
-            }
-            cstate.*.ui.layout_row((:[]sint)[-1], 1);
-            cstate.*.ui.text(s.data());
-
-            cstate.*.ui.end_window();
-        }
-    }
-    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].r = BLACK.r;
-    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].g = BLACK.g;
-    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].b = BLACK.b;
-    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].a = 0xFF;
-    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].r = BLACK.r;
-    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].g = BLACK.g;
-    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].b = BLACK.b;
-    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].a = 0xFF;
-    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].r = WHITE.r;
-    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].g = WHITE.g;
-    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].b = WHITE.b;
-    cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].a = 0xFF;
-    var ui_w = (:sint)screen_w * 1 / 3;
-    var ui_h = (:sint)screen_h * 1 / 2 - 4 * UI_BORDER;
-    var ui_x = (:sint)screen_w - ui_w - UI_BORDER;
-    var ui_y = (:sint)screen_h * 1 / 2 + 3 * UI_BORDER;
-    if cstate.*.ui.begin_window_ex("LOG", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
-
-        # Draw window.
-        cstate.*.ui.layout_row((:[]sint)[-1], -1);
-        cstate.*.ui.text(std::ascii::view_trimmed(cstate.*.ui_log.data()));
-
-        # Re-set scroll if the log was updated.
-        if cstate.*.ui_log_updated {
-            win.*.scroll.y = win.*.content_size.y;
-            cstate.*.ui_log_updated = false;
-        }
-
-        cstate.*.ui.end_window();
-    }
-    mu_end(cstate.*.ui.context);
 
     if cstate.*.debug {
         if cstate.*.world_node.is_value() {
@@ -1322,6 +1426,35 @@ func client_render(cstate: *client_state) void {
                     std::formatter::init[[hex]](&world_tile.hex),
                     std::formatter::init[[tile]](&world_tile)]);
         }
+        else {
+            draw_text(cstate.*.font, cstate.*.font_size, BLACK,
+                (:Vector2){.x = 2.0, .y = 5.0 * cstate.*.font_size},
+                "NODE/EDGE/TILE: none");
+        }
+
+        var phase_text: []byte = uninit;
+        switch cstate.*.turn.phase {
+        phase::RESOURCE_PRODUCTION {
+            phase_text = "resource production";
+        }
+        phase::DISCARD {
+            phase_text = "discard";
+        }
+        phase::ROBBER {
+            phase_text = "robber";
+        }
+        phase::STEAL {
+            phase_text = "steal";
+        }
+        phase::MAIN {
+            phase_text = "main";
+        }
+        }
+        draw_text_format(cstate.*.font, cstate.*.font_size, BLACK,
+            (:Vector2){.x = 2.0, .y = 6.0 * cstate.*.font_size},
+            "PHASE: {}",
+            (:[]std::formatter)[
+                std::formatter::init[[[]byte]](&phase_text)]);
     }
 
     EndDrawing();

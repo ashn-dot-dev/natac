@@ -27,6 +27,10 @@ struct server_state {
     var bhand: hand;
     var whand: hand;
     var ohand: hand;
+    var rdiscarded: bool;
+    var bdiscarded: bool;
+    var wdiscarded: bool;
+    var odiscarded: bool;
     var turn: turn;
 
     func init() server_state {
@@ -38,6 +42,10 @@ struct server_state {
             .bhand = uninit,
             .whand = uninit,
             .ohand = uninit,
+            .rdiscarded = false,
+            .bdiscarded = false,
+            .wdiscarded = false,
+            .odiscarded = false,
             .turn = turn::init(player::NIL),
         };
     }
@@ -83,6 +91,29 @@ struct server_state {
         return std::zeroed[[*hand]]();
     }
 
+    func pdiscarded(self: *server_state, player: player) *bool {
+        switch player {
+        ::player::NIL {
+            std::unreachable(fileof(), lineof());
+        }
+        ::player::RED {
+            return &self.*.rdiscarded;
+        }
+        ::player::BLUE {
+            return &self.*.bdiscarded;
+        }
+        ::player::WHITE {
+            return &self.*.wdiscarded;
+        }
+        ::player::ORANGE {
+            return &self.*.odiscarded;
+        }
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[*bool]]();
+    }
+
     func change_turn(self: *server_state, player: player) void {
         self.*.turn = turn::init(player);
         var name = player_to_name(player);
@@ -124,35 +155,43 @@ struct server_state {
                 std::formatter::init[[typeof(roll)]](&roll)]));
 
         if roll == 7 {
-            self.*.sendc_all(server_message::init_log("TODO: discard resources + robber"));
+            if (self.*.rhand.resource_count() <= 7)
+            and (self.*.bhand.resource_count() <= 7)
+            and (self.*.whand.resource_count() <= 7)
+            and (self.*.ohand.resource_count() <= 7) {
+                self.*.turn.phase = phase::ROBBER;
+            }
+            else {
+                self.*.turn.phase = phase::DISCARD;
+            }
+            return;
         }
-        else {
-            var iter = std::hash_map_iterator[[node, town]]::init(&self.*.board.towns);
-            for iter.advance() {
-                var amount: sint = uninit;
-                var town = *iter.current().*.value;
-                switch town.kind {
-                ::town::SETTLEMENT {
-                    amount = 1;
+
+        var iter = std::hash_map_iterator[[node, town]]::init(&self.*.board.towns);
+        for iter.advance() {
+            var amount: sint = uninit;
+            var town = *iter.current().*.value;
+            switch town.kind {
+            ::town::SETTLEMENT {
+                amount = 1;
+            }
+            ::town::CITY {
+                amount = 2;
+            }
+            }
+            var node = *iter.current().*.key;
+            for i in countof(node.hexes) {
+                var tile = self.*.board.tiles.lookup(node.hexes[i]);
+                var tile = tile.value();
+                if tile.number != roll {
+                    continue;
                 }
-                ::town::CITY {
-                    amount = 2;
-                }
-                }
-                var node = *iter.current().*.key;
-                for i in countof(node.hexes) {
-                    var tile = self.*.board.tiles.lookup(node.hexes[i]);
-                    var tile = tile.value();
-                    if tile.number != roll {
-                        continue;
-                    }
-                    var hand = self.*.phand(town.player);
-                    hand.*.brick += amount * (:sint)(tile.kind == ::tile::HILL);
-                    hand.*.ore += amount * (:sint)(tile.kind == ::tile::MOUNTAIN);
-                    hand.*.sheep += amount * (:sint)(tile.kind == ::tile::PASTURE);
-                    hand.*.wheat += amount * (:sint)(tile.kind == ::tile::FIELD);
-                    hand.*.wood += amount * (:sint)(tile.kind == ::tile::FOREST);
-                }
+                var hand = self.*.phand(town.player);
+                hand.*.brick += amount * (:sint)(tile.kind == ::tile::HILL);
+                hand.*.ore += amount * (:sint)(tile.kind == ::tile::MOUNTAIN);
+                hand.*.sheep += amount * (:sint)(tile.kind == ::tile::PASTURE);
+                hand.*.wheat += amount * (:sint)(tile.kind == ::tile::FIELD);
+                hand.*.wood += amount * (:sint)(tile.kind == ::tile::FOREST);
             }
         }
         self.*.turn.phase = phase::MAIN;
@@ -164,7 +203,7 @@ struct server_state {
             return;
         }
         if self.*.turn.phase != phase::MAIN {
-            connection.*.sendc(server_message::init_rejected("cannot end turn (it is not the main)"));
+            connection.*.sendc(server_message::init_rejected("cannot end turn (it is not the main phase)"));
             return;
         }
 
@@ -397,7 +436,7 @@ struct server_state {
         switch town.kind {
         ::town::SETTLEMENT {
             if not (hand.*.brick >= 1 and hand.*.sheep >= 1 and hand.*.wheat >= 1 and hand.*.wood >= 1) {
-                connection.*.sendc(server_message::init_rejected("cannot build road (insufficient resources)"));
+                connection.*.sendc(server_message::init_rejected("cannot build settlement (insufficient resources)"));
                 return;
             }
             hand.*.brick -= 1;
@@ -407,7 +446,7 @@ struct server_state {
         }
         ::town::CITY {
             if not (hand.*.ore >= 3 and hand.*.wheat >= 2) {
-                connection.*.sendc(server_message::init_rejected("cannot build road (insufficient resources)"));
+                connection.*.sendc(server_message::init_rejected("cannot build city (insufficient resources)"));
                 return;
             }
             hand.*.ore -= 3;
@@ -434,11 +473,8 @@ struct server_state {
             connection.*.sendc(server_message::init_rejected("cannot move robber (it is not your turn)"));
             return;
         }
-        # TODO: The robber should only be able to get moved during a specific
-        # "move robber" turn phase. Currently is can always be moved during any
-        # player's main phase.
-        if self.*.turn.phase != phase::MAIN {
-            connection.*.sendc(server_message::init_rejected("cannot move robber (it is not the main phase)"));
+        if self.*.turn.phase != phase::ROBBER {
+            connection.*.sendc(server_message::init_rejected("cannot move robber (it is not the robber phase)"));
             return;
         }
 
@@ -466,6 +502,23 @@ struct server_state {
             "{} moved the robber.",
             (:[]std::formatter)[
                 std::formatter::init[[typeof(name)]](&name)]));
+
+        var adjacent_nodes = adjacent_nodes_to_hex(hex, &self.*.board.nodes);
+        defer adjacent_nodes.fini();
+        var iter = std::hash_set_iterator[[node]]::init(&adjacent_nodes);
+        for iter.advance() {
+            var optional = self.*.board.towns.lookup(*iter.current());
+            if optional.is_empty() {
+                continue;
+            }
+            var town = optional.value();
+            if town.player != connection.*.player {
+                self.*.turn.phase = phase::STEAL;
+                return;
+            }
+        }
+
+        self.*.turn.phase = phase::MAIN;
     }
 
     func process_select_player(self: *server_state, connection: *connection, selected: player) void {
@@ -506,6 +559,109 @@ struct server_state {
                 std::formatter::init[[typeof(name)]](&name)]));
     }
 
+    func process_submit_player(self: *server_state, connection: *connection, player: player) void {
+        if self.*.turn.player != connection.*.player {
+            connection.*.sendc(server_message::init_rejected("cannot submit player (it is not your turn)"));
+            return;
+        }
+        if self.*.turn.phase != phase::STEAL {
+            connection.*.sendc(server_message::init_rejected("cannot submit player (it is not the steal phase)"));
+            return;
+        }
+        if self.*.turn.player == player {
+            connection.*.sendc(server_message::init_rejected("cannot submit player (you cannot steal from yourself)"));
+            return;
+        }
+
+        var can_steal = false;
+        var adjacent_nodes = adjacent_nodes_to_hex(self.*.board.robber, &self.*.board.nodes);
+        defer adjacent_nodes.fini();
+        var iter = std::hash_set_iterator[[node]]::init(&adjacent_nodes);
+        for iter.advance() {
+            var optional = self.*.board.towns.lookup(*iter.current());
+            if optional.is_empty() {
+                continue;
+            }
+            var town = optional.value();
+            if town.player == player {
+                can_steal = true;
+                break;
+            }
+        }
+        if not can_steal {
+            var name = player_to_name(player);
+            connection.*.sendc(server_message::init_rejected_format(
+                "cannot submit player (you cannot steal from {})",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(name)]](&name)]));
+            return;
+        }
+
+        # TODO: Implement stealing by building a vector of cards contained in
+        # the stolen-from-player's hand, shuffling that vector, and then poping
+        # the back of that vector to get the stolen card. For now no actual
+        # stealing occurs.
+        self.*.sendc_all(server_message::init_log("TODO: Implement stealing a card..."));
+
+        var t_name = player_to_name(self.*.turn.player);
+        var f_name = player_to_name(player);
+        self.*.sendc_all(server_message::init_log_format(
+            "{} stole from {}.",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(t_name)]](&t_name),
+                std::formatter::init[[typeof(f_name)]](&f_name)]));
+
+        self.*.turn.phase = phase::MAIN;
+    }
+
+    func process_submit_resources(self: *server_state, connection: *connection, resources: resources) void {
+        if self.*.turn.phase != phase::DISCARD {
+            connection.*.sendc(server_message::init_rejected("cannot discard resources (it is not the discard phase)"));
+            return;
+        }
+        var discarded = self.*.pdiscarded(connection.*.player);
+        if *discarded {
+            connection.*.sendc(server_message::init_rejected("cannot discard resources (player has already discarded)"));
+            return;
+        }
+        var hand = self.*.phand(connection.*.player);
+        if hand.*.resource_count() <= 7 {
+            connection.*.sendc(server_message::init_rejected("cannot discard resources (player has seven or fewer resources)"));
+            return;
+        }
+        if hand.*.resource_count() / 2 != resources.count() {
+            connection.*.sendc(server_message::init_rejected("cannot discard resources (player must discard exactly half of their resources rounded down)"));
+            return;
+        }
+        if hand.*.brick < resources.brick
+        or hand.*.ore < resources.ore
+        or hand.*.sheep < resources.sheep
+        or hand.*.wheat < resources.wheat
+        or hand.*.wood < resources.wood {
+            connection.*.sendc(server_message::init_rejected("cannot discard resources (invalid resource selection)"));
+            return;
+        }
+        hand.*.brick -= resources.brick;
+        hand.*.ore -= resources.ore;
+        hand.*.sheep -= resources.sheep;
+        hand.*.wheat -= resources.wheat;
+        hand.*.wood -= resources.wood;
+        *discarded = true;
+
+        connection.*.sendc(server_message::init_accepted("discarded resources"));
+
+        if self.*.rdiscarded
+        and self.*.bdiscarded
+        and self.*.wdiscarded
+        and self.*.odiscarded {
+            self.*.turn.phase = phase::ROBBER;
+            self.*.rdiscarded = false;
+            self.*.bdiscarded = false;
+            self.*.wdiscarded = false;
+            self.*.odiscarded = false;
+        }
+    }
+
     func update_from_client_message(self: *server_state, message: *client_message, connection: *connection) void {
         switch message.*.kind {
         client_message::ROLL {
@@ -526,6 +682,12 @@ struct server_state {
         client_message::SELECT_PLAYER {
             self.*.process_select_player(connection, message.*.data.select_player);
         }
+        client_message::SUBMIT_PLAYER {
+            self.*.process_submit_player(connection, message.*.data.submit_player);
+        }
+        client_message::SUBMIT_RESOURCES {
+            self.*.process_submit_resources(connection, message.*.data.submit_resources);
+        }
         }
     }
 }
@@ -542,10 +704,10 @@ func server_update(sstate: *server_state) void {
     if sstate.*.ticks % 4 == 0 {
         sstate.*.sendc_all(server_message::init_state(
             &sstate.*.board,
-            sstate.*.rhand.resources(),
-            sstate.*.bhand.resources(),
-            sstate.*.whand.resources(),
-            sstate.*.ohand.resources(),
+            sstate.*.rhand.resource_count(),
+            sstate.*.bhand.resource_count(),
+            sstate.*.whand.resource_count(),
+            sstate.*.ohand.resource_count(),
             sstate.*.turn));
 
         for i in sstate.*.connections.count() {
