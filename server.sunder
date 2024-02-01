@@ -512,7 +512,10 @@ struct server_state {
                 continue;
             }
             var town = optional.value();
-            if town.player != connection.*.player {
+            if town.player == connection.*.player {
+                continue;
+            }
+            if self.*.phand(town.player).*.resource_count() != 0 {
                 self.*.turn.phase = phase::STEAL;
                 return;
             }
@@ -573,7 +576,10 @@ struct server_state {
             return;
         }
 
-        var can_steal = false;
+        var t_name = player_to_name(self.*.turn.player);
+        var f_name = player_to_name(player);
+
+        var is_adjacent = false;
         var adjacent_nodes = adjacent_nodes_to_hex(self.*.board.robber, &self.*.board.nodes);
         defer adjacent_nodes.fini();
         var iter = std::hash_set_iterator[[node]]::init(&adjacent_nodes);
@@ -584,33 +590,79 @@ struct server_state {
             }
             var town = optional.value();
             if town.player == player {
-                can_steal = true;
+                is_adjacent = true;
                 break;
             }
         }
-        if not can_steal {
-            var name = player_to_name(player);
+        if not is_adjacent {
             connection.*.sendc(server_message::init_rejected_format(
                 "cannot submit player (you cannot steal from {})",
                 (:[]std::formatter)[
-                    std::formatter::init[[typeof(name)]](&name)]));
+                    std::formatter::init[[typeof(f_name)]](&f_name)]));
             return;
         }
 
-        # TODO: Implement stealing by building a vector of cards contained in
-        # the stolen-from-player's hand, shuffling that vector, and then poping
-        # the back of that vector to get the stolen card. For now no actual
-        # stealing occurs.
-        self.*.sendc_all(server_message::init_log("TODO: Implement stealing a card..."));
+        var t_hand = self.*.phand(self.*.turn.player);
+        var f_hand = self.*.phand(player);
+        if f_hand.*.resource_count() == 0 {
+            connection.*.sendc(server_message::init_rejected_format(
+                "cannot submit player ({} has no resources)",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(f_name)]](&f_name)]));
+        }
 
-        var t_name = player_to_name(self.*.turn.player);
-        var f_name = player_to_name(player);
+        var v = std::vector[[resource]]::init();
+        defer v.fini();
+        for _ in (:usize)f_hand.*.brick {
+            v.push(resource::BRICK);
+        }
+        for _ in (:usize)f_hand.*.ore {
+            v.push(resource::ORE);
+        }
+        for _ in (:usize)f_hand.*.sheep {
+            v.push(resource::SHEEP);
+        }
+        for _ in (:usize)f_hand.*.wheat {
+            v.push(resource::WHEAT);
+        }
+        for _ in (:usize)f_hand.*.wood {
+            v.push(resource::WOOD);
+        }
+        var r = v.data()[(:usize)random32() % v.count()];
+        switch r {
+        resource::BRICK {
+            f_hand.*.brick -= 1;
+            t_hand.*.brick += 1;
+        }
+        resource::ORE {
+            f_hand.*.ore -= 1;
+            t_hand.*.ore += 1;
+        }
+        resource::SHEEP {
+            f_hand.*.sheep -= 1;
+            t_hand.*.sheep += 1;
+        }
+        resource::WHEAT {
+            f_hand.*.wheat -= 1;
+            t_hand.*.wheat += 1;
+        }
+        resource::WOOD {
+            f_hand.*.wood -= 1;
+            t_hand.*.wood += 1;
+        }
+        }
+
+        var r = r.data();
+        connection.*.sendc(server_message::init_accepted_format(
+            "stole {} from {}",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(r)]](&r),
+                std::formatter::init[[typeof(f_name)]](&f_name)]));
         self.*.sendc_all(server_message::init_log_format(
             "{} stole from {}.",
             (:[]std::formatter)[
                 std::formatter::init[[typeof(t_name)]](&t_name),
                 std::formatter::init[[typeof(f_name)]](&f_name)]));
-
         self.*.turn.phase = phase::MAIN;
     }
 
