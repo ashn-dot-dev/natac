@@ -23,14 +23,14 @@ struct server_state {
     var connections: std::vector[[connection]];
     var ticks: usize;
     var board: board;
-    var rhand: hand;
-    var bhand: hand;
-    var whand: hand;
-    var ohand: hand;
-    var rdiscarded: bool;
-    var bdiscarded: bool;
-    var wdiscarded: bool;
-    var odiscarded: bool;
+    var r_hand: hand;
+    var b_hand: hand;
+    var w_hand: hand;
+    var o_hand: hand;
+    var r_discarded: bool;
+    var b_discarded: bool;
+    var w_discarded: bool;
+    var o_discarded: bool;
     var turn: turn;
 
     func init() server_state {
@@ -38,14 +38,14 @@ struct server_state {
             .connections = std::vector[[connection]]::init(),
             .ticks = 0,
             .board = board::init_starter_map_for_beginners(),
-            .rhand = uninit,
-            .bhand = uninit,
-            .whand = uninit,
-            .ohand = uninit,
-            .rdiscarded = false,
-            .bdiscarded = false,
-            .wdiscarded = false,
-            .odiscarded = false,
+            .r_hand = uninit,
+            .b_hand = uninit,
+            .w_hand = uninit,
+            .o_hand = uninit,
+            .r_discarded = false,
+            .b_discarded = false,
+            .w_discarded = false,
+            .o_discarded = false,
             .turn = turn::init(player::NIL),
         };
     }
@@ -74,16 +74,16 @@ struct server_state {
             std::unreachable(fileof(), lineof());
         }
         ::player::RED {
-            return &self.*.rhand;
+            return &self.*.r_hand;
         }
         ::player::BLUE {
-            return &self.*.bhand;
+            return &self.*.b_hand;
         }
         ::player::WHITE {
-            return &self.*.whand;
+            return &self.*.w_hand;
         }
         ::player::ORANGE {
-            return &self.*.ohand;
+            return &self.*.o_hand;
         }
         }
 
@@ -97,16 +97,16 @@ struct server_state {
             std::unreachable(fileof(), lineof());
         }
         ::player::RED {
-            return &self.*.rdiscarded;
+            return &self.*.r_discarded;
         }
         ::player::BLUE {
-            return &self.*.bdiscarded;
+            return &self.*.b_discarded;
         }
         ::player::WHITE {
-            return &self.*.wdiscarded;
+            return &self.*.w_discarded;
         }
         ::player::ORANGE {
-            return &self.*.odiscarded;
+            return &self.*.o_discarded;
         }
         }
 
@@ -155,10 +155,10 @@ struct server_state {
                 std::formatter::init[[typeof(roll)]](&roll)]));
 
         if roll == 7 {
-            if (self.*.rhand.resource_count() <= 7)
-            and (self.*.bhand.resource_count() <= 7)
-            and (self.*.whand.resource_count() <= 7)
-            and (self.*.ohand.resource_count() <= 7) {
+            if (self.*.r_hand.resource_count() <= 7)
+            and (self.*.b_hand.resource_count() <= 7)
+            and (self.*.w_hand.resource_count() <= 7)
+            and (self.*.o_hand.resource_count() <= 7) {
                 self.*.turn.phase = phase::ROBBER;
             }
             else {
@@ -702,15 +702,15 @@ struct server_state {
 
         connection.*.sendc(server_message::init_accepted("discarded resources"));
 
-        if self.*.rdiscarded
-        and self.*.bdiscarded
-        and self.*.wdiscarded
-        and self.*.odiscarded {
+        if self.*.r_discarded
+        and self.*.b_discarded
+        and self.*.w_discarded
+        and self.*.o_discarded {
             self.*.turn.phase = phase::ROBBER;
-            self.*.rdiscarded = false;
-            self.*.bdiscarded = false;
-            self.*.wdiscarded = false;
-            self.*.odiscarded = false;
+            self.*.r_discarded = false;
+            self.*.b_discarded = false;
+            self.*.w_discarded = false;
+            self.*.o_discarded = false;
         }
     }
 
@@ -756,10 +756,14 @@ func server_update(sstate: *server_state) void {
     if sstate.*.ticks % 4 == 0 {
         sstate.*.sendc_all(server_message::init_state(
             &sstate.*.board,
-            sstate.*.rhand.resource_count(),
-            sstate.*.bhand.resource_count(),
-            sstate.*.whand.resource_count(),
-            sstate.*.ohand.resource_count(),
+            sstate.*.r_hand.resource_count(),
+            sstate.*.b_hand.resource_count(),
+            sstate.*.w_hand.resource_count(),
+            sstate.*.o_hand.resource_count(),
+            sstate.*.r_discarded,
+            sstate.*.b_discarded,
+            sstate.*.w_discarded,
+            sstate.*.o_discarded,
             sstate.*.turn));
 
         for i in sstate.*.connections.count() {

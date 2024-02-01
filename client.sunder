@@ -575,6 +575,10 @@ struct client_state {
     var w_resources: sint;
     var b_resources: sint;
     var o_resources: sint;
+    var r_discarded: bool;
+    var w_discarded: bool;
+    var b_discarded: bool;
+    var o_discarded: bool;
     var turn: turn;
 
     var mouse: Vector2;
@@ -635,6 +639,10 @@ struct client_state {
             .b_resources = uninit,
             .w_resources = uninit,
             .o_resources = uninit,
+            .r_discarded = false,
+            .b_discarded = false,
+            .w_discarded = false,
+            .o_discarded = false,
             .turn = uninit,
 
             .mouse = uninit,
@@ -655,6 +663,30 @@ struct client_state {
         self.*.board.fini();
     }
 
+    func pdiscarded(self: *client_state) *bool {
+        switch self.*.player {
+        player::NIL {
+            std::unreachable(fileof(), lineof());
+        }
+        player::RED {
+            return &self.*.r_discarded;
+        }
+        player::BLUE {
+            return &self.*.b_discarded;
+        }
+        player::WHITE {
+            return &self.*.w_discarded;
+        }
+        player::ORANGE {
+            return &self.*.o_discarded;
+        }
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[*bool]]();
+    }
+
+
     func update_from_server_message(self: *client_state, message: *server_message) void {
         switch message.*.kind {
         server_message::LOG {
@@ -671,6 +703,10 @@ struct client_state {
             self.*.b_resources = message.*.data.state.b_resources;
             self.*.w_resources = message.*.data.state.w_resources;
             self.*.o_resources = message.*.data.state.o_resources;
+            self.*.r_discarded = message.*.data.state.r_discarded;
+            self.*.b_discarded = message.*.data.state.b_discarded;
+            self.*.w_discarded = message.*.data.state.w_discarded;
+            self.*.o_discarded = message.*.data.state.o_discarded;
             self.*.turn = message.*.data.state.turn;
         }
         server_message::PLAYER {
@@ -958,7 +994,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
-    if cstate.*.ui.begin_window_ex("Select Resources", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+    var show_ui = cstate.*.turn.phase == phase::DISCARD and not *cstate.*.pdiscarded();
+    if show_ui and cstate.*.ui.begin_window_ex("Select Resources", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
         var win = cstate.*.ui.get_current_container();
         win.*.rect.w = ui_w;
@@ -993,9 +1030,10 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
     var ui_w = (:sint)screen_w / 8;
     var ui_h = (:sint)screen_h / 4;
-    var ui_x = (:sint)screen_w * 2 / 3 - (:sint)screen_w / 4 - ui_w - 3 * UI_BORDER;
+    var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
-    if cstate.*.ui.begin_window_ex("Select Player", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+    var show_ui = cstate.*.turn.phase == phase::STEAL and cstate.*.turn.player == cstate.*.player;
+    if show_ui and cstate.*.ui.begin_window_ex("Select Player", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
         var win = cstate.*.ui.get_current_container();
         win.*.rect.w = ui_w;
