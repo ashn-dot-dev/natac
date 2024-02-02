@@ -159,9 +159,16 @@ struct server_state {
             and (self.*.b_hand.resource_count() <= 7)
             and (self.*.w_hand.resource_count() <= 7)
             and (self.*.o_hand.resource_count() <= 7) {
+                self.*.sendc_all(server_message::init_log("No players need to discard."));
+                var name = player_to_name(self.*.turn.player);
+                self.*.sendc_all(server_message::init_log_format(
+                    "Waiting for {} to move the robber.",
+                    (:[]std::formatter)[
+                        std::formatter::init[[typeof(name)]](&name)]));
                 self.*.turn.phase = phase::ROBBER;
             }
             else {
+                self.*.sendc_all(server_message::init_log("Waiting for all players to discard."));
                 self.*.turn.phase = phase::DISCARD;
             }
             return;
@@ -706,6 +713,11 @@ struct server_state {
         and self.*.b_discarded
         and self.*.w_discarded
         and self.*.o_discarded {
+            var name = player_to_name(self.*.turn.player);
+            self.*.sendc_all(server_message::init_log_format(
+                "Waiting for {} to move the robber.",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(name)]](&name)]));
             self.*.turn.phase = phase::ROBBER;
             self.*.r_discarded = false;
             self.*.b_discarded = false;
