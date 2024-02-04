@@ -571,14 +571,10 @@ struct client_state {
     var pstate: player_state;
     var pinfo: player_info;
     var board: board;
-    var r_resources: sint;
-    var w_resources: sint;
-    var b_resources: sint;
-    var o_resources: sint;
-    var r_discarded: bool;
-    var w_discarded: bool;
-    var b_discarded: bool;
-    var o_discarded: bool;
+    var r: public_info;
+    var b: public_info;
+    var w: public_info;
+    var o: public_info;
     var turn: turn;
 
     var mouse: Vector2;
@@ -635,14 +631,10 @@ struct client_state {
             .pstate = player_state::NONE,
             .pinfo = uninit,
             .board = board,
-            .r_resources = uninit,
-            .b_resources = uninit,
-            .w_resources = uninit,
-            .o_resources = uninit,
-            .r_discarded = false,
-            .b_discarded = false,
-            .w_discarded = false,
-            .o_discarded = false,
+            .r = uninit,
+            .b = uninit,
+            .w = uninit,
+            .o = uninit,
             .turn = uninit,
 
             .mouse = uninit,
@@ -669,16 +661,16 @@ struct client_state {
             std::unreachable(fileof(), lineof());
         }
         player::RED {
-            return &self.*.r_discarded;
+            return &self.*.r.discarded;
         }
         player::BLUE {
-            return &self.*.b_discarded;
+            return &self.*.b.discarded;
         }
         player::WHITE {
-            return &self.*.w_discarded;
+            return &self.*.w.discarded;
         }
         player::ORANGE {
-            return &self.*.o_discarded;
+            return &self.*.o.discarded;
         }
         }
 
@@ -699,14 +691,10 @@ struct client_state {
         }
         server_message::STATE {
             board::assign(&self.*.board, &message.*.data.state.board);
-            self.*.r_resources = message.*.data.state.r_resources;
-            self.*.b_resources = message.*.data.state.b_resources;
-            self.*.w_resources = message.*.data.state.w_resources;
-            self.*.o_resources = message.*.data.state.o_resources;
-            self.*.r_discarded = message.*.data.state.r_discarded;
-            self.*.b_discarded = message.*.data.state.b_discarded;
-            self.*.w_discarded = message.*.data.state.w_discarded;
-            self.*.o_discarded = message.*.data.state.o_discarded;
+            self.*.r = message.*.data.state.r;
+            self.*.b = message.*.data.state.b;
+            self.*.w = message.*.data.state.w;
+            self.*.o = message.*.data.state.o;
             self.*.turn = message.*.data.state.turn;
         }
         server_message::PLAYER {
@@ -916,16 +904,16 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                 std::unreachable(fileof(), lineof());
             }
             ::player::RED {
-                resources = cstate.*.r_resources;
+                resources = cstate.*.r.resources;
             }
             ::player::BLUE {
-                resources = cstate.*.b_resources;
+                resources = cstate.*.b.resources;
             }
             ::player::WHITE {
-                resources = cstate.*.w_resources;
+                resources = cstate.*.w.resources;
             }
             ::player::ORANGE {
-                resources = cstate.*.o_resources;
+                resources = cstate.*.o.resources;
             }
             }
 
