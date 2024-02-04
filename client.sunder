@@ -569,7 +569,7 @@ struct client_state {
 
     var player: player;
     var pstate: player_state;
-    var phand: hand;
+    var pinfo: player_info;
     var board: board;
     var r_resources: sint;
     var w_resources: sint;
@@ -633,7 +633,7 @@ struct client_state {
 
             .player = player::NIL,
             .pstate = player_state::NONE,
-            .phand = uninit,
+            .pinfo = uninit,
             .board = board,
             .r_resources = uninit,
             .b_resources = uninit,
@@ -663,7 +663,7 @@ struct client_state {
         self.*.board.fini();
     }
 
-    func pdiscarded(self: *client_state) *bool {
+    func p_discarded(self: *client_state) *bool {
         switch self.*.player {
         player::NIL {
             std::unreachable(fileof(), lineof());
@@ -694,8 +694,8 @@ struct client_state {
             std::print_line(log_writer, message.*.data.log.data());
             self.*.ui_log_updated = true;
         }
-        server_message::HAND {
-            self.*.phand = message.*.data.hand;
+        server_message::INFO {
+            self.*.pinfo = message.*.data.info;
         }
         server_message::STATE {
             board::assign(&self.*.board, &message.*.data.state.board);
@@ -941,11 +941,11 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                 var s = std::string::init_from_format(
                     "brick: {}, ore: {}, sheep: {}, wheat: {}, wood: {}",
                     (:[]std::formatter)[
-                        std::formatter::init[[sint]](&cstate.*.phand.brick),
-                        std::formatter::init[[sint]](&cstate.*.phand.ore),
-                        std::formatter::init[[sint]](&cstate.*.phand.sheep),
-                        std::formatter::init[[sint]](&cstate.*.phand.wheat),
-                        std::formatter::init[[sint]](&cstate.*.phand.wood)]);
+                        std::formatter::init[[sint]](&cstate.*.pinfo.brick),
+                        std::formatter::init[[sint]](&cstate.*.pinfo.ore),
+                        std::formatter::init[[sint]](&cstate.*.pinfo.sheep),
+                        std::formatter::init[[sint]](&cstate.*.pinfo.wheat),
+                        std::formatter::init[[sint]](&cstate.*.pinfo.wood)]);
                 defer s.fini();
                 cstate.*.ui.text(s.data());
             }
@@ -994,7 +994,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
-    var show_ui = cstate.*.turn.phase == phase::DISCARD and not *cstate.*.pdiscarded();
+    var show_ui = cstate.*.turn.phase == phase::DISCARD and not *cstate.*.p_discarded();
     if show_ui and cstate.*.ui.begin_window_ex("Select Resources", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
         var win = cstate.*.ui.get_current_container();
@@ -1006,15 +1006,15 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         # Draw window.
         cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
         cstate.*.ui.label("Brick:");
-        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.brick, 0, cstate.*.phand.brick);
+        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.brick, 0, cstate.*.pinfo.brick);
         cstate.*.ui.label("Ore:");
-        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.ore, 0,  cstate.*.phand.ore);
+        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.ore, 0,  cstate.*.pinfo.ore);
         cstate.*.ui.label("Sheep:");
-        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.sheep, 0, cstate.*.phand.sheep);
+        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.sheep, 0, cstate.*.pinfo.sheep);
         cstate.*.ui.label("Wheat:");
-        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.wheat, 0, cstate.*.phand.wheat);
+        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.wheat, 0, cstate.*.pinfo.wheat);
         cstate.*.ui.label("Wood:");
-        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.wood, 0, cstate.*.phand.wood);
+        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.wood, 0, cstate.*.pinfo.wood);
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         var total = cstate.*.ui_resources_select.count();
         var s = std::string::init_from_format("Total = {}", (:[]std::formatter)[std::formatter::init[[sint]](&total)]);

@@ -23,10 +23,10 @@ struct server_state {
     var connections: std::vector[[connection]];
     var ticks: usize;
     var board: board;
-    var r_hand: hand;
-    var b_hand: hand;
-    var w_hand: hand;
-    var o_hand: hand;
+    var r_info: player_info;
+    var b_info: player_info;
+    var w_info: player_info;
+    var o_info: player_info;
     var r_discarded: bool;
     var b_discarded: bool;
     var w_discarded: bool;
@@ -38,10 +38,10 @@ struct server_state {
             .connections = std::vector[[connection]]::init(),
             .ticks = 0,
             .board = board::init_starter_map_for_beginners(),
-            .r_hand = uninit,
-            .b_hand = uninit,
-            .w_hand = uninit,
-            .o_hand = uninit,
+            .r_info = uninit,
+            .b_info = uninit,
+            .w_info = uninit,
+            .o_info = uninit,
             .r_discarded = false,
             .b_discarded = false,
             .w_discarded = false,
@@ -68,30 +68,30 @@ struct server_state {
         message.fini();
     }
 
-    func phand(self: *server_state, player: player) *hand {
+    func p_info(self: *server_state, player: player) *player_info {
         switch player {
         ::player::NIL {
             std::unreachable(fileof(), lineof());
         }
         ::player::RED {
-            return &self.*.r_hand;
+            return &self.*.r_info;
         }
         ::player::BLUE {
-            return &self.*.b_hand;
+            return &self.*.b_info;
         }
         ::player::WHITE {
-            return &self.*.w_hand;
+            return &self.*.w_info;
         }
         ::player::ORANGE {
-            return &self.*.o_hand;
+            return &self.*.o_info;
         }
         }
 
         std::unreachable(fileof(), lineof());
-        return std::zeroed[[*hand]]();
+        return std::zeroed[[*player_info]]();
     }
 
-    func pdiscarded(self: *server_state, player: player) *bool {
+    func p_discarded(self: *server_state, player: player) *bool {
         switch player {
         ::player::NIL {
             std::unreachable(fileof(), lineof());
@@ -155,10 +155,10 @@ struct server_state {
                 std::formatter::init[[typeof(roll)]](&roll)]));
 
         if roll == 7 {
-            if (self.*.r_hand.resource_count() <= 7)
-            and (self.*.b_hand.resource_count() <= 7)
-            and (self.*.w_hand.resource_count() <= 7)
-            and (self.*.o_hand.resource_count() <= 7) {
+            if (self.*.r_info.resource_count() <= 7)
+            and (self.*.b_info.resource_count() <= 7)
+            and (self.*.w_info.resource_count() <= 7)
+            and (self.*.o_info.resource_count() <= 7) {
                 self.*.sendc_all(server_message::init_log("No players need to discard."));
                 var name = player_to_name(self.*.turn.player);
                 self.*.sendc_all(server_message::init_log_format(
@@ -193,12 +193,12 @@ struct server_state {
                 if tile.number != roll {
                     continue;
                 }
-                var hand = self.*.phand(town.player);
-                hand.*.brick += amount * (:sint)(tile.kind == ::tile::HILL);
-                hand.*.ore += amount * (:sint)(tile.kind == ::tile::MOUNTAIN);
-                hand.*.sheep += amount * (:sint)(tile.kind == ::tile::PASTURE);
-                hand.*.wheat += amount * (:sint)(tile.kind == ::tile::FIELD);
-                hand.*.wood += amount * (:sint)(tile.kind == ::tile::FOREST);
+                var info = self.*.p_info(town.player);
+                info.*.brick += amount * (:sint)(tile.kind == ::tile::HILL);
+                info.*.ore += amount * (:sint)(tile.kind == ::tile::MOUNTAIN);
+                info.*.sheep += amount * (:sint)(tile.kind == ::tile::PASTURE);
+                info.*.wheat += amount * (:sint)(tile.kind == ::tile::FIELD);
+                info.*.wood += amount * (:sint)(tile.kind == ::tile::FOREST);
             }
         }
         self.*.turn.phase = phase::MAIN;
@@ -346,14 +346,14 @@ struct server_state {
             return;
         }
 
-        var hand = self.*.phand(self.*.turn.player);
-        if not (hand.*.brick >= 1 and hand.*.wood >= 1) {
+        var info = self.*.p_info(self.*.turn.player);
+        if not (info.*.brick >= 1 and info.*.wood >= 1) {
             connection.*.sendc(server_message::init_rejected("cannot build road (insufficient resources)"));
             return;
         }
 
-        hand.*.brick -= 1;
-        hand.*.wood -= 1;
+        info.*.brick -= 1;
+        info.*.wood -= 1;
         insert_road(&self.*.board.roads, road);
 
         connection.*.sendc(server_message::init_accepted("built road"));
@@ -439,25 +439,25 @@ struct server_state {
             return;
         }
 
-        var hand = self.*.phand(self.*.turn.player);
+        var info = self.*.p_info(self.*.turn.player);
         switch town.kind {
         ::town::SETTLEMENT {
-            if not (hand.*.brick >= 1 and hand.*.sheep >= 1 and hand.*.wheat >= 1 and hand.*.wood >= 1) {
+            if not (info.*.brick >= 1 and info.*.sheep >= 1 and info.*.wheat >= 1 and info.*.wood >= 1) {
                 connection.*.sendc(server_message::init_rejected("cannot build settlement (insufficient resources)"));
                 return;
             }
-            hand.*.brick -= 1;
-            hand.*.sheep -= 1;
-            hand.*.wheat -= 1;
-            hand.*.wood -= 1;
+            info.*.brick -= 1;
+            info.*.sheep -= 1;
+            info.*.wheat -= 1;
+            info.*.wood -= 1;
         }
         ::town::CITY {
-            if not (hand.*.ore >= 3 and hand.*.wheat >= 2) {
+            if not (info.*.ore >= 3 and info.*.wheat >= 2) {
                 connection.*.sendc(server_message::init_rejected("cannot build city (insufficient resources)"));
                 return;
             }
-            hand.*.ore -= 3;
-            hand.*.wheat -= 2;
+            info.*.ore -= 3;
+            info.*.wheat -= 2;
         }
         }
         insert_town(&self.*.board.towns, town);
@@ -522,7 +522,7 @@ struct server_state {
             if town.player == connection.*.player {
                 continue;
             }
-            if self.*.phand(town.player).*.resource_count() != 0 {
+            if self.*.p_info(town.player).*.resource_count() != 0 {
                 self.*.turn.phase = phase::STEAL;
                 return;
             }
@@ -551,8 +551,8 @@ struct server_state {
         var was = player_to_name(connection.*.player);
         connection.*.player = selected;
         if connection.*.player != player::NIL {
-            var hand = self.*.phand(connection.*.player);
-            connection.*.sendc(server_message::init_hand(*hand));
+            var info = self.*.p_info(connection.*.player);
+            connection.*.sendc(server_message::init_info(*info));
         }
 
         var name = player_to_name(selected);
@@ -609,9 +609,9 @@ struct server_state {
             return;
         }
 
-        var t_hand = self.*.phand(self.*.turn.player);
-        var f_hand = self.*.phand(player);
-        if f_hand.*.resource_count() == 0 {
+        var t_info = self.*.p_info(self.*.turn.player);
+        var f_info = self.*.p_info(player);
+        if f_info.*.resource_count() == 0 {
             connection.*.sendc(server_message::init_rejected_format(
                 "cannot submit player ({} has no resources)",
                 (:[]std::formatter)[
@@ -620,42 +620,42 @@ struct server_state {
 
         var v = std::vector[[resource]]::init();
         defer v.fini();
-        for _ in (:usize)f_hand.*.brick {
+        for _ in (:usize)f_info.*.brick {
             v.push(resource::BRICK);
         }
-        for _ in (:usize)f_hand.*.ore {
+        for _ in (:usize)f_info.*.ore {
             v.push(resource::ORE);
         }
-        for _ in (:usize)f_hand.*.sheep {
+        for _ in (:usize)f_info.*.sheep {
             v.push(resource::SHEEP);
         }
-        for _ in (:usize)f_hand.*.wheat {
+        for _ in (:usize)f_info.*.wheat {
             v.push(resource::WHEAT);
         }
-        for _ in (:usize)f_hand.*.wood {
+        for _ in (:usize)f_info.*.wood {
             v.push(resource::WOOD);
         }
         var r = v.data()[(:usize)random32() % v.count()];
         switch r {
         resource::BRICK {
-            f_hand.*.brick -= 1;
-            t_hand.*.brick += 1;
+            f_info.*.brick -= 1;
+            t_info.*.brick += 1;
         }
         resource::ORE {
-            f_hand.*.ore -= 1;
-            t_hand.*.ore += 1;
+            f_info.*.ore -= 1;
+            t_info.*.ore += 1;
         }
         resource::SHEEP {
-            f_hand.*.sheep -= 1;
-            t_hand.*.sheep += 1;
+            f_info.*.sheep -= 1;
+            t_info.*.sheep += 1;
         }
         resource::WHEAT {
-            f_hand.*.wheat -= 1;
-            t_hand.*.wheat += 1;
+            f_info.*.wheat -= 1;
+            t_info.*.wheat += 1;
         }
         resource::WOOD {
-            f_hand.*.wood -= 1;
-            t_hand.*.wood += 1;
+            f_info.*.wood -= 1;
+            t_info.*.wood += 1;
         }
         }
 
@@ -678,33 +678,33 @@ struct server_state {
             connection.*.sendc(server_message::init_rejected("cannot discard resources (it is not the discard phase)"));
             return;
         }
-        var discarded = self.*.pdiscarded(connection.*.player);
+        var discarded = self.*.p_discarded(connection.*.player);
         if *discarded {
             connection.*.sendc(server_message::init_rejected("cannot discard resources (player has already discarded)"));
             return;
         }
-        var hand = self.*.phand(connection.*.player);
-        if hand.*.resource_count() <= 7 {
+        var info = self.*.p_info(connection.*.player);
+        if info.*.resource_count() <= 7 {
             connection.*.sendc(server_message::init_rejected("cannot discard resources (player has seven or fewer resources)"));
             return;
         }
-        if hand.*.resource_count() / 2 != resources.count() {
+        if info.*.resource_count() / 2 != resources.count() {
             connection.*.sendc(server_message::init_rejected("cannot discard resources (player must discard exactly half of their resources rounded down)"));
             return;
         }
-        if hand.*.brick < resources.brick
-        or hand.*.ore < resources.ore
-        or hand.*.sheep < resources.sheep
-        or hand.*.wheat < resources.wheat
-        or hand.*.wood < resources.wood {
+        if info.*.brick < resources.brick
+        or info.*.ore < resources.ore
+        or info.*.sheep < resources.sheep
+        or info.*.wheat < resources.wheat
+        or info.*.wood < resources.wood {
             connection.*.sendc(server_message::init_rejected("cannot discard resources (invalid resource selection)"));
             return;
         }
-        hand.*.brick -= resources.brick;
-        hand.*.ore -= resources.ore;
-        hand.*.sheep -= resources.sheep;
-        hand.*.wheat -= resources.wheat;
-        hand.*.wood -= resources.wood;
+        info.*.brick -= resources.brick;
+        info.*.ore -= resources.ore;
+        info.*.sheep -= resources.sheep;
+        info.*.wheat -= resources.wheat;
+        info.*.wood -= resources.wood;
         *discarded = true;
 
         connection.*.sendc(server_message::init_accepted("discarded resources"));
@@ -768,10 +768,10 @@ func server_update(sstate: *server_state) void {
     if sstate.*.ticks % 4 == 0 {
         sstate.*.sendc_all(server_message::init_state(
             &sstate.*.board,
-            sstate.*.r_hand.resource_count(),
-            sstate.*.b_hand.resource_count(),
-            sstate.*.w_hand.resource_count(),
-            sstate.*.o_hand.resource_count(),
+            sstate.*.r_info.resource_count(),
+            sstate.*.b_info.resource_count(),
+            sstate.*.w_info.resource_count(),
+            sstate.*.o_info.resource_count(),
             sstate.*.r_discarded,
             sstate.*.b_discarded,
             sstate.*.w_discarded,
@@ -782,8 +782,8 @@ func server_update(sstate: *server_state) void {
             if sstate.*.connections.data()[i].player == player::NIL {
                 continue;
             }
-            var hand = sstate.*.phand(sstate.*.connections.data()[i].player);
-            sstate.*.connections.data()[i].sendc(server_message::init_hand(*hand));
+            var info = sstate.*.p_info(sstate.*.connections.data()[i].player);
+            sstate.*.connections.data()[i].sendc(server_message::init_info(*info));
         }
     }
 

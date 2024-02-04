@@ -1414,15 +1414,15 @@ struct resources {
     }
 }
 
-struct hand {
+struct player_info {
     var brick: sint;
     var ore: sint;
     var sheep: sint;
     var wheat: sint;
     var wood: sint;
 
-    func init_from_bubby(value: *bubby::value) hand {
-        var self: hand = uninit;
+    func init_from_bubby(value: *bubby::value) player_info {
+        var self: player_info = uninit;
         self.brick = xstr_to_int[[sint]](value.*.map_xlookup_str("brick").*.str());
         self.ore = xstr_to_int[[sint]](value.*.map_xlookup_str("ore").*.str());
         self.sheep = xstr_to_int[[sint]](value.*.map_xlookup_str("sheep").*.str());
@@ -1431,7 +1431,7 @@ struct hand {
         return self;
     }
 
-    func to_bubby(self: *hand) bubby::value {
+    func to_bubby(self: *player_info) bubby::value {
         var out = bubby::value::init_map();
         out.map_insert_str("brick", int_to_bubby[[sint]](self.*.brick));
         out.map_insert_str("ore", int_to_bubby[[sint]](self.*.ore));
@@ -1441,7 +1441,7 @@ struct hand {
         return out;
     }
 
-    func resource_count(self: *hand) sint {
+    func resource_count(self: *player_info) sint {
         return self.*.brick + self.*.ore + self.*.sheep + self.*.wheat + self.*.wood;
     }
 }
@@ -1704,7 +1704,7 @@ struct client_message {
 struct server_message {
     var kind: enum {
         LOG;
-        HAND;
+        INFO;
         STATE;
         PLAYER;
         ACCEPTED;
@@ -1712,7 +1712,7 @@ struct server_message {
     };
     var data: union {
         var log: std::string;
-        var hand: hand;
+        var info: player_info;
         var state: struct {
             var board: board;
             var r_resources: sint;
@@ -1746,10 +1746,10 @@ struct server_message {
         };
     }
 
-    func init_hand(hand: hand) server_message {
+    func init_info(info: player_info) server_message {
         return (:server_message){
-            .kind = server_message::HAND,
-            .data = (:typeof(SELF.data)){.hand = hand},
+            .kind = server_message::INFO,
+            .data = (:typeof(SELF.data)){.info = info},
         };
     }
 
@@ -1823,7 +1823,7 @@ struct server_message {
         server_message::LOG {
             self.*.data.log.fini();
         }
-        server_message::HAND {
+        server_message::INFO {
             # nothing
         }
         server_message::STATE {
@@ -1846,9 +1846,9 @@ struct server_message {
         if std::str::eq(kind, "log") {
             return server_message::init_log(value.*.map_xlookup_str("data").*.str());
         }
-        if std::str::eq(kind, "hand") {
-            var hand = hand::init_from_bubby(value.*.map_xlookup_str("data"));
-            return server_message::init_hand(hand);
+        if std::str::eq(kind, "info") {
+            var info = player_info::init_from_bubby(value.*.map_xlookup_str("data"));
+            return server_message::init_info(info);
         }
         if std::str::eq(kind, "state") {
             var state = value.*.map_xlookup_str("data");
@@ -1897,9 +1897,9 @@ struct server_message {
             out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("log"));
             out.map().*.insert(bubby::value::init_str("data"), bubby::value::init_str(self.*.data.log.data()));
         }
-        server_message::HAND {
-            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("hand"));
-            out.map().*.insert(bubby::value::init_str("data"), self.*.data.hand.to_bubby());
+        server_message::INFO {
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("info"));
+            out.map().*.insert(bubby::value::init_str("data"), self.*.data.info.to_bubby());
         }
         server_message::STATE {
             out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("state"));
