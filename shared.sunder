@@ -1770,21 +1770,21 @@ struct server_message {
 
     func init_state(
         board: *board,
+        turn: turn,
         r: public_player_info,
         b: public_player_info,
         w: public_player_info,
-        o: public_player_info,
-        turn: turn) server_message {
+        o: public_player_info) server_message {
         return (:server_message){
             .kind = server_message::STATE,
             .data = (:typeof(SELF.data)){
                 .state = (:typeof(SELF.data.state)){
                     .board = ::board::init_assign(board),
+                    .turn = turn,
                     .r = r,
                     .b = b,
                     .w = w,
                     .o = o,
-                    .turn = turn,
                 }
             },
         };
@@ -1868,11 +1868,11 @@ struct server_message {
             var turn = turn::init_from_bubby(state.*.map_xlookup_str("turn"));
             return server_message::init_state(
                 &board,
+                turn,
                 r,
                 b,
                 w,
-                o,
-                turn);
+                o);
         }
         if std::str::eq(kind, "player") {
             var player = bubby_to_player(value.*.map_xlookup_str("data"));

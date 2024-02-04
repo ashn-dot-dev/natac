@@ -784,11 +784,11 @@ func server_update(sstate: *server_state) void {
         };
         sstate.*.sendc_all(server_message::init_state(
             &sstate.*.board,
+            sstate.*.turn,
             r,
             b,
             w,
-            o,
-            sstate.*.turn));
+            o));
 
         for i in sstate.*.connections.count() {
             if sstate.*.connections.data()[i].player == player::NIL {
