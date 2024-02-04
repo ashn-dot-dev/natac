@@ -169,6 +169,10 @@ struct server_state {
             }
             else {
                 self.*.sendc_all(server_message::init_log("Waiting for all players to discard."));
+                self.*.r_discarded = self.*.r_info.resource_count() <= 7;
+                self.*.b_discarded = self.*.b_info.resource_count() <= 7;
+                self.*.w_discarded = self.*.w_info.resource_count() <= 7;
+                self.*.o_discarded = self.*.o_info.resource_count() <= 7;
                 self.*.turn.phase = phase::DISCARD;
             }
             return;
@@ -616,6 +620,7 @@ struct server_state {
                 "cannot submit player ({} has no resources)",
                 (:[]std::formatter)[
                     std::formatter::init[[typeof(f_name)]](&f_name)]));
+            return;
         }
 
         var v = std::vector[[resource]]::init();
