@@ -569,12 +569,12 @@ struct client_state {
 
     var player: player;
     var pstate: player_state;
-    var pinfo: player_info;
+    var pinfo: hidden_player_info;
     var board: board;
-    var r: public_info;
-    var b: public_info;
-    var w: public_info;
-    var o: public_info;
+    var r: public_player_info;
+    var b: public_player_info;
+    var w: public_player_info;
+    var o: public_player_info;
     var turn: turn;
 
     var mouse: Vector2;

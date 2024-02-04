@@ -1414,16 +1414,15 @@ struct resources {
     }
 }
 
-# Hidden Player Information
-struct player_info {
+struct hidden_player_info {
     var brick: sint;
     var ore: sint;
     var sheep: sint;
     var wheat: sint;
     var wood: sint;
 
-    func init_from_bubby(value: *bubby::value) player_info {
-        var self: player_info = uninit;
+    func init_from_bubby(value: *bubby::value) hidden_player_info {
+        var self: hidden_player_info = uninit;
         self.brick = xstr_to_int[[sint]](value.*.map_xlookup_str("brick").*.str());
         self.ore = xstr_to_int[[sint]](value.*.map_xlookup_str("ore").*.str());
         self.sheep = xstr_to_int[[sint]](value.*.map_xlookup_str("sheep").*.str());
@@ -1432,7 +1431,7 @@ struct player_info {
         return self;
     }
 
-    func to_bubby(self: *player_info) bubby::value {
+    func to_bubby(self: *hidden_player_info) bubby::value {
         var out = bubby::value::init_map();
         out.map_insert_str("brick", int_to_bubby[[sint]](self.*.brick));
         out.map_insert_str("ore", int_to_bubby[[sint]](self.*.ore));
@@ -1442,24 +1441,23 @@ struct player_info {
         return out;
     }
 
-    func resource_count(self: *player_info) sint {
+    func resource_count(self: *hidden_player_info) sint {
         return self.*.brick + self.*.ore + self.*.sheep + self.*.wheat + self.*.wood;
     }
 }
 
-# Public Player Information
-struct public_info {
+struct public_player_info {
     var resources: sint;
     var discarded: bool;
 
-    func init_from_bubby(value: *bubby::value) public_info {
-        var self: public_info = uninit;
+    func init_from_bubby(value: *bubby::value) public_player_info {
+        var self: public_player_info = uninit;
         self.resources = xstr_to_int[[sint]](value.*.map_xlookup_str("resources").*.str());
         self.discarded = xstr_to_bool(value.*.map_xlookup_str("discarded").*.str());
         return self;
     }
 
-    func to_bubby(self: *public_info) bubby::value {
+    func to_bubby(self: *public_player_info) bubby::value {
         var out = bubby::value::init_map();
         out.map_insert_str("resources", int_to_bubby[[sint]](self.*.resources));
         out.map_insert_str("discarded", bool_to_bubby(self.*.discarded));
@@ -1733,13 +1731,13 @@ struct server_message {
     };
     var data: union {
         var log: std::string;
-        var info: player_info;
+        var info: hidden_player_info;
         var state: struct {
             var board: board;
-            var r: public_info;
-            var b: public_info;
-            var w: public_info;
-            var o: public_info;
+            var r: public_player_info;
+            var b: public_player_info;
+            var w: public_player_info;
+            var o: public_player_info;
             var turn: turn;
         };
         var player: player;
@@ -1763,7 +1761,7 @@ struct server_message {
         };
     }
 
-    func init_info(info: player_info) server_message {
+    func init_info(info: hidden_player_info) server_message {
         return (:server_message){
             .kind = server_message::INFO,
             .data = (:typeof(SELF.data)){.info = info},
@@ -1772,10 +1770,10 @@ struct server_message {
 
     func init_state(
         board: *board,
-        r: public_info,
-        b: public_info,
-        w: public_info,
-        o: public_info,
+        r: public_player_info,
+        b: public_player_info,
+        w: public_player_info,
+        o: public_player_info,
         turn: turn) server_message {
         return (:server_message){
             .kind = server_message::STATE,
@@ -1856,17 +1854,17 @@ struct server_message {
             return server_message::init_log(value.*.map_xlookup_str("data").*.str());
         }
         if std::str::eq(kind, "info") {
-            var info = player_info::init_from_bubby(value.*.map_xlookup_str("data"));
+            var info = hidden_player_info::init_from_bubby(value.*.map_xlookup_str("data"));
             return server_message::init_info(info);
         }
         if std::str::eq(kind, "state") {
             var state = value.*.map_xlookup_str("data");
             var board = board::init_from_bubby(state.*.map_xlookup_str("board"));
             defer board.fini();
-            var r = public_info::init_from_bubby(state.*.map_xlookup_str("r"));
-            var b = public_info::init_from_bubby(state.*.map_xlookup_str("b"));
-            var w = public_info::init_from_bubby(state.*.map_xlookup_str("w"));
-            var o = public_info::init_from_bubby(state.*.map_xlookup_str("o"));
+            var r = public_player_info::init_from_bubby(state.*.map_xlookup_str("r"));
+            var b = public_player_info::init_from_bubby(state.*.map_xlookup_str("b"));
+            var w = public_player_info::init_from_bubby(state.*.map_xlookup_str("w"));
+            var o = public_player_info::init_from_bubby(state.*.map_xlookup_str("o"));
             var turn = turn::init_from_bubby(state.*.map_xlookup_str("turn"));
             return server_message::init_state(
                 &board,

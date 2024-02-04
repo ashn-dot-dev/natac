@@ -23,10 +23,10 @@ struct server_state {
     var connections: std::vector[[connection]];
     var ticks: usize;
     var board: board;
-    var r_info: player_info;
-    var b_info: player_info;
-    var w_info: player_info;
-    var o_info: player_info;
+    var r_info: hidden_player_info;
+    var b_info: hidden_player_info;
+    var w_info: hidden_player_info;
+    var o_info: hidden_player_info;
     var r_discarded: bool;
     var b_discarded: bool;
     var w_discarded: bool;
@@ -68,7 +68,7 @@ struct server_state {
         message.fini();
     }
 
-    func p_info(self: *server_state, player: player) *player_info {
+    func p_info(self: *server_state, player: player) *hidden_player_info {
         switch player {
         ::player::NIL {
             std::unreachable(fileof(), lineof());
@@ -88,7 +88,7 @@ struct server_state {
         }
 
         std::unreachable(fileof(), lineof());
-        return std::zeroed[[*player_info]]();
+        return std::zeroed[[*hidden_player_info]]();
     }
 
     func p_discarded(self: *server_state, player: player) *bool {
@@ -766,19 +766,19 @@ func server_update(sstate: *server_state) void {
     # The state of the board changes relatively infrequently, so it is not
     # necessary to serialize and send the entire board state every game tick.
     if sstate.*.ticks % 4 == 0 {
-        var r = (:public_info){
+        var r = (:public_player_info){
             .resources = sstate.*.r_info.resource_count(),
             .discarded = sstate.*.r_discarded,
         };
-        var b = (:public_info){
+        var b = (:public_player_info){
             .resources = sstate.*.b_info.resource_count(),
             .discarded = sstate.*.b_discarded,
         };
-        var w = (:public_info){
+        var w = (:public_player_info){
             .resources = sstate.*.w_info.resource_count(),
             .discarded = sstate.*.w_discarded,
         };
-        var o = (:public_info){
+        var o = (:public_player_info){
             .resources = sstate.*.o_info.resource_count(),
             .discarded = sstate.*.o_discarded,
         };
