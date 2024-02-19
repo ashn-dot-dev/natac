@@ -1065,7 +1065,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
         if IsMouseButtonPressed(MOUSE_BUTTON_LEFT) and cstate.*.world_node.is_value() {
             var existing = cstate.*.board.towns.lookup(cstate.*.world_node.value());
-            if existing.is_value() and existing.value().player == cstate.*.player {
+            if existing.is_value() and existing.value().*.player == cstate.*.player {
                 var cmessage = client_message::init_build_town(
                     town::init(
                         cstate.*.player,
@@ -1089,8 +1089,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             var tile_b = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[1]);
             assert tile_a.is_value() and tile_b.is_value();
             var is_road_across_water =
-                tile_a.value().kind == tile::OCEAN and
-                tile_b.value().kind == tile::OCEAN;
+                tile_a.value().*.kind == tile::OCEAN and
+                tile_b.value().*.kind == tile::OCEAN;
             if not is_road_across_water {
                 var cmessage = client_message::init_build_road(
                     road::init(
@@ -1184,7 +1184,7 @@ func client_render(cstate: *client_state) void {
     # are drawn so that the hovered-over tile appears highlighted.
     if cstate.*.pstate == player_state::MOVE_ROBBER {
         var tile = cstate.*.board.tiles.lookup(cstate.*.world_hex);
-        if tile.is_value() and tile.value().kind != ::tile::OCEAN {
+        if tile.is_value() and tile.value().*.kind != ::tile::OCEAN {
             draw_pointy_hexagon_outline(world_hex_center, HEX_RADIUS, YELLOW);
             draw_pointy_hexagon_border(world_hex_center, HEX_RADIUS, BLACK);
         }
@@ -1213,8 +1213,8 @@ func client_render(cstate: *client_state) void {
         var tile_b = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[1]);
         assert tile_a.is_value() and tile_b.is_value();
         var is_road_across_water =
-            tile_a.value().kind == tile::OCEAN and
-            tile_b.value().kind == tile::OCEAN;
+            tile_a.value().*.kind == tile::OCEAN and
+            tile_b.value().*.kind == tile::OCEAN;
         if not is_road_across_water {
             var points = edge_to_points(cstate.*.world_edge.value(), HEX_RADIUS);
             draw_road(points[0], points[1], HEX_RADIUS, YELLOW);

@@ -194,15 +194,15 @@ struct server_state {
             for i in countof(node.hexes) {
                 var tile = self.*.board.tiles.lookup(node.hexes[i]);
                 var tile = tile.value();
-                if tile.number != roll {
+                if tile.*.number != roll {
                     continue;
                 }
                 var info = self.*.p_info(town.player);
-                info.*.brick += amount * (:sint)(tile.kind == ::tile::HILL);
-                info.*.ore += amount * (:sint)(tile.kind == ::tile::MOUNTAIN);
-                info.*.sheep += amount * (:sint)(tile.kind == ::tile::PASTURE);
-                info.*.wheat += amount * (:sint)(tile.kind == ::tile::FIELD);
-                info.*.wood += amount * (:sint)(tile.kind == ::tile::FOREST);
+                info.*.brick += amount * (:sint)(tile.*.kind == ::tile::HILL);
+                info.*.ore += amount * (:sint)(tile.*.kind == ::tile::MOUNTAIN);
+                info.*.sheep += amount * (:sint)(tile.*.kind == ::tile::PASTURE);
+                info.*.wheat += amount * (:sint)(tile.*.kind == ::tile::FIELD);
+                info.*.wood += amount * (:sint)(tile.*.kind == ::tile::FOREST);
             }
         }
         self.*.turn.phase = phase::MAIN;
@@ -257,8 +257,8 @@ struct server_state {
         var tile_a = self.*.board.tiles.lookup(road.edge.hexes[0]);
         var tile_b = self.*.board.tiles.lookup(road.edge.hexes[1]);
         var is_road_across_water =
-            tile_a.value().kind == tile::OCEAN and
-            tile_b.value().kind == tile::OCEAN;
+            tile_a.value().*.kind == tile::OCEAN and
+            tile_b.value().*.kind == tile::OCEAN;
         if is_road_across_water {
             connection.*.sendc(server_message::init_rejected("cannot build road (cannot build on water)"));
             return;
@@ -281,10 +281,10 @@ struct server_state {
                 continue;
             }
             var adjacent = adjacent.value();
-            if adjacent.player != road.player {
+            if adjacent.*.player != road.player {
                 continue;
             }
-            adjacent_roads.insert(adjacent);
+            adjacent_roads.insert(*adjacent);
         }
         var adjacent_nodes = adjacent_nodes_to_edge(road.edge, &self.*.board.nodes);
         defer adjacent_nodes.fini();
@@ -297,10 +297,10 @@ struct server_state {
                 continue;
             }
             var adjacent = adjacent.value();
-            if adjacent.player != road.player {
+            if adjacent.*.player != road.player {
                 continue;
             }
-            adjacent_towns.insert(adjacent);
+            adjacent_towns.insert(*adjacent);
         }
         if adjacent_roads.count() == 0 and adjacent_towns.count() == 0 {
             connection.*.sendc(server_message::init_rejected("cannot build road (no adjacent road or town)"));
@@ -322,14 +322,14 @@ struct server_state {
             var town = self.*.board.towns.lookup(*iter.current());
             if town.is_empty() {
                 # No town between the two road pieces.
-                unobstructed_road_count = unobstructed_road_count + 1;
+                unobstructed_road_count += 1;
                 continue;
             }
             var town = town.value();
-            if town.player == road.player {
+            if town.*.player == road.player {
                 # Town between the two road pieces belongs to the player
                 # placing the road.
-                unobstructed_road_count = unobstructed_road_count + 1;
+                unobstructed_road_count += 1;
                 continue;
             }
         }
@@ -342,7 +342,7 @@ struct server_state {
         var iter = std::hash_map_iterator[[edge, ::road]]::init(&self.*.board.roads);
         for iter.advance() {
             if iter.current().*.value.*.player == road.player {
-                player_road_count = player_road_count + 1;
+                player_road_count += 1;
             }
         }
         if player_road_count >= 15 {
@@ -386,7 +386,7 @@ struct server_state {
         if existing.is_value() {
             var existing = existing.value();
             # Special case for upgrading a settlement to a city.
-            if not (existing.player == town.player and existing.kind == ::town::SETTLEMENT and town.kind == ::town::CITY) {
+            if not (existing.*.player == town.player and existing.*.kind == ::town::SETTLEMENT and town.kind == ::town::CITY) {
                 connection.*.sendc(server_message::init_rejected("cannot build town (town exists at location)"));
                 return;
             }
@@ -416,7 +416,7 @@ struct server_state {
                 continue;
             }
             var adjacent = adjacent.value();
-            if adjacent.player != town.player {
+            if adjacent.*.player != town.player {
                 continue;
             }
 
@@ -501,7 +501,7 @@ struct server_state {
         }
 
         var tile = tile.value();
-        if tile.kind == ::tile::OCEAN {
+        if tile.*.kind == ::tile::OCEAN {
             connection.*.sendc(server_message::init_rejected("cannot move robber (tile is ocean)"));
             return;
         }
@@ -523,10 +523,10 @@ struct server_state {
                 continue;
             }
             var town = optional.value();
-            if town.player == connection.*.player {
+            if town.*.player == connection.*.player {
                 continue;
             }
-            if self.*.p_info(town.player).*.resource_count() != 0 {
+            if self.*.p_info(town.*.player).*.resource_count() != 0 {
                 self.*.turn.phase = phase::STEAL;
                 return;
             }
@@ -600,7 +600,7 @@ struct server_state {
                 continue;
             }
             var town = optional.value();
-            if town.player == player {
+            if town.*.player == player {
                 is_adjacent = true;
                 break;
             }
