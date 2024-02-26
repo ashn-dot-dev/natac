@@ -264,6 +264,28 @@ enum resource {
 
         return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
     }
+
+    func init_from_bubby(value: *bubby::value) resource {
+        let RESOURCES = (:[]resource)[
+            resource::BRICK,
+            resource::ORE,
+            resource::SHEEP,
+            resource::WHEAT,
+            resource::WOOD,
+        ];
+        for i in countof(RESOURCES) {
+            if std::str::eq(value.*.str(), RESOURCES[i].data()) {
+                return RESOURCES[i];
+            }
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[resource]]();
+    }
+
+    func to_bubby(self: *resource) bubby::value {
+        return bubby::value::init_str(self.*.data());
+    }
 }
 
 struct tile {
@@ -1382,6 +1404,50 @@ func adjacent_nodes_to_node(target: node, nodes: *std::hash_set[[node]]) std::ha
     return out;
 }
 
+func n_to_1(board: *board, player: player, resource: resource) sint {
+    var n: sint = 4;
+
+    var iter = std::hash_set_iterator[[port]]::init(&board.*.ports);
+    for iter.advance() {
+        var port = *iter.current();
+        for i in countof(port.nodes) {
+            var town = board.*.towns.lookup(port.nodes[i]);
+            if town.is_empty() {
+                continue;
+            }
+
+            var town = *town.value();
+            if town.player != player {
+                continue;
+            }
+
+            if port.kind == ::port::ANY {
+                n = typeof(n)::min(n, 3);
+            }
+            elif port.kind == ::port::BRICK and resource == ::resource::BRICK {
+                n = typeof(n)::min(n, 2);
+            }
+            elif port.kind == ::port::ORE and resource == ::resource::ORE {
+                n = typeof(n)::min(n, 2);
+            }
+            elif port.kind == ::port::SHEEP and resource == ::resource::SHEEP {
+                n = typeof(n)::min(n, 2);
+            }
+            elif port.kind == ::port::WHEAT and resource == ::resource::WHEAT {
+                n = typeof(n)::min(n, 2);
+            }
+            elif port.kind == ::port::WOOD and resource == ::resource::WOOD {
+                n = typeof(n)::min(n, 2);
+            }
+            else {
+                std::unreachable(fileof(), lineof());
+            }
+        }
+    }
+
+    return n;
+}
+
 struct resources {
     var brick: sint;
     var ore: sint;
@@ -1439,6 +1505,29 @@ struct hidden_player_info {
         out.map_insert_str("wheat", int_to_bubby[[sint]](self.*.wheat));
         out.map_insert_str("wood", int_to_bubby[[sint]](self.*.wood));
         return out;
+    }
+
+    func resource_ref(self: *hidden_player_info, resource: resource) *sint {
+        switch resource {
+        ::resource::BRICK {
+            return &self.*.brick;
+        }
+        ::resource::ORE {
+            return &self.*.ore;
+        }
+        ::resource::SHEEP {
+            return &self.*.sheep;
+        }
+        ::resource::WHEAT {
+            return &self.*.wheat;
+        }
+        ::resource::WOOD {
+            return &self.*.wood;
+        }
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[*sint]]();
     }
 
     func resource_count(self: *hidden_player_info) sint {
@@ -1577,6 +1666,7 @@ struct client_message {
         SELECT_PLAYER;
         SUBMIT_PLAYER;
         SUBMIT_RESOURCES;
+        TRADE_N_FOR_1;
     };
     var data: union {
         var build_road: road;
@@ -1585,6 +1675,11 @@ struct client_message {
         var select_player: player;
         var submit_player: player;
         var submit_resources: resources;
+        var trade_n_for_1: struct {
+            var give: resource;
+            var recv: resource;
+            var n: sint;
+        };
     };
 
     let SELF: client_message = uninit;
@@ -1645,6 +1740,18 @@ struct client_message {
         };
     }
 
+    func init_trade_n_for_1(give: resource, recv: resource, n: sint) client_message {
+        var trade_n_for_1 = (:typeof(SELF.data.trade_n_for_1)){
+            .give = give,
+            .recv = recv,
+            .n = n,
+        };
+        return (:client_message){
+            .kind = client_message::TRADE_N_FOR_1,
+            .data = (:typeof(SELF.data)){.trade_n_for_1 = trade_n_for_1},
+        };
+    }
+
     func init_from_bubby(value: *bubby::value) client_message {
         var kind = value.*.map_xlookup_str("kind");
         if std::str::eq(kind.*.str(), "roll") {
@@ -1676,6 +1783,13 @@ struct client_message {
         if std::str::eq(kind.*.str(), "submit-resources") {
             var resources = resources::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_submit_resources(resources);
+        }
+        if std::str::eq(kind.*.str(), "trade-n-for-1") {
+            var data = value.*.map_xlookup_str("data");
+            var give = resource::init_from_bubby(data.*.map_xlookup_str("give"));
+            var recv = resource::init_from_bubby(data.*.map_xlookup_str("recv"));
+            var n = xstr_to_int[[sint]](data.*.map_xlookup_str("n").*.str());
+            return client_message::init_trade_n_for_1(give, recv, n);
         }
 
         std::unreachable(fileof(), lineof());
@@ -1714,6 +1828,14 @@ struct client_message {
         client_message::SUBMIT_RESOURCES {
             out.map_insert_str("kind", bubby::value::init_str("submit-resources"));
             out.map_insert_str("data", self.*.data.submit_resources.to_bubby());
+        }
+        client_message::TRADE_N_FOR_1 {
+            out.map_insert_str("kind", bubby::value::init_str("trade-n-for-1"));
+            var data = bubby::value::init_map();
+            data.map_insert_str("give", self.*.data.trade_n_for_1.give.to_bubby());
+            data.map_insert_str("recv", self.*.data.trade_n_for_1.recv.to_bubby());
+            data.map_insert_str("n", int_to_bubby[[sint]](self.*.data.trade_n_for_1.n));
+            out.map_insert_str("data", data);
         }
         }
         return out;

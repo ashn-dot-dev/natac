@@ -731,6 +731,51 @@ struct server_state {
         }
     }
 
+    func process_trade_n_for_1(self: *server_state, connection: *connection, trade_n_for_1: typeof(client_message::SELF.data.trade_n_for_1)) void {
+        if self.*.turn.player != connection.*.player {
+            connection.*.sendc(server_message::init_rejected("cannot trade with the bank (it is not your turn)"));
+            return;
+        }
+        if self.*.turn.phase != phase::MAIN {
+            connection.*.sendc(server_message::init_rejected("cannot trade with the bank (it is not the discard phase)"));
+            return;
+        }
+
+        var n_to_1 = n_to_1(&self.*.board, self.*.turn.player, trade_n_for_1.recv);
+        if trade_n_for_1.n != n_to_1 {
+            connection.*.sendc(server_message::init_rejected("cannot trade with the bank (invalid n:1 trade)"));
+            return;
+        }
+
+        if trade_n_for_1.n != n_to_1 {
+            connection.*.sendc(server_message::init_rejected("cannot trade with the bank (invalid n:1 trade)"));
+            return;
+        }
+
+        var ref = self.*.p_info(self.*.turn.player).*.resource_ref(trade_n_for_1.give);
+        if *ref < trade_n_for_1.n {
+            connection.*.sendc(server_message::init_rejected("cannot trade with the bank (insufficient resources)"));
+            return;
+        }
+
+        *ref -= trade_n_for_1.n;
+        var ref = self.*.p_info(self.*.turn.player).*.resource_ref(trade_n_for_1.recv);
+        *ref += 1;
+
+        connection.*.sendc(server_message::init_accepted("trade complete"));
+        var name = player_to_name(connection.*.player);
+        var give = trade_n_for_1.give.data();
+        var recv = trade_n_for_1.recv.data();
+        self.*.sendc_all(server_message::init_log_format(
+            "{} traded {} {} for {} {}.",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name),
+                std::formatter::init[[typeof(give)]](&give),
+                std::formatter::init[[typeof(n_to_1)]](&n_to_1),
+                std::formatter::init[[typeof(trade_n_for_1.n)]](&trade_n_for_1.n),
+                std::formatter::init[[typeof(recv)]](&recv)]));
+    }
+
     func update_from_client_message(self: *server_state, message: *client_message, connection: *connection) void {
         switch message.*.kind {
         client_message::ROLL {
@@ -756,6 +801,9 @@ struct server_state {
         }
         client_message::SUBMIT_RESOURCES {
             self.*.process_submit_resources(connection, message.*.data.submit_resources);
+        }
+        client_message::TRADE_N_FOR_1 {
+            self.*.process_trade_n_for_1(connection, message.*.data.trade_n_for_1);
         }
         }
     }

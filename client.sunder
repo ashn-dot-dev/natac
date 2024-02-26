@@ -565,6 +565,8 @@ struct client_state {
     var ui_log: std::string;
     var ui_log_updated: bool;
     var ui_resources_select: resources;
+    var ui_main_trade_with_bank_selected: bool;
+    var ui_main_trade_with_bank_resource: std::optional[[resource]]; # x:1 resource->...
     var ui: smol::ui;
 
     var player: player;
@@ -625,6 +627,8 @@ struct client_state {
             .ui_log = ui_log,
             .ui_log_updated = false,
             .ui_resources_select = uninit,
+            .ui_main_trade_with_bank_selected = false,
+            .ui_main_trade_with_bank_resource = uninit,
             .ui = ui,
 
             .player = player::NIL,
@@ -844,12 +848,38 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         sender.*.sendc(cmessage);
     }
 
-    # UI Panels
+    # Begin UI
     var screen_w = screen_w();
     var screen_h = screen_h();
     smol::handle_input(cstate.*.ui.context);
     mu_begin(cstate.*.ui.context);
     let UI_BORDER: sint = 8;
+
+    # Resource Production Roll UI Window
+    var ui_w = (:sint)screen_w / 4;
+    var ui_h = (:sint)screen_h / 4;
+    var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
+    var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
+    var show_ui = cstate.*.turn.phase == phase::RESOURCE_PRODUCTION and cstate.*.turn.player == cstate.*.player;
+    if show_ui and cstate.*.ui.begin_window_ex("Your Turn (resource production)", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Window Content
+        cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        if cstate.*.ui.button("Roll") {
+            var cmessage = client_message::init_roll();
+            sender.*.sendc(cmessage);
+        }
+
+        cstate.*.ui.end_window();
+    }
+
+    # Player Info UI Windows
     let UI_PLAYERS = (:[4]player)[player::RED, player::BLUE, player::WHITE, player::ORANGE];
     var ui_players_w = (:sint)screen_w * 1 / 3;
     var ui_players_h = ((:sint)screen_h * 1 / 2 - 2 * UI_BORDER) / (:sint)countof(UI_PLAYERS);
@@ -897,7 +927,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             win.*.rect.x = ui_x;
             win.*.rect.y = ui_y;
 
-            # Draw window.
+            # Window Content
             var resources: sint = uninit;
             switch player {
             ::player::NIL {
@@ -965,7 +995,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         win.*.rect.x = ui_x;
         win.*.rect.y = ui_y;
 
-        # Draw window.
+        # Window Content
         cstate.*.ui.layout_row((:[]sint)[-1], -1);
         cstate.*.ui.text(std::ascii::view_trimmed(cstate.*.ui_log.data()));
 
@@ -978,6 +1008,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         cstate.*.ui.end_window();
     }
 
+    # Discard Resources UI Window
     var ui_w = (:sint)screen_w / 4;
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
@@ -991,7 +1022,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         win.*.rect.x = ui_x;
         win.*.rect.y = ui_y;
 
-        # Draw window.
+        # Window Content
         cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
         cstate.*.ui.label("Brick:");
         ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.brick, 0, cstate.*.pinfo.brick);
@@ -1016,6 +1047,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         cstate.*.ui.end_window();
     }
 
+    # Steal From Player UI Window
     var ui_w = (:sint)screen_w / 8;
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
@@ -1029,7 +1061,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         win.*.rect.x = ui_x;
         win.*.rect.y = ui_y;
 
-        # Draw window.
+        # Window Content
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         if cstate.*.ui.button("RED") {
             sender.*.sendc(client_message::init_submit_player(player::RED));
@@ -1042,6 +1074,81 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         }
         if cstate.*.ui.button("ORANGE") {
             sender.*.sendc(client_message::init_submit_player(player::ORANGE));
+        }
+
+        cstate.*.ui.end_window();
+    }
+
+    # Main Phase UI Window
+    var ui_w = (:sint)screen_w / 4;
+    var ui_h = (:sint)screen_h / 4;
+    var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
+    var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
+    var show_ui = cstate.*.turn.phase == phase::MAIN and cstate.*.turn.player == cstate.*.player;
+    if show_ui and cstate.*.ui.begin_window_ex("Your Turn", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Window Content
+        cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        if cstate.*.ui_main_trade_with_bank_selected {
+            let RESOURCES = (:[]resource)[
+                resource::BRICK,
+                resource::ORE,
+                resource::SHEEP,
+                resource::WHEAT,
+                resource::WOOD,
+            ];
+            if cstate.*.ui_main_trade_with_bank_resource.is_value() {
+                for i in countof(RESOURCES) {
+                    var name = RESOURCES[i].data();
+                    var s = std::string::init_from_format(
+                        ".. for {}",
+                        (:[]std::formatter)[
+                            std::formatter::init[[typeof(name)]](&name)]);
+                    defer s.fini();
+                    var id = mu_get_id(cstate.*.ui.context, s.start(), (:sint)s.count());
+                    var r = mu_layout_next(cstate.*.ui.context);
+                    if mu_button_raw(cstate.*.ui.context, s.start(), (:sint)s.count(), 0, id, r, MU_OPT_ALIGNCENTER) != 0 {
+                        var n_to_1 = n_to_1(&cstate.*.board, cstate.*.player, RESOURCES[i]);
+                        var cmessage = client_message::init_trade_n_for_1(cstate.*.ui_main_trade_with_bank_resource.value(), RESOURCES[i], n_to_1);
+                        sender.*.sendc(cmessage);
+                        cstate.*.ui_main_trade_with_bank_selected = false;
+                        cstate.*.ui_main_trade_with_bank_resource = std::optional[[resource]]::EMPTY;
+                    }
+                }
+            }
+            else {
+                for i in countof(RESOURCES) {
+                    var name = RESOURCES[i].data();
+                    var n_to_1 = n_to_1(&cstate.*.board, cstate.*.player, RESOURCES[i]);
+                    var s = std::string::init_from_format(
+                        "{}:1 {}...",
+                        (:[]std::formatter)[
+                            std::formatter::init[[typeof(n_to_1)]](&n_to_1),
+                            std::formatter::init[[typeof(name)]](&name)]);
+                    defer s.fini();
+                    var id = mu_get_id(cstate.*.ui.context, s.start(), (:sint)s.count());
+                    var r = mu_layout_next(cstate.*.ui.context);
+                    if mu_button_raw(cstate.*.ui.context, s.start(), (:sint)s.count(), 0, id, r, MU_OPT_ALIGNCENTER) != 0 {
+                        cstate.*.ui_main_trade_with_bank_resource = std::optional[[resource]]::init_value(RESOURCES[i]);
+                    }
+                }
+            }
+        }
+        else {
+            if cstate.*.ui.button("Trade with Bank") {
+                cstate.*.ui_main_trade_with_bank_selected = true;
+                cstate.*.ui_main_trade_with_bank_resource = std::optional[[resource]]::EMPTY;
+            }
+            if cstate.*.ui.button("End Turn") {
+                var cmessage = client_message::init_end_turn();
+                sender.*.sendc(cmessage);
+            }
         }
 
         cstate.*.ui.end_window();
