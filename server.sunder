@@ -27,10 +27,15 @@ struct server_state {
     var b_info: hidden_player_info;
     var w_info: hidden_player_info;
     var o_info: hidden_player_info;
-    var r_discarded: bool;
-    var b_discarded: bool;
-    var w_discarded: bool;
-    var o_discarded: bool;
+    var r_discarded: bool; # discard phase
+    var b_discarded: bool; # discard phase
+    var w_discarded: bool; # discard phase
+    var o_discarded: bool; # discard phase
+    var r_trade_submitted: bool; # trade phase
+    var b_trade_submitted: bool; # trade phase
+    var w_trade_submitted: bool; # trade phase
+    var o_trade_submitted: bool; # trade phase
+    var trade: trade;
     var turn: turn;
 
     func init() server_state {
@@ -46,6 +51,11 @@ struct server_state {
             .b_discarded = false,
             .w_discarded = false,
             .o_discarded = false,
+            .r_trade_submitted = false,
+            .b_trade_submitted = false,
+            .w_trade_submitted = false,
+            .o_trade_submitted = false,
+            .trade = uninit,
             .turn = turn::init(player::NIL),
         };
     }
@@ -107,6 +117,29 @@ struct server_state {
         }
         ::player::ORANGE {
             return &self.*.o_discarded;
+        }
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[*bool]]();
+    }
+
+    func p_trade_submitted(self: *server_state, player: player) *bool {
+        switch player {
+        ::player::NIL {
+            std::unreachable(fileof(), lineof());
+        }
+        ::player::RED {
+            return &self.*.r_trade_submitted;
+        }
+        ::player::BLUE {
+            return &self.*.b_trade_submitted;
+        }
+        ::player::WHITE {
+            return &self.*.w_trade_submitted;
+        }
+        ::player::ORANGE {
+            return &self.*.o_trade_submitted;
         }
         }
 
@@ -737,7 +770,7 @@ struct server_state {
             return;
         }
         if self.*.turn.phase != phase::MAIN {
-            connection.*.sendc(server_message::init_rejected("cannot trade with the bank (it is not the discard phase)"));
+            connection.*.sendc(server_message::init_rejected("cannot trade with the bank (it is not the main phase)"));
             return;
         }
 
@@ -776,6 +809,136 @@ struct server_state {
                 std::formatter::init[[typeof(recv)]](&recv)]));
     }
 
+    func process_trade_players(self: *server_state, connection: *connection, trade: trade) void {
+        if self.*.turn.player != connection.*.player {
+            connection.*.sendc(server_message::init_rejected("cannot trade with players (it is not your turn)"));
+            return;
+        }
+        if self.*.turn.phase != phase::MAIN {
+            connection.*.sendc(server_message::init_rejected("cannot trade with players (it is not the main phase)"));
+            return;
+        }
+
+        if trade.give.count() == 0 {
+            connection.*.sendc(server_message::init_rejected("cannot trade with players (cannot give zero resources)"));
+            return;
+        }
+        if trade.recv.count() == 0 {
+            connection.*.sendc(server_message::init_rejected("cannot trade with players (cannot receive zero resources)"));
+            return;
+        }
+
+        var giver = self.*.p_info(self.*.turn.player);
+        if giver.*.brick < trade.give.brick
+        or giver.*.ore < trade.give.ore
+        or giver.*.sheep < trade.give.sheep
+        or giver.*.wheat < trade.give.wheat
+        or giver.*.wood < trade.give.wood {
+            connection.*.sendc(server_message::init_rejected("cannot trade with players (insufficient resources)"));
+            return;
+        }
+
+        var name = player_to_name(connection.*.player);
+        self.*.sendc_all(server_message::init_log_format(
+            "{} proposed a trade.",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name)]));
+        self.*.r_trade_submitted = false;
+        self.*.b_trade_submitted = false;
+        self.*.w_trade_submitted = false;
+        self.*.o_trade_submitted = false;
+        self.*.p_trade_submitted(connection.*.player).* = true;
+        self.*.trade = trade;
+        self.*.turn.phase = phase::TRADE;
+        connection.*.sendc(server_message::init_accepted("trade proposed"));
+    }
+
+    func process_trade_accept(self: *server_state, connection: *connection, trade: trade) void {
+        if self.*.turn.phase != phase::TRADE {
+            connection.*.sendc(server_message::init_rejected("cannot accept trade (it is not the trade phase)"));
+            return;
+        }
+
+        if std::ne[[::trade]](&self.*.trade, &trade) {
+            connection.*.sendc(server_message::init_rejected("cannot accept trade (mismatched trade)"));
+            return;
+        }
+
+        var submitted = self.*.p_trade_submitted(connection.*.player);
+        if *submitted {
+            connection.*.sendc(server_message::init_rejected("cannot accept trade (already submitted)"));
+            return;
+        }
+
+        var giver = self.*.p_info(self.*.turn.player);
+        var recvr = self.*.p_info(connection.*.player);
+        if recvr.*.brick < trade.recv.brick
+        or recvr.*.ore < trade.recv.ore
+        or recvr.*.sheep < trade.recv.sheep
+        or recvr.*.wheat < trade.recv.wheat
+        or recvr.*.wood < trade.recv.wood {
+            connection.*.sendc(server_message::init_rejected("cannot accept trade (insufficient resources)"));
+            return;
+        }
+
+        giver.*.brick -= self.*.trade.give.brick;
+        giver.*.brick += self.*.trade.recv.brick;
+        giver.*.ore -= self.*.trade.give.ore;
+        giver.*.ore += self.*.trade.recv.ore;
+        giver.*.sheep -= self.*.trade.give.sheep;
+        giver.*.sheep += self.*.trade.recv.sheep;
+        giver.*.wheat -= self.*.trade.give.wheat;
+        giver.*.wheat += self.*.trade.recv.wheat;
+        giver.*.wood -= self.*.trade.give.wood;
+        giver.*.wood += self.*.trade.recv.wood;
+
+        recvr.*.brick += self.*.trade.give.brick;
+        recvr.*.brick -= self.*.trade.recv.brick;
+        recvr.*.ore += self.*.trade.give.ore;
+        recvr.*.ore -= self.*.trade.recv.ore;
+        recvr.*.sheep += self.*.trade.give.sheep;
+        recvr.*.sheep -= self.*.trade.recv.sheep;
+        recvr.*.wheat += self.*.trade.give.wheat;
+        recvr.*.wheat -= self.*.trade.recv.wheat;
+        recvr.*.wood += self.*.trade.give.wood;
+        recvr.*.wood -= self.*.trade.recv.wood;
+
+        self.*.r_trade_submitted = false;
+        self.*.b_trade_submitted = false;
+        self.*.w_trade_submitted = false;
+        self.*.o_trade_submitted = false;
+        self.*.turn.phase = phase::MAIN;
+        connection.*.sendc(server_message::init_accepted("trade accepted"));
+    }
+
+    func process_trade_reject(self: *server_state, connection: *connection, trade: trade) void {
+        if self.*.turn.phase != phase::TRADE {
+            connection.*.sendc(server_message::init_rejected("cannot reject trade (it is not the trade phase)"));
+            return;
+        }
+
+        if std::ne[[::trade]](&self.*.trade, &trade) {
+            connection.*.sendc(server_message::init_rejected("cannot reject trade (mismatched trade)"));
+            return;
+        }
+
+        var submitted = self.*.p_trade_submitted(connection.*.player);
+        if *submitted {
+            connection.*.sendc(server_message::init_rejected("cannot reject trade (already submitted)"));
+            return;
+        }
+
+        *submitted = true;
+
+        connection.*.sendc(server_message::init_accepted("trade rejected"));
+        if self.*.r_trade_submitted
+        and self.*.b_trade_submitted
+        and self.*.w_trade_submitted
+        and self.*.o_trade_submitted {
+            self.*.turn.phase = phase::MAIN;
+        }
+    }
+
     func update_from_client_message(self: *server_state, message: *client_message, connection: *connection) void {
         switch message.*.kind {
         client_message::ROLL {
@@ -805,6 +968,15 @@ struct server_state {
         client_message::TRADE_N_FOR_1 {
             self.*.process_trade_n_for_1(connection, message.*.data.trade_n_for_1);
         }
+        client_message::TRADE_PLAYERS {
+            self.*.process_trade_players(connection, message.*.data.trade_players);
+        }
+        client_message::TRADE_ACCEPT {
+            self.*.process_trade_accept(connection, message.*.data.trade_accept);
+        }
+        client_message::TRADE_REJECT {
+            self.*.process_trade_reject(connection, message.*.data.trade_reject);
+        }
         }
     }
 }
@@ -822,22 +994,27 @@ func server_update(sstate: *server_state) void {
         var r = (:public_player_info){
             .resources = sstate.*.r_info.resource_count(),
             .discarded = sstate.*.r_discarded,
+            .trade_submitted = sstate.*.r_trade_submitted,
         };
         var b = (:public_player_info){
             .resources = sstate.*.b_info.resource_count(),
             .discarded = sstate.*.b_discarded,
+            .trade_submitted = sstate.*.b_trade_submitted,
         };
         var w = (:public_player_info){
             .resources = sstate.*.w_info.resource_count(),
             .discarded = sstate.*.w_discarded,
+            .trade_submitted = sstate.*.w_trade_submitted,
         };
         var o = (:public_player_info){
             .resources = sstate.*.o_info.resource_count(),
             .discarded = sstate.*.o_discarded,
+            .trade_submitted = sstate.*.o_trade_submitted,
         };
         sstate.*.sendc_all(server_message::init_state(
             &sstate.*.board,
             sstate.*.turn,
+            sstate.*.trade,
             r,
             b,
             w,

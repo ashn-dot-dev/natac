@@ -567,6 +567,10 @@ struct client_state {
     var ui_resources_select: resources;
     var ui_main_trade_with_bank_selected: bool;
     var ui_main_trade_with_bank_resource: std::optional[[resource]]; # x:1 resource->...
+    var ui_main_trade_with_players_selected: bool;
+    var ui_main_trade_with_players_give: resources;
+    var ui_main_trade_with_players_recv: resources;
+    var ui_main_trade_submitted: bool;
     var ui: smol::ui;
 
     var player: player;
@@ -578,6 +582,7 @@ struct client_state {
     var w: public_player_info;
     var o: public_player_info;
     var turn: turn;
+    var trade: trade;
 
     var mouse: Vector2;
     var world: Vector2;
@@ -629,6 +634,10 @@ struct client_state {
             .ui_resources_select = uninit,
             .ui_main_trade_with_bank_selected = false,
             .ui_main_trade_with_bank_resource = uninit,
+            .ui_main_trade_with_players_selected = false,
+            .ui_main_trade_with_players_give = uninit,
+            .ui_main_trade_with_players_recv = uninit,
+            .ui_main_trade_submitted = false,
             .ui = ui,
 
             .player = player::NIL,
@@ -640,6 +649,7 @@ struct client_state {
             .w = uninit,
             .o = uninit,
             .turn = uninit,
+            .trade = uninit,
 
             .mouse = uninit,
             .world = uninit,
@@ -682,6 +692,28 @@ struct client_state {
         return std::zeroed[[*bool]]();
     }
 
+    func p_trade_submitted(self: *client_state) *bool {
+        switch self.*.player {
+        player::NIL {
+            std::unreachable(fileof(), lineof());
+        }
+        player::RED {
+            return &self.*.r.trade_submitted;
+        }
+        player::BLUE {
+            return &self.*.b.trade_submitted;
+        }
+        player::WHITE {
+            return &self.*.w.trade_submitted;
+        }
+        player::ORANGE {
+            return &self.*.o.trade_submitted;
+        }
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[*bool]]();
+    }
 
     func update_from_server_message(self: *client_state, message: *server_message) void {
         switch message.*.kind {
@@ -695,11 +727,12 @@ struct client_state {
         }
         server_message::STATE {
             board::assign(&self.*.board, &message.*.data.state.board);
+            self.*.turn = message.*.data.state.turn;
+            self.*.trade = message.*.data.state.trade;
             self.*.r = message.*.data.state.r;
             self.*.b = message.*.data.state.b;
             self.*.w = message.*.data.state.w;
             self.*.o = message.*.data.state.o;
-            self.*.turn = message.*.data.state.turn;
         }
         server_message::PLAYER {
             self.*.player = message.*.data.player;
@@ -1079,13 +1112,15 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         cstate.*.ui.end_window();
     }
 
-    # Main Phase UI Window
+    # Main Phase UI Window(s)
     var ui_w = (:sint)screen_w / 4;
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
     var show_ui = cstate.*.turn.phase == phase::MAIN and cstate.*.turn.player == cstate.*.player;
-    if show_ui and cstate.*.ui.begin_window_ex("Your Turn", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+    if show_ui
+    and cstate.*.ui_main_trade_with_bank_selected
+    and cstate.*.ui.begin_window_ex("Trade with Bank", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
         var win = cstate.*.ui.get_current_container();
         win.*.rect.w = ui_w;
@@ -1095,63 +1130,271 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
         # Window Content
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
-        if cstate.*.ui_main_trade_with_bank_selected {
-            let RESOURCES = (:[]resource)[
-                resource::BRICK,
-                resource::ORE,
-                resource::SHEEP,
-                resource::WHEAT,
-                resource::WOOD,
-            ];
-            if cstate.*.ui_main_trade_with_bank_resource.is_value() {
-                for i in countof(RESOURCES) {
-                    var name = RESOURCES[i].data();
-                    var s = std::string::init_from_format(
-                        ".. for {}",
-                        (:[]std::formatter)[
-                            std::formatter::init[[typeof(name)]](&name)]);
-                    defer s.fini();
-                    var id = mu_get_id(cstate.*.ui.context, s.start(), (:sint)s.count());
-                    var r = mu_layout_next(cstate.*.ui.context);
-                    if mu_button_raw(cstate.*.ui.context, s.start(), (:sint)s.count(), 0, id, r, MU_OPT_ALIGNCENTER) != 0 {
-                        var n_to_1 = n_to_1(&cstate.*.board, cstate.*.player, RESOURCES[i]);
-                        var cmessage = client_message::init_trade_n_for_1(cstate.*.ui_main_trade_with_bank_resource.value(), RESOURCES[i], n_to_1);
-                        sender.*.sendc(cmessage);
-                        cstate.*.ui_main_trade_with_bank_selected = false;
-                        cstate.*.ui_main_trade_with_bank_resource = std::optional[[resource]]::EMPTY;
-                    }
-                }
-            }
-            else {
-                for i in countof(RESOURCES) {
-                    var name = RESOURCES[i].data();
+        if cstate.*.ui_main_trade_with_bank_resource.is_value() {
+            for i in countof(RESOURCES) {
+                var name = RESOURCES[i].data();
+                var s = std::string::init_from_format(
+                    ".. for {}",
+                    (:[]std::formatter)[
+                        std::formatter::init[[typeof(name)]](&name)]);
+                defer s.fini();
+                var id = mu_get_id(cstate.*.ui.context, s.start(), (:sint)s.count());
+                var r = mu_layout_next(cstate.*.ui.context);
+                if mu_button_raw(cstate.*.ui.context, s.start(), (:sint)s.count(), 0, id, r, MU_OPT_ALIGNCENTER) != 0 {
                     var n_to_1 = n_to_1(&cstate.*.board, cstate.*.player, RESOURCES[i]);
-                    var s = std::string::init_from_format(
-                        "{}:1 {}...",
-                        (:[]std::formatter)[
-                            std::formatter::init[[typeof(n_to_1)]](&n_to_1),
-                            std::formatter::init[[typeof(name)]](&name)]);
-                    defer s.fini();
-                    var id = mu_get_id(cstate.*.ui.context, s.start(), (:sint)s.count());
-                    var r = mu_layout_next(cstate.*.ui.context);
-                    if mu_button_raw(cstate.*.ui.context, s.start(), (:sint)s.count(), 0, id, r, MU_OPT_ALIGNCENTER) != 0 {
-                        cstate.*.ui_main_trade_with_bank_resource = std::optional[[resource]]::init_value(RESOURCES[i]);
-                    }
+                    var cmessage = client_message::init_trade_n_for_1(cstate.*.ui_main_trade_with_bank_resource.value(), RESOURCES[i], n_to_1);
+                    sender.*.sendc(cmessage);
+                    cstate.*.ui_main_trade_with_bank_selected = false;
+                    cstate.*.ui_main_trade_with_bank_resource = std::optional[[resource]]::EMPTY;
                 }
             }
-        }
-        else {
-            if cstate.*.ui.button("Trade with Bank") {
+            if cstate.*.ui.button("Back") {
                 cstate.*.ui_main_trade_with_bank_selected = true;
                 cstate.*.ui_main_trade_with_bank_resource = std::optional[[resource]]::EMPTY;
             }
-            if cstate.*.ui.button("End Turn") {
-                var cmessage = client_message::init_end_turn();
-                sender.*.sendc(cmessage);
+        }
+        else {
+            for i in countof(RESOURCES) {
+                var name = RESOURCES[i].data();
+                var n_to_1 = n_to_1(&cstate.*.board, cstate.*.player, RESOURCES[i]);
+                var s = std::string::init_from_format(
+                    "{}:1 {}...",
+                    (:[]std::formatter)[
+                        std::formatter::init[[typeof(n_to_1)]](&n_to_1),
+                        std::formatter::init[[typeof(name)]](&name)]);
+                defer s.fini();
+                var id = mu_get_id(cstate.*.ui.context, s.start(), (:sint)s.count());
+                var r = mu_layout_next(cstate.*.ui.context);
+                if mu_button_raw(cstate.*.ui.context, s.start(), (:sint)s.count(), 0, id, r, MU_OPT_ALIGNCENTER) != 0 {
+                    cstate.*.ui_main_trade_with_bank_resource = std::optional[[resource]]::init_value(RESOURCES[i]);
+                }
+            }
+            if cstate.*.ui.button("Back") {
+                cstate.*.ui_main_trade_with_bank_selected = false;
+                cstate.*.ui_main_trade_with_bank_resource = std::optional[[resource]]::EMPTY;
             }
         }
 
         cstate.*.ui.end_window();
+    }
+    elif show_ui
+    and cstate.*.ui_main_trade_with_players_selected {
+        var ui_recv_x = ui_x;
+        var ui_recv_y = ui_y - ui_h - UI_BORDER;
+
+        var ui_give_x = ui_recv_x - ui_w - UI_BORDER;
+        var ui_give_y = ui_recv_y;
+
+        # Give Window
+        if cstate.*.ui.begin_window_ex("Resources to Give", smol::rect::init(ui_give_x, ui_give_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+            # Re-set cached window rect in case the screen was resized.
+            var win = cstate.*.ui.get_current_container();
+            win.*.rect.w = ui_w;
+            win.*.rect.h = ui_h;
+            win.*.rect.x = ui_give_x;
+            win.*.rect.y = ui_give_y;
+
+            # Window Content
+            cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
+            cstate.*.ui.label("Brick:");
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_main_trade_with_players_give.brick, 0, cstate.*.pinfo.brick);
+            cstate.*.ui.label("Ore:");
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_main_trade_with_players_give.ore, 0,  cstate.*.pinfo.ore);
+            cstate.*.ui.label("Sheep:");
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_main_trade_with_players_give.sheep, 0, cstate.*.pinfo.sheep);
+            cstate.*.ui.label("Wheat:");
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_main_trade_with_players_give.wheat, 0, cstate.*.pinfo.wheat);
+            cstate.*.ui.label("Wood:");
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_main_trade_with_players_give.wood, 0, cstate.*.pinfo.wood);
+
+            cstate.*.ui.end_window();
+        }
+
+        # Recv Window
+        if cstate.*.ui.begin_window_ex("Resources to Receive", smol::rect::init(ui_recv_x, ui_recv_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+            # Re-set cached window rect in case the screen was resized.
+            var win = cstate.*.ui.get_current_container();
+            win.*.rect.w = ui_w;
+            win.*.rect.h = ui_h;
+            win.*.rect.x = ui_recv_x;
+            win.*.rect.y = ui_recv_y;
+
+            # Window Content
+            cstate.*.ui.layout_row((:[]sint)[-1], 0);
+            cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
+            cstate.*.ui.label("Brick:");
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_main_trade_with_players_recv.brick, 0, sint::MAX);
+            cstate.*.ui.label("Ore:");
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_main_trade_with_players_recv.ore, 0,  sint::MAX);
+            cstate.*.ui.label("Sheep:");
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_main_trade_with_players_recv.sheep, 0, sint::MAX);
+            cstate.*.ui.label("Wheat:");
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_main_trade_with_players_recv.wheat, 0, sint::MAX);
+            cstate.*.ui.label("Wood:");
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_main_trade_with_players_recv.wood, 0, sint::MAX);
+
+            cstate.*.ui.end_window();
+        }
+
+        # Menu Buttons Window
+        if cstate.*.ui.begin_window_ex("Trade with Players", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+            # Re-set cached window rect in case the screen was resized.
+            var win = cstate.*.ui.get_current_container();
+            win.*.rect.w = ui_w;
+            win.*.rect.h = ui_h;
+            win.*.rect.x = ui_x;
+            win.*.rect.y = ui_y;
+
+            # Window Content
+            cstate.*.ui.layout_row((:[]sint)[-1], 0);
+            if cstate.*.ui.button("Propose Trade") {
+                var cmessage = client_message::init_trade_players(cstate.*.ui_main_trade_with_players_give, cstate.*.ui_main_trade_with_players_recv);
+                sender.*.sendc(cmessage);
+                cstate.*.ui_main_trade_with_players_selected = false;
+                cstate.*.ui_main_trade_with_players_give = std::zeroed[[resources]]();
+                cstate.*.ui_main_trade_with_players_recv = std::zeroed[[resources]]();
+            }
+            if cstate.*.ui.button("Back") {
+                cstate.*.ui_main_trade_with_players_selected = false;
+                cstate.*.ui_main_trade_with_players_give = std::zeroed[[resources]]();
+                cstate.*.ui_main_trade_with_players_recv = std::zeroed[[resources]]();
+            }
+
+            cstate.*.ui.end_window();
+        }
+    }
+    elif show_ui
+    and cstate.*.ui.begin_window_ex("Your Turn", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Window Content
+        cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        if cstate.*.ui.button("Trade with Bank") {
+            cstate.*.ui_main_trade_with_bank_selected = true;
+            cstate.*.ui_main_trade_with_bank_resource = std::optional[[resource]]::EMPTY;
+        }
+        if cstate.*.ui.button("Trade with Players") {
+            cstate.*.ui_main_trade_with_players_selected = true;
+            cstate.*.ui_main_trade_with_players_give = std::zeroed[[resources]]();
+            cstate.*.ui_main_trade_with_players_recv = std::zeroed[[resources]]();
+        }
+        if cstate.*.ui.button("End Turn") {
+            var cmessage = client_message::init_end_turn();
+            sender.*.sendc(cmessage);
+        }
+
+        cstate.*.ui.end_window();
+    }
+
+    # Trade Phase UI Window
+    var ui_w = (:sint)screen_w / 4;
+    var ui_h = (:sint)screen_h / 4;
+    var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
+    var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
+    var show_ui = cstate.*.turn.phase == phase::TRADE;
+    if show_ui {
+        var ui_recv_x = ui_x;
+        var ui_recv_y = ui_y - ui_h - UI_BORDER;
+
+        var ui_give_x = ui_recv_x - ui_w - UI_BORDER;
+        var ui_give_y = ui_recv_y;
+
+        # Give Window
+        if cstate.*.ui.begin_window_ex("Resources to Give", smol::rect::init(ui_give_x, ui_give_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+            # Re-set cached window rect in case the screen was resized.
+            var win = cstate.*.ui.get_current_container();
+            win.*.rect.w = ui_w;
+            win.*.rect.h = ui_h;
+            win.*.rect.x = ui_give_x;
+            win.*.rect.y = ui_give_y;
+
+            # Window Content
+            cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
+            cstate.*.ui.label("Brick:");
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.recv.brick)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+            cstate.*.ui.label("Ore:");
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.recv.ore)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+            cstate.*.ui.label("Sheep:");
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.recv.sheep)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+            cstate.*.ui.label("Wheat:");
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.recv.wheat)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+            cstate.*.ui.label("Wood:");
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.recv.wood)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+
+            cstate.*.ui.end_window();
+        }
+
+        # Recv Window
+        if cstate.*.ui.begin_window_ex("Resources to Receive", smol::rect::init(ui_recv_x, ui_recv_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+            # Re-set cached window rect in case the screen was resized.
+            var win = cstate.*.ui.get_current_container();
+            win.*.rect.w = ui_w;
+            win.*.rect.h = ui_h;
+            win.*.rect.x = ui_recv_x;
+            win.*.rect.y = ui_recv_y;
+
+            # Window Content
+            cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
+            cstate.*.ui.label("Brick:");
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.give.brick)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+            cstate.*.ui.label("Ore:");
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.give.ore)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+            cstate.*.ui.label("Sheep:");
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.give.sheep)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+            cstate.*.ui.label("Wheat:");
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.give.wheat)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+            cstate.*.ui.label("Wood:");
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.give.wood)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+
+            cstate.*.ui.end_window();
+        }
+
+        # Menu Buttons Window
+        if not *cstate.*.p_trade_submitted()
+        and cstate.*.ui.begin_window_ex("Trade with Players", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+            # Re-set cached window rect in case the screen was resized.
+            var win = cstate.*.ui.get_current_container();
+            win.*.rect.w = ui_w;
+            win.*.rect.h = ui_h;
+            win.*.rect.x = ui_x;
+            win.*.rect.y = ui_y;
+
+            # Window Content
+            cstate.*.ui.layout_row((:[]sint)[-1], 0);
+            if cstate.*.ui.button("Accept") {
+                sender.*.sendc(client_message::init_trade_accept(cstate.*.trade));
+            }
+            if cstate.*.ui.button("Decline") {
+                sender.*.sendc(client_message::init_trade_reject(cstate.*.trade));
+            }
+
+            cstate.*.ui.end_window();
+        }
     }
 
     mu_end(cstate.*.ui.context);
@@ -1581,6 +1824,9 @@ func client_render(cstate: *client_state) void {
         }
         phase::MAIN {
             phase_text = "main";
+        }
+        phase::TRADE {
+            phase_text = "trade";
         }
         }
         draw_text_format(cstate.*.font, cstate.*.font_size, BLACK,

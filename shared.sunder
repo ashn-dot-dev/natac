@@ -266,13 +266,6 @@ enum resource {
     }
 
     func init_from_bubby(value: *bubby::value) resource {
-        let RESOURCES = (:[]resource)[
-            resource::BRICK,
-            resource::ORE,
-            resource::SHEEP,
-            resource::WHEAT,
-            resource::WOOD,
-        ];
         for i in countof(RESOURCES) {
             if std::str::eq(value.*.str(), RESOURCES[i].data()) {
                 return RESOURCES[i];
@@ -287,6 +280,14 @@ enum resource {
         return bubby::value::init_str(self.*.data());
     }
 }
+
+let RESOURCES = (:[]resource)[
+    resource::BRICK,
+    resource::ORE,
+    resource::SHEEP,
+    resource::WHEAT,
+    resource::WOOD,
+];
 
 struct tile {
     var hex: hex;
@@ -1475,8 +1476,41 @@ struct resources {
         return out;
     }
 
+    func eq(lhs: *resources, rhs: *resources) bool {
+        return lhs.*.brick == rhs.*.brick
+            and lhs.*.ore == rhs.*.ore
+            and lhs.*.sheep == rhs.*.sheep
+            and lhs.*.wheat == rhs.*.wheat
+            and lhs.*.wood == rhs.*.wood;
+    }
+
     func count(self: *resources) sint {
         return self.*.brick + self.*.ore + self.*.sheep + self.*.wheat + self.*.wood;
+    }
+}
+
+struct trade {
+    var give: resources; # From the trade-proposer's perspective.
+    var recv: resources; # From the trade-proposer's perspective.
+
+    func init_from_bubby(value: *bubby::value) trade {
+        var give = resources::init_from_bubby(value.*.map_xlookup_str("give"));
+        var recv = resources::init_from_bubby(value.*.map_xlookup_str("recv"));
+        return (:trade){
+            .give = give,
+            .recv = recv,
+        };
+    }
+
+    func to_bubby(self: *trade) bubby::value {
+        var out = bubby::value::init_map();
+        out.map_insert_str("give", self.*.give.to_bubby());
+        out.map_insert_str("recv", self.*.recv.to_bubby());
+        return out;
+    }
+
+    func eq(lhs: *trade, rhs: *trade) bool {
+        return std::eq[[resources]](&lhs.*.give, &rhs.*.give) and std::eq[[resources]](&lhs.*.recv, &rhs.*.recv);
     }
 }
 
@@ -1538,11 +1572,13 @@ struct hidden_player_info {
 struct public_player_info {
     var resources: sint;
     var discarded: bool;
+    var trade_submitted: bool;
 
     func init_from_bubby(value: *bubby::value) public_player_info {
         var self: public_player_info = uninit;
         self.resources = xstr_to_int[[sint]](value.*.map_xlookup_str("resources").*.str());
         self.discarded = xstr_to_bool(value.*.map_xlookup_str("discarded").*.str());
+        self.trade_submitted = xstr_to_bool(value.*.map_xlookup_str("trade-submitted").*.str());
         return self;
     }
 
@@ -1550,6 +1586,7 @@ struct public_player_info {
         var out = bubby::value::init_map();
         out.map_insert_str("resources", int_to_bubby[[sint]](self.*.resources));
         out.map_insert_str("discarded", bool_to_bubby(self.*.discarded));
+        out.map_insert_str("trade-submitted", bool_to_bubby(self.*.trade_submitted));
         return out;
     }
 }
@@ -1560,6 +1597,7 @@ enum phase {
     ROBBER;
     STEAL;
     MAIN;
+    TRADE;
 
     func init_from_bubby(value: *bubby::value) phase {
         if std::str::eq(value.*.str(), "resource-production") {
@@ -1576,6 +1614,9 @@ enum phase {
         }
         if std::str::eq(value.*.str(), "main") {
             return phase::MAIN;
+        }
+        if std::str::eq(value.*.str(), "trade") {
+            return phase::TRADE;
         }
 
         std::unreachable(fileof(), lineof());
@@ -1598,6 +1639,9 @@ enum phase {
         }
         phase::MAIN {
             return bubby::value::init_str("main");
+        }
+        phase::TRADE {
+            return bubby::value::init_str("trade");
         }
         }
 
@@ -1667,6 +1711,9 @@ struct client_message {
         SUBMIT_PLAYER;
         SUBMIT_RESOURCES;
         TRADE_N_FOR_1;
+        TRADE_PLAYERS;
+        TRADE_ACCEPT;
+        TRADE_REJECT;
     };
     var data: union {
         var build_road: road;
@@ -1680,6 +1727,9 @@ struct client_message {
             var recv: resource;
             var n: sint;
         };
+        var trade_players: trade;
+        var trade_accept: trade;
+        var trade_reject: trade;
     };
 
     let SELF: client_message = uninit;
@@ -1752,6 +1802,31 @@ struct client_message {
         };
     }
 
+    func init_trade_players(give: resources, recv: resources) client_message {
+        var trade_players = (:trade){
+            .give = give,
+            .recv = recv,
+        };
+        return (:client_message){
+            .kind = client_message::TRADE_PLAYERS,
+            .data = (:typeof(SELF.data)){.trade_players = trade_players},
+        };
+    }
+
+    func init_trade_accept(trade: trade) client_message {
+        return (:client_message){
+            .kind = client_message::TRADE_ACCEPT,
+            .data = (:typeof(SELF.data)){.trade_accept = trade},
+        };
+    }
+
+    func init_trade_reject(trade: trade) client_message {
+        return (:client_message){
+            .kind = client_message::TRADE_REJECT,
+            .data = (:typeof(SELF.data)){.trade_reject = trade},
+        };
+    }
+
     func init_from_bubby(value: *bubby::value) client_message {
         var kind = value.*.map_xlookup_str("kind");
         if std::str::eq(kind.*.str(), "roll") {
@@ -1790,6 +1865,20 @@ struct client_message {
             var recv = resource::init_from_bubby(data.*.map_xlookup_str("recv"));
             var n = xstr_to_int[[sint]](data.*.map_xlookup_str("n").*.str());
             return client_message::init_trade_n_for_1(give, recv, n);
+        }
+        if std::str::eq(kind.*.str(), "trade-players") {
+            var data = value.*.map_xlookup_str("data");
+            var give = resources::init_from_bubby(data.*.map_xlookup_str("give"));
+            var recv = resources::init_from_bubby(data.*.map_xlookup_str("recv"));
+            return client_message::init_trade_players(give, recv);
+        }
+        if std::str::eq(kind.*.str(), "trade-accept") {
+            var trade = trade::init_from_bubby(value.*.map_xlookup_str("data"));
+            return client_message::init_trade_accept(trade);
+        }
+        if std::str::eq(kind.*.str(), "trade-reject") {
+            var trade = trade::init_from_bubby(value.*.map_xlookup_str("data"));
+            return client_message::init_trade_reject(trade);
         }
 
         std::unreachable(fileof(), lineof());
@@ -1837,6 +1926,21 @@ struct client_message {
             data.map_insert_str("n", int_to_bubby[[sint]](self.*.data.trade_n_for_1.n));
             out.map_insert_str("data", data);
         }
+        client_message::TRADE_PLAYERS {
+            out.map_insert_str("kind", bubby::value::init_str("trade-players"));
+            var data = bubby::value::init_map();
+            data.map_insert_str("give", self.*.data.trade_players.give.to_bubby());
+            data.map_insert_str("recv", self.*.data.trade_players.recv.to_bubby());
+            out.map_insert_str("data", data);
+        }
+        client_message::TRADE_ACCEPT {
+            out.map_insert_str("kind", bubby::value::init_str("trade-accept"));
+            out.map_insert_str("data", self.*.data.trade_accept.to_bubby());
+        }
+        client_message::TRADE_REJECT {
+            out.map_insert_str("kind", bubby::value::init_str("trade-reject"));
+            out.map_insert_str("data", self.*.data.trade_reject.to_bubby());
+        }
         }
         return out;
     }
@@ -1856,11 +1960,12 @@ struct server_message {
         var info: hidden_player_info;
         var state: struct {
             var board: board;
+            var turn: turn;
+            var trade: trade;
             var r: public_player_info;
             var b: public_player_info;
             var w: public_player_info;
             var o: public_player_info;
-            var turn: turn;
         };
         var player: player;
         var accepted: std::string;
@@ -1893,6 +1998,7 @@ struct server_message {
     func init_state(
         board: *board,
         turn: turn,
+        trade: trade,
         r: public_player_info,
         b: public_player_info,
         w: public_player_info,
@@ -1903,6 +2009,7 @@ struct server_message {
                 .state = (:typeof(SELF.data.state)){
                     .board = ::board::init_assign(board),
                     .turn = turn,
+                    .trade = trade,
                     .r = r,
                     .b = b,
                     .w = w,
@@ -1988,9 +2095,11 @@ struct server_message {
             var w = public_player_info::init_from_bubby(state.*.map_xlookup_str("w"));
             var o = public_player_info::init_from_bubby(state.*.map_xlookup_str("o"));
             var turn = turn::init_from_bubby(state.*.map_xlookup_str("turn"));
+            var trade = trade::init_from_bubby(state.*.map_xlookup_str("trade"));
             return server_message::init_state(
                 &board,
                 turn,
+                trade,
                 r,
                 b,
                 w,
@@ -2026,11 +2135,12 @@ struct server_message {
             out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("state"));
             var state = bubby::value::init_map();
             state.map().*.insert(bubby::value::init_str("board"), self.*.data.state.board.to_bubby());
+            state.map().*.insert(bubby::value::init_str("turn"), self.*.data.state.turn.to_bubby());
+            state.map().*.insert(bubby::value::init_str("trade"), self.*.data.state.trade.to_bubby());
             state.map().*.insert(bubby::value::init_str("r"), self.*.data.state.r.to_bubby());
             state.map().*.insert(bubby::value::init_str("b"), self.*.data.state.b.to_bubby());
             state.map().*.insert(bubby::value::init_str("w"), self.*.data.state.w.to_bubby());
             state.map().*.insert(bubby::value::init_str("o"), self.*.data.state.o.to_bubby());
-            state.map().*.insert(bubby::value::init_str("turn"), self.*.data.state.turn.to_bubby());
             out.map().*.insert(bubby::value::init_str("data"), state);
         }
         server_message::PLAYER{
