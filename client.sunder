@@ -550,11 +550,6 @@ func camera(radius: f32) Camera2D {
     };
 }
 
-enum player_state {
-    NONE;
-    MOVE_ROBBER;
-}
-
 struct client_state {
     var debug: bool;
 
@@ -565,6 +560,8 @@ struct client_state {
     var ui_log: std::string;
     var ui_log_updated: bool;
     var ui_resources_select: resources;
+    var ui_main_build_road_selected: bool;
+    var ui_main_build_town_selected: bool;
     var ui_main_trade_with_bank_selected: bool;
     var ui_main_trade_with_bank_resource: std::optional[[resource]]; # x:1 resource->...
     var ui_main_trade_with_players_selected: bool;
@@ -574,7 +571,6 @@ struct client_state {
     var ui: smol::ui;
 
     var player: player;
-    var pstate: player_state;
     var pinfo: hidden_player_info;
     var board: board;
     var r: public_player_info;
@@ -632,6 +628,8 @@ struct client_state {
             .ui_log = ui_log,
             .ui_log_updated = false,
             .ui_resources_select = uninit,
+            .ui_main_build_road_selected = false,
+            .ui_main_build_town_selected = false,
             .ui_main_trade_with_bank_selected = false,
             .ui_main_trade_with_bank_resource = uninit,
             .ui_main_trade_with_players_selected = false,
@@ -641,7 +639,6 @@ struct client_state {
             .ui = ui,
 
             .player = player::NIL,
-            .pstate = player_state::NONE,
             .pinfo = uninit,
             .board = board,
             .r = uninit,
@@ -1119,6 +1116,42 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
     var show_ui = cstate.*.turn.phase == phase::MAIN and cstate.*.turn.player == cstate.*.player;
     if show_ui
+    and cstate.*.ui_main_build_road_selected
+    and cstate.*.ui.begin_window_ex("Build Road", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Window Content
+        cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        if cstate.*.ui.button("Back") {
+            cstate.*.ui_main_build_road_selected = false;
+        }
+
+        cstate.*.ui.end_window();
+    }
+    elif show_ui
+    and cstate.*.ui_main_build_town_selected
+    and cstate.*.ui.begin_window_ex("Build Town", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Window Content
+        cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        if cstate.*.ui.button("Back") {
+            cstate.*.ui_main_build_town_selected = false;
+        }
+
+        cstate.*.ui.end_window();
+    }
+    elif show_ui
     and cstate.*.ui_main_trade_with_bank_selected
     and cstate.*.ui.begin_window_ex("Trade with Bank", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
@@ -1274,6 +1307,12 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
         # Window Content
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        if cstate.*.ui.button("Build a Road") {
+            cstate.*.ui_main_build_road_selected = true;
+        }
+        if cstate.*.ui.button("Build a Settlement/City") {
+            cstate.*.ui_main_build_town_selected = true;
+        }
         if cstate.*.ui.button("Trade with Bank") {
             cstate.*.ui_main_trade_with_bank_selected = true;
             cstate.*.ui_main_trade_with_bank_resource = std::optional[[resource]]::EMPTY;
@@ -1399,82 +1438,71 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
     mu_end(cstate.*.ui.context);
 
-    # Actions processed depending on the client's current player state.
-    switch cstate.*.pstate {
-    player_state::NONE {
-        if IsKeyPressed(KEY_SPACE) and cstate.*.turn.phase == phase::RESOURCE_PRODUCTION {
-            var cmessage = client_message::init_roll();
-            sender.*.sendc(cmessage);
-            return;
-        }
-        if IsKeyPressed(KEY_SPACE) and cstate.*.turn.phase == phase::MAIN {
-            var cmessage = client_message::init_end_turn();
-            sender.*.sendc(cmessage);
-            return;
-        }
-
-        if IsMouseButtonPressed(MOUSE_BUTTON_LEFT) and cstate.*.world_node.is_value() {
-            var existing = cstate.*.board.towns.lookup(cstate.*.world_node.value());
-            if existing.is_value() and existing.value().*.player == cstate.*.player {
-                var cmessage = client_message::init_build_town(
-                    town::init(
-                        cstate.*.player,
-                        cstate.*.world_node.value(),
-                        town::CITY));
+    # Board Actions
+    if cstate.*.turn.phase == phase::ROBBER
+    and cstate.*.turn.player == cstate.*.player
+    and IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
+        if cstate.*.world_tile.is_value() {
+            var world_tile = cstate.*.world_tile.value();
+            if not std::eq[[hex]](&world_tile.hex, &cstate.*.board.robber) {
+                var cmessage = client_message::init_move_robber(world_tile.hex);
                 sender.*.sendc(cmessage);
-                return;
             }
-
+        }
+        return;
+    }
+    elif cstate.*.ui_main_build_town_selected
+    and IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
+    and cstate.*.world_node.is_value() {
+        var existing = cstate.*.board.towns.lookup(cstate.*.world_node.value());
+        if existing.is_value() and existing.value().*.player == cstate.*.player {
             var cmessage = client_message::init_build_town(
                 town::init(
                     cstate.*.player,
                     cstate.*.world_node.value(),
-                    town::SETTLEMENT));
+                    town::CITY));
             sender.*.sendc(cmessage);
+            cstate.*.ui_main_build_town_selected = false;
             return;
         }
 
-        if IsMouseButtonPressed(MOUSE_BUTTON_LEFT) and cstate.*.world_edge.is_value() {
-            var tile_a = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[0]);
-            var tile_b = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[1]);
-            assert tile_a.is_value() and tile_b.is_value();
-            var is_road_across_water =
-                tile_a.value().*.kind == tile::OCEAN and
-                tile_b.value().*.kind == tile::OCEAN;
-            if not is_road_across_water {
-                var cmessage = client_message::init_build_road(
-                    road::init(
-                        cstate.*.player,
-                        cstate.*.world_edge.value()));
-                sender.*.sendc(cmessage);
-            }
-            return;
-        }
-
-        if IsMouseButtonPressed(MOUSE_BUTTON_LEFT) and cstate.*.world_tile.is_value() {
-            var world_tile = cstate.*.world_tile.value();
-            if std::eq[[hex]](&world_tile.hex, &cstate.*.board.robber) {
-                cstate.*.pstate = player_state::MOVE_ROBBER;
-            }
-            return;
-        }
+        var cmessage = client_message::init_build_town(
+            town::init(
+                cstate.*.player,
+                cstate.*.world_node.value(),
+                town::SETTLEMENT));
+        sender.*.sendc(cmessage);
+        cstate.*.ui_main_build_town_selected = false;
+        return;
     }
-    player_state::MOVE_ROBBER {
-        if IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
-            if cstate.*.world_tile.is_value() {
-                var world_tile = cstate.*.world_tile.value();
-                if not std::eq[[hex]](&world_tile.hex, &cstate.*.board.robber) {
-                    var cmessage = client_message::init_move_robber(world_tile.hex);
-                    sender.*.sendc(cmessage);
-                    cstate.*.pstate = player_state::NONE;
-                }
-            }
-            # De-select the robber regardless of whether a tile was clicked or
-            # not, and regardless of whether that click was successful.
-            cstate.*.pstate = player_state::NONE;
-            return;
-        }
+    elif IsKeyPressed(KEY_SPACE)
+    and cstate.*.turn.phase == phase::RESOURCE_PRODUCTION {
+        var cmessage = client_message::init_roll();
+        sender.*.sendc(cmessage);
+        return;
     }
+    elif IsKeyPressed(KEY_SPACE)
+    and cstate.*.turn.phase == phase::MAIN {
+        var cmessage = client_message::init_end_turn();
+        sender.*.sendc(cmessage);
+        return;
+    }
+    elif cstate.*.ui_main_build_road_selected and IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
+    and cstate.*.world_edge.is_value() {
+        var tile_a = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[0]);
+        var tile_b = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[1]);
+        assert tile_a.is_value() and tile_b.is_value();
+        var is_road_across_water =
+            tile_a.value().*.kind == tile::OCEAN and
+            tile_b.value().*.kind == tile::OCEAN;
+        if not is_road_across_water {
+            sender.*.sendc(client_message::init_build_road(
+                road::init(
+                    cstate.*.player,
+                    cstate.*.world_edge.value())));
+            cstate.*.ui_main_build_road_selected = false;
+        }
+        return;
     }
 }
 
@@ -1532,7 +1560,8 @@ func client_render(cstate: *client_state) void {
     # Re-draw the hexagon outline and boarder for the currently hovered-over
     # tile if the robber is being moved. This is done before towns and roads
     # are drawn so that the hovered-over tile appears highlighted.
-    if cstate.*.pstate == player_state::MOVE_ROBBER {
+    if cstate.*.turn.phase == phase::ROBBER
+    and cstate.*.turn.player == cstate.*.player {
         var tile = cstate.*.board.tiles.lookup(cstate.*.world_hex);
         if tile.is_value() and tile.value().*.kind != ::tile::OCEAN {
             draw_pointy_hexagon_outline(world_hex_center, HEX_RADIUS, YELLOW);
@@ -1554,10 +1583,11 @@ func client_render(cstate: *client_state) void {
     }
 
     var show_world_edge_road =
+        cstate.*.turn.phase == phase::MAIN and
+        cstate.*.ui_main_build_road_selected and
         cstate.*.world_edge.is_value() and
         not cstate.*.board.roads.contains(cstate.*.world_edge.value()) and
-        not cstate.*.world_node.is_value() and
-        cstate.*.pstate == player_state::NONE;
+        not cstate.*.world_node.is_value();
     if show_world_edge_road {
         var tile_a = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[0]);
         var tile_b = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[1]);
@@ -1585,9 +1615,9 @@ func client_render(cstate: *client_state) void {
     }
 
     var show_world_node_town =
-        cstate.*.world_node.is_value() and
-        not cstate.*.board.towns.contains(cstate.*.world_node.value()) and
-        cstate.*.pstate == player_state::NONE;
+        cstate.*.turn.phase == phase::MAIN and
+        cstate.*.ui_main_build_town_selected and
+        cstate.*.world_node.is_value();
     if show_world_node_town {
         var point = node_to_point(cstate.*.world_node.value(), HEX_RADIUS);
         draw_circle(point, 6.0, YELLOW);
@@ -1595,7 +1625,7 @@ func client_render(cstate: *client_state) void {
     }
 
     var robber_outline = BLACK;
-    if cstate.*.pstate == player_state::MOVE_ROBBER {
+    if cstate.*.turn.phase == phase::ROBBER and cstate.*.turn.player == cstate.*.player {
         robber_outline = YELLOW;
     }
     draw_robber(pointy_hex_to_point(cstate.*.board.robber, HEX_RADIUS), HEX_RADIUS, robber_outline);
