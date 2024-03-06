@@ -56,7 +56,7 @@ struct server_state {
             .w_trade_submitted = false,
             .o_trade_submitted = false,
             .trade = uninit,
-            .turn = turn::init(player::NIL),
+            .turn = turn::init(0, player::NIL),
         };
     }
 
@@ -148,7 +148,7 @@ struct server_state {
     }
 
     func change_turn(self: *server_state, player: player) void {
-        self.*.turn = turn::init(player);
+        self.*.turn = turn::init(self.*.turn.number + 1, player);
         var name = player_to_name(player);
         self.*.sendc_all(server_message::init_log_format(
             "It's {}'s turn!",

@@ -858,24 +858,19 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         ToggleFullscreen();
     }
     if IsKeyPressed(KEY_ZERO) {
-        var cmessage = client_message::init_select_player(player::NIL);
-        sender.*.sendc(cmessage);
+        sender.*.sendc(client_message::init_select_player(player::NIL));
     }
     if IsKeyPressed(KEY_ONE) {
-        var cmessage = client_message::init_select_player(player::RED);
-        sender.*.sendc(cmessage);
+        sender.*.sendc(client_message::init_select_player(player::RED));
     }
     if IsKeyPressed(KEY_TWO) {
-        var cmessage = client_message::init_select_player(player::BLUE);
-        sender.*.sendc(cmessage);
+        sender.*.sendc(client_message::init_select_player(player::BLUE));
     }
     if IsKeyPressed(KEY_THREE) {
-        var cmessage = client_message::init_select_player(player::WHITE);
-        sender.*.sendc(cmessage);
+        sender.*.sendc(client_message::init_select_player(player::WHITE));
     }
     if IsKeyPressed(KEY_FOUR) {
-        var cmessage = client_message::init_select_player(player::ORANGE);
-        sender.*.sendc(cmessage);
+        sender.*.sendc(client_message::init_select_player(player::ORANGE));
     }
 
     # Begin UI
@@ -884,6 +879,38 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     smol::handle_input(cstate.*.ui.context);
     mu_begin(cstate.*.ui.context);
     let UI_BORDER: sint = 8;
+
+    # Select Player/Color UI Window
+    var ui_w = (:sint)screen_w / 4;
+    var ui_h = (:sint)screen_h / 4;
+    var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
+    var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
+    var show_ui = cstate.*.player == player::NIL;
+    if show_ui and cstate.*.ui.begin_window_ex("Select Color", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Window Content
+        cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        if cstate.*.ui.button("Red") {
+            sender.*.sendc(client_message::init_select_player(player::RED));
+        }
+        if cstate.*.ui.button("Blue") {
+            sender.*.sendc(client_message::init_select_player(player::BLUE));
+        }
+        if cstate.*.ui.button("White") {
+            sender.*.sendc(client_message::init_select_player(player::WHITE));
+        }
+        if cstate.*.ui.button("Orange") {
+            sender.*.sendc(client_message::init_select_player(player::ORANGE));
+        }
+
+        cstate.*.ui.end_window();
+    }
 
     # Resource Production Roll UI Window
     var ui_w = (:sint)screen_w / 4;
@@ -1655,16 +1682,14 @@ func client_render(cstate: *client_state) void {
 
     var SQUARE_SIDE = f32::min(screen_w / 24.0, screen_h / 24.0);
     let SQUARE_OFFSET = 8.0f32;
-    var SQUARE_BORDER = f32::max(2.0f32, SQUARE_SIDE / 16.0);
     var square_xpos = SQUARE_OFFSET;
-    var square_ypos = screen_h - SQUARE_SIDE * 2.0 - SQUARE_OFFSET * 2.0;
-
+    var square_ypos = screen_h - SQUARE_SIDE - SQUARE_OFFSET;
     draw_d6(
         cstate.*.font,
         SQUARE_SIDE / 2.0,
         (:Vector2){
             .x = square_xpos + SQUARE_SIDE * 0.0 + SQUARE_OFFSET * 0.0,
-            .y = square_ypos + SQUARE_SIDE * 0.0 + SQUARE_OFFSET * 0.0,
+            .y = square_ypos,
         },
         cstate.*.board.d6_a,
         YELLOW,
@@ -1674,99 +1699,11 @@ func client_render(cstate: *client_state) void {
         SQUARE_SIDE / 2.0,
         (:Vector2){
             .x = square_xpos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
-            .y = square_ypos + SQUARE_SIDE * 0.0 + SQUARE_OFFSET * 0.0,
+            .y = square_ypos,
         },
         cstate.*.board.d6_b,
         RED,
         YELLOW);
-
-    var square_background = BLACK;
-    if cstate.*.player == player::RED {
-        square_background = YELLOW;
-    }
-    draw_rect(
-        (:Vector2){
-            .x = square_xpos + SQUARE_SIDE * 0.0 + SQUARE_OFFSET * 0.0,
-            .y = square_ypos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
-        },
-        SQUARE_SIDE,
-        SQUARE_SIDE,
-        player_color(player::RED));
-    draw_rect_outline(
-        (:Vector2){
-            .x = square_xpos + SQUARE_SIDE * 0.0 + SQUARE_OFFSET * 0.0,
-            .y = square_ypos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
-        },
-        SQUARE_SIDE,
-        SQUARE_SIDE,
-        SQUARE_BORDER,
-        square_background);
-
-    var square_background = BLACK;
-    if cstate.*.player == player::BLUE {
-        square_background = YELLOW;
-    }
-    draw_rect(
-        (:Vector2){
-            .x = square_xpos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
-            .y = square_ypos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
-        },
-        SQUARE_SIDE,
-        SQUARE_SIDE,
-        player_color(player::BLUE));
-    draw_rect_outline(
-        (:Vector2){
-            .x = square_xpos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
-            .y = square_ypos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
-        },
-        SQUARE_SIDE,
-        SQUARE_SIDE,
-        SQUARE_BORDER,
-        square_background);
-
-    var square_background = BLACK;
-    if cstate.*.player == player::WHITE {
-        square_background = YELLOW;
-    }
-    draw_rect(
-        (:Vector2){
-            .x = square_xpos + SQUARE_SIDE * 2.0 + SQUARE_OFFSET * 2.0,
-            .y = square_ypos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
-        },
-        SQUARE_SIDE,
-        SQUARE_SIDE,
-        player_color(player::WHITE));
-    draw_rect_outline(
-        (:Vector2){
-            .x = square_xpos + SQUARE_SIDE * 2.0 + SQUARE_OFFSET * 2.0,
-            .y = square_ypos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
-        },
-        SQUARE_SIDE,
-        SQUARE_SIDE,
-        SQUARE_BORDER,
-        square_background);
-
-    var square_background = BLACK;
-    if cstate.*.player == player::ORANGE {
-        square_background = YELLOW;
-    }
-    draw_rect(
-        (:Vector2){
-            .x = square_xpos + SQUARE_SIDE * 3.0 + SQUARE_OFFSET * 3.0,
-            .y = square_ypos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
-        },
-        SQUARE_SIDE,
-        SQUARE_SIDE,
-        player_color(player::ORANGE));
-    draw_rect_outline(
-        (:Vector2){
-            .x = square_xpos + SQUARE_SIDE * 3.0 + SQUARE_OFFSET * 3.0,
-            .y = square_ypos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
-        },
-        SQUARE_SIDE,
-        SQUARE_SIDE,
-        SQUARE_BORDER,
-        square_background);
 
     smol::render(cstate.*.ui.context);
 
@@ -1838,6 +1775,12 @@ func client_render(cstate: *client_state) void {
                 "NODE/EDGE/TILE: none");
         }
 
+        draw_text_format(cstate.*.font, cstate.*.font_size, BLACK,
+            (:Vector2){.x = 2.0, .y = 6.0 * cstate.*.font_size},
+            "TURN: {}",
+            (:[]std::formatter)[
+                std::formatter::init[[sint]](&cstate.*.turn.number)]);
+
         var phase_text: []byte = uninit;
         switch cstate.*.turn.phase {
         phase::RESOURCE_PRODUCTION {
@@ -1860,7 +1803,7 @@ func client_render(cstate: *client_state) void {
         }
         }
         draw_text_format(cstate.*.font, cstate.*.font_size, BLACK,
-            (:Vector2){.x = 2.0, .y = 6.0 * cstate.*.font_size},
+            (:Vector2){.x = 2.0, .y = 7.0 * cstate.*.font_size},
             "PHASE: {}",
             (:[]std::formatter)[
                 std::formatter::init[[[]byte]](&phase_text)]);

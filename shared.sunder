@@ -1651,11 +1651,13 @@ enum phase {
 }
 
 struct turn {
+    var number: sint;
     var player: player;
     var phase: phase;
 
-    func init(player: player) turn {
+    func init(number: sint, player: player) turn {
         return (:turn){
+            .number = number,
             .player = player,
             .phase = phase::RESOURCE_PRODUCTION,
         };
@@ -1663,6 +1665,7 @@ struct turn {
 
     func init_from_bubby(value: *bubby::value) turn {
         var out: turn = uninit;
+        out.number = xstr_to_int[[sint]](value.*.map_xlookup_str("number").*.str());
         out.player = bubby_to_player(value.*.map_xlookup_str("player"));
         out.phase = phase::init_from_bubby(value.*.map_xlookup_str("phase"));
         return out;
@@ -1670,6 +1673,7 @@ struct turn {
 
     func to_bubby(self: *turn) bubby::value {
         var out = bubby::value::init_map();
+        out.map_insert_str("number", int_to_bubby[[sint]](self.*.number));
         out.map().*.insert(bubby::value::init_str("player"), player_to_bubby(self.*.player));
         out.map().*.insert(bubby::value::init_str("phase"), self.*.phase.to_bubby());
         return out;
