@@ -42,6 +42,10 @@ struct server_state {
     var o_trade_submitted: bool; # trade phase
     var trade: trade;
     var turn: turn;
+    # Previous turn phase before playing a devlopment card. Used for restoring
+    # the turn state after a development card has resolved. An empty optional
+    # indicates that a development card has not been played this turn.
+    var prev_phase: std::optional[[phase]];
 
     func init() server_state {
         # TODO: Perform Fisher–Yates shuffle on the dev card stack.
@@ -90,6 +94,7 @@ struct server_state {
             .o_trade_submitted = false,
             .trade = uninit,
             .turn = turn::init(0, player::NIL),
+            .prev_phase = std::optional[[phase]]::EMPTY,
         };
     }
 
@@ -228,6 +233,7 @@ struct server_state {
 
     func change_turn(self: *server_state, player: player) void {
         self.*.turn = turn::init(self.*.turn.number + 1, player);
+        self.*.prev_phase = std::optional[[phase]]::EMPTY;
         var name = player_to_name(player);
         self.*.sendc_all(server_message::init_log_format(
             "It's {}'s turn!",
@@ -646,6 +652,50 @@ struct server_state {
                 std::formatter::init[[typeof(name)]](&name)]));
     }
 
+    func process_use_dev_card_kngiht(self: *server_state, connection: *connection) void {
+        if self.*.turn.player != connection.*.player {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (it is not your turn)"));
+            return;
+        }
+        if self.*.turn.phase != phase::RESOURCE_PRODUCTION and self.*.turn.phase != phase::MAIN {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (invalid phase)"));
+            return;
+        }
+        if self.*.prev_phase.is_value() {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (development card has already been played this turn)"));
+            return;
+        }
+
+        var info = self.*.p_info(self.*.turn.player);
+        var card = std::ptr[[purchased_dev_card]]::NULL;
+        for i in info.*.dev_card_count {
+            if info.*.dev_card_array[i].kind != dev_card::KNIGHT {
+                continue;
+            }
+            if info.*.dev_card_array[i].turn >= self.*.turn.number {
+                continue;
+            }
+            if info.*.dev_card_array[i].used {
+                continue;
+            }
+            card = &info.*.dev_card_array[i];
+        }
+        if card == std::ptr[[purchased_dev_card]]::NULL {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (no valid knight)"));
+            return;
+        }
+
+        card.*.used = true;
+        self.*.prev_phase = std::optional[[phase]]::init_value(self.*.turn.phase);
+        self.*.turn.phase = phase::ROBBER;
+
+        var name = player_to_name(self.*.turn.player);
+        self.*.sendc_all(server_message::init_log_format(
+            "{} played a knight.",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name)]));
+    }
+
     func process_move_robber(self: *server_state, connection: *connection, hex: hex) void {
         if self.*.turn.player != connection.*.player {
             connection.*.sendc(server_message::init_rejected("cannot move robber (it is not your turn)"));
@@ -699,7 +749,12 @@ struct server_state {
             }
         }
 
-        self.*.turn.phase = phase::MAIN;
+        if self.*.prev_phase.is_value() {
+            self.*.turn.phase = self.*.prev_phase.value();
+        }
+        else {
+            self.*.turn.phase = phase::MAIN;
+        }
     }
 
     func process_select_player(self: *server_state, connection: *connection, selected: player) void {
@@ -964,7 +1019,13 @@ struct server_state {
             (:[]std::formatter)[
                 std::formatter::init[[typeof(t_name)]](&t_name),
                 std::formatter::init[[typeof(f_name)]](&f_name)]));
-        self.*.turn.phase = phase::MAIN;
+
+        if self.*.prev_phase.is_value() {
+            self.*.turn.phase = self.*.prev_phase.value();
+        }
+        else {
+            self.*.turn.phase = phase::MAIN;
+        }
     }
 
     func process_submit_resources(self: *server_state, connection: *connection, resources: resources) void {
@@ -1211,6 +1272,9 @@ struct server_state {
         }
         client_message::BUY_DEV_CARD {
             self.*.process_buy_dev_card(connection);
+        }
+        client_message::USE_DEV_CARD_KNGIHT {
+            self.*.process_use_dev_card_kngiht(connection);
         }
         client_message::MOVE_ROBBER {
             self.*.process_move_robber(connection, message.*.data.move_robber);
