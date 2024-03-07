@@ -23,6 +23,11 @@ struct server_state {
     var connections: std::vector[[connection]];
     var ticks: usize;
     var board: board;
+    var dev_cards: std::vector[[dev_card]];
+    var r_live: bool;
+    var b_live: bool;
+    var w_live: bool;
+    var o_live: bool;
     var r_info: hidden_player_info;
     var b_info: hidden_player_info;
     var w_info: hidden_player_info;
@@ -39,10 +44,38 @@ struct server_state {
     var turn: turn;
 
     func init() server_state {
+        # TODO: Perform Fisher–Yates shuffle on the dev card stack.
+        var dev_cards = std::vector[[dev_card]]::init();
+        # x14 Knight
+        for _ in 14 {
+            dev_cards.push(dev_card::KNIGHT);
+        }
+        # x02 Road Building
+        for _ in 2 {
+            dev_cards.push(dev_card::ROAD_BUILDING);
+        }
+        # x02 Year of Plenty
+        for _ in 2 {
+            dev_cards.push(dev_card::YEAR_OF_PLENTY);
+        }
+        # x02 Monopoly
+        for _ in 2 {
+            dev_cards.push(dev_card::MONOPOLY);
+        }
+        # x05 Victory Point
+        for _ in 2 {
+            dev_cards.push(dev_card::VICTORY_POINT);
+        }
+
         return (:server_state){
             .connections = std::vector[[connection]]::init(),
             .ticks = 0,
             .board = board::init_starter_map_for_beginners(),
+            .dev_cards = dev_cards,
+            .r_live = false,
+            .b_live = false,
+            .w_live = false,
+            .o_live = false,
             .r_info = uninit,
             .b_info = uninit,
             .w_info = uninit,
@@ -63,6 +96,7 @@ struct server_state {
     func fini(self: *server_state) void {
         self.*.connections.fini();
         self.*.board.fini();
+        self.*.dev_cards.fini();
     }
 
     # Send a server message to all connections.
@@ -76,6 +110,29 @@ struct server_state {
     func sendc_all(self: *server_state, message: server_message) void {
         self.*.send_all(&message);
         message.fini();
+    }
+
+    func p_live(self: *server_state, player: player) *bool {
+        switch player {
+        ::player::NIL {
+            std::unreachable(fileof(), lineof());
+        }
+        ::player::RED {
+            return &self.*.r_live;
+        }
+        ::player::BLUE {
+            return &self.*.b_live;
+        }
+        ::player::WHITE {
+            return &self.*.w_live;
+        }
+        ::player::ORANGE {
+            return &self.*.o_live;
+        }
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[*bool]]();
     }
 
     func p_info(self: *server_state, player: player) *hidden_player_info {
@@ -145,6 +202,28 @@ struct server_state {
 
         std::unreachable(fileof(), lineof());
         return std::zeroed[[*bool]]();
+    }
+
+    func public_victory_points(self: *server_state, player: player) sint {
+        var victory_points: sint = 0;
+
+        var iter = std::hash_map_iterator[[node, town]]::init(&self.*.board.towns);
+        for iter.advance() {
+            var town = *iter.current().*.value;
+            if town.player != player {
+                continue;
+            }
+            switch town.kind {
+            ::town::SETTLEMENT {
+                victory_points += 1;
+            }
+            ::town::CITY {
+                victory_points += 2;
+            }
+            }
+        }
+
+        return victory_points;
     }
 
     func change_turn(self: *server_state, player: player) void {
@@ -258,18 +337,34 @@ struct server_state {
             (:[]std::formatter)[
                 std::formatter::init[[typeof(name)]](&name)]));
 
+        var PLAYERS = (:[]player)[
+            player::RED,
+            player::BLUE,
+            player::WHITE,
+            player::ORANGE,
+        ];
+        var idx: usize = uninit;
         if self.*.turn.player == player::RED {
-            self.*.change_turn(player::BLUE);
+            idx = 0; # red
         }
         elif self.*.turn.player == player::BLUE {
-            self.*.change_turn(player::WHITE);
+            idx = 1; # blue
         }
         elif self.*.turn.player == player::WHITE {
-            self.*.change_turn(player::ORANGE);
+            idx = 2; # white
         }
         elif self.*.turn.player == player::ORANGE {
-            self.*.change_turn(player::RED);
+            idx = 3; # orange
         }
+
+        for true {
+            idx += 1;
+            idx %= countof(PLAYERS);
+            if *self.*.p_live(PLAYERS[idx]) {
+                break;
+            }
+        }
+        self.*.change_turn(PLAYERS[idx]);
     }
 
 
@@ -512,6 +607,45 @@ struct server_state {
                 std::formatter::init[[typeof(kind)]](&kind)]));
     }
 
+    func process_buy_dev_card(self: *server_state, connection: *connection) void {
+        if self.*.turn.player != connection.*.player {
+            connection.*.sendc(server_message::init_rejected("cannot buy development card (it is not your turn)"));
+            return;
+        }
+        if self.*.turn.phase != phase::MAIN {
+            connection.*.sendc(server_message::init_rejected("cannot buy development card (it is not the main phase)"));
+            return;
+        }
+
+        if self.*.dev_cards.count() == 0 {
+            connection.*.sendc(server_message::init_rejected("cannot buy development card (no development cards remaining)"));
+            return;
+        }
+
+        var info = self.*.p_info(self.*.turn.player);
+        if not (info.*.ore >= 1 and info.*.sheep >= 1 and info.*.wheat >= 1) {
+            connection.*.sendc(server_message::init_rejected("cannot buy development card (insufficient resources)"));
+            return;
+        }
+        info.*.ore -= 1;
+        info.*.sheep -= 1;
+        info.*.wheat -= 1;
+
+        info.*.dev_card_array[info.*.dev_card_count] = (:purchased_dev_card){
+            .kind = self.*.dev_cards.pop(),
+            .turn = self.*.turn.number,
+            .used = false,
+        };
+        info.*.dev_card_count += 1;
+
+        connection.*.sendc(server_message::init_accepted("bought development card"));
+        var name = player_to_name(self.*.turn.player);
+        self.*.sendc_all(server_message::init_log_format(
+            "{} bought a development card.",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name)]));
+    }
+
     func process_move_robber(self: *server_state, connection: *connection, hex: hex) void {
         if self.*.turn.player != connection.*.player {
             connection.*.sendc(server_message::init_rejected("cannot move robber (it is not your turn)"));
@@ -585,11 +719,133 @@ struct server_state {
             return;
         }
 
+        if selected != player::NIL and not *self.*.p_live(selected) {
+            var start_of_game =
+                self.*.turn.number == 1 and
+                self.*.turn.phase == phase::RESOURCE_PRODUCTION;
+            if not start_of_game {
+                connection.*.sendc(server_message::init_rejected("cannot select player (player is not part of the game)"));
+                return;
+            }
+
+            # Insert Starter Map For Beginners Positions
+            switch selected {
+            player::NIL {
+                # nothing
+            }
+            player::RED {
+                insert_town(&self.*.board.towns, town::init(
+                    player::RED,
+                    node::init(
+                        hex::init(-2, +0, +2),
+                        hex::init(-2, +1, +1),
+                        hex::init(-1, +0, +1)),
+                    town::SETTLEMENT));
+                insert_town(&self.*.board.towns, town::init(
+                    player::RED,
+                    node::init(
+                        hex::init(+0, -2, +2),
+                        hex::init(+0, -1, +1),
+                        hex::init(+1, -2, +1)),
+                    town::SETTLEMENT));
+                insert_road(&self.*.board.roads, road::init(
+                    player::RED,
+                    edge::init(
+                        hex::init(-2, +1, +1),
+                        hex::init(-1, +0, +1))));
+                insert_road(&self.*.board.roads, road::init(
+                    player::RED,
+                    edge::init(
+                        hex::init(+0, -1, +1),
+                        hex::init(+1, -2, +1))));
+            }
+            player::BLUE {
+                insert_town(&self.*.board.towns, town::init(
+                    player::BLUE,
+                    node::init(
+                        hex::init(-2, +1, +1),
+                        hex::init(-2, +2, +0),
+                        hex::init(-1, +1, +0)),
+                    town::SETTLEMENT));
+                insert_town(&self.*.board.towns, town::init(
+                    player::BLUE,
+                    node::init(
+                        hex::init(+0, +1, -1),
+                        hex::init(+0, +2, -2),
+                        hex::init(+1, +1, -2)),
+                    town::SETTLEMENT));
+                insert_road(&self.*.board.roads, road::init(
+                    player::BLUE,
+                    edge::init(
+                        hex::init(-2, +2, +0),
+                        hex::init(-1, +1, +0))));
+                insert_road(&self.*.board.roads, road::init(
+                    player::BLUE,
+                    edge::init(
+                        hex::init(+0, +1, -1),
+                        hex::init(+1, +1, -2))));
+            }
+            player::WHITE {
+                insert_town(&self.*.board.towns, town::init(
+                    player::WHITE,
+                    node::init(
+                        hex::init(-1, -1, +2),
+                        hex::init(-1, +0, +1),
+                        hex::init(+0, -1, +1)),
+                    town::SETTLEMENT));
+                insert_town(&self.*.board.towns, town::init(
+                    player::WHITE,
+                    node::init(
+                        hex::init(+1, +0, -1),
+                        hex::init(+1, +1, -2),
+                        hex::init(+2, +0, -2)),
+                    town::SETTLEMENT));
+                insert_road(&self.*.board.roads, road::init(
+                    player::WHITE,
+                    edge::init(
+                        hex::init(-1, -1, +2),
+                        hex::init(-1, +0, +1))));
+                insert_road(&self.*.board.roads, road::init(
+                    player::WHITE,
+                    edge::init(
+                        hex::init(+1, +0, -1),
+                        hex::init(+2, +0, -2))));
+            }
+            player::ORANGE {
+                insert_town(&self.*.board.towns, town::init(
+                    player::ORANGE,
+                    node::init(
+                        hex::init(-1, +1, +0),
+                        hex::init(-1, +2, -1),
+                        hex::init(+0, +1, -1)),
+                    town::SETTLEMENT));
+                insert_town(&self.*.board.towns, town::init(
+                    player::ORANGE,
+                    node::init(
+                        hex::init(+1, -1, +0),
+                        hex::init(+2, -2, +0),
+                        hex::init(+2, -1, -1)),
+                    town::SETTLEMENT));
+                insert_road(&self.*.board.roads, road::init(
+                    player::ORANGE,
+                    edge::init(
+                        hex::init(-1, +2, -1),
+                        hex::init(+0, +1, -1))));
+                insert_road(&self.*.board.roads, road::init(
+                    player::ORANGE,
+                    edge::init(
+                        hex::init(+1, -1, +0),
+                        hex::init(+2, -2, +0))));
+            }
+            }
+        }
+
         var was = player_to_name(connection.*.player);
         connection.*.player = selected;
         if connection.*.player != player::NIL {
             var info = self.*.p_info(connection.*.player);
             connection.*.sendc(server_message::init_info(*info));
+            self.*.p_live(selected).* = true;
         }
 
         var name = player_to_name(selected);
@@ -747,10 +1003,10 @@ struct server_state {
 
         connection.*.sendc(server_message::init_accepted("discarded resources"));
 
-        if self.*.r_discarded
-        and self.*.b_discarded
-        and self.*.w_discarded
-        and self.*.o_discarded {
+        if (self.*.r_live and self.*.r_discarded)
+        and (self.*.b_live and self.*.b_discarded)
+        and (self.*.w_live and self.*.w_discarded)
+        and (self.*.o_live and self.*.o_discarded) {
             var name = player_to_name(self.*.turn.player);
             self.*.sendc_all(server_message::init_log_format(
                 "Waiting for {} to move the robber.",
@@ -931,10 +1187,10 @@ struct server_state {
         *submitted = true;
 
         connection.*.sendc(server_message::init_accepted("trade rejected"));
-        if self.*.r_trade_submitted
-        and self.*.b_trade_submitted
-        and self.*.w_trade_submitted
-        and self.*.o_trade_submitted {
+        if (self.*.r_live and self.*.r_trade_submitted)
+        and (self.*.b_live and self.*.b_trade_submitted)
+        and (self.*.w_live and self.*.w_trade_submitted)
+        and (self.*.o_live and self.*.o_trade_submitted) {
             self.*.turn.phase = phase::MAIN;
         }
     }
@@ -952,6 +1208,9 @@ struct server_state {
         }
         client_message::BUILD_TOWN {
             self.*.process_build_town(connection, message.*.data.build_town);
+        }
+        client_message::BUY_DEV_CARD {
+            self.*.process_buy_dev_card(connection);
         }
         client_message::MOVE_ROBBER {
             self.*.process_move_robber(connection, message.*.data.move_robber);
@@ -992,22 +1251,34 @@ func server_update(sstate: *server_state) void {
     # necessary to serialize and send the entire board state every game tick.
     if sstate.*.ticks % 4 == 0 {
         var r = (:public_player_info){
+            .live = sstate.*.r_live,
+            .victory_points = sstate.*.public_victory_points(player::RED),
             .resources = sstate.*.r_info.resource_count(),
+            .dev_cards = (:sint)sstate.*.r_info.dev_card_count,
             .discarded = sstate.*.r_discarded,
             .trade_submitted = sstate.*.r_trade_submitted,
         };
         var b = (:public_player_info){
+            .live = sstate.*.b_live,
+            .victory_points = sstate.*.public_victory_points(player::BLUE),
             .resources = sstate.*.b_info.resource_count(),
+            .dev_cards = (:sint)sstate.*.b_info.dev_card_count,
             .discarded = sstate.*.b_discarded,
             .trade_submitted = sstate.*.b_trade_submitted,
         };
         var w = (:public_player_info){
+            .live = sstate.*.w_live,
+            .victory_points = sstate.*.public_victory_points(player::WHITE),
             .resources = sstate.*.w_info.resource_count(),
+            .dev_cards = (:sint)sstate.*.w_info.dev_card_count,
             .discarded = sstate.*.w_discarded,
             .trade_submitted = sstate.*.w_trade_submitted,
         };
         var o = (:public_player_info){
+            .live = sstate.*.o_live,
+            .victory_points = sstate.*.public_victory_points(player::ORANGE),
             .resources = sstate.*.o_info.resource_count(),
+            .dev_cards = (:sint)sstate.*.o_info.dev_card_count,
             .discarded = sstate.*.o_discarded,
             .trade_submitted = sstate.*.o_trade_submitted,
         };

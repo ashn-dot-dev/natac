@@ -289,6 +289,90 @@ let RESOURCES = (:[]resource)[
     resource::WOOD,
 ];
 
+enum dev_card {
+    KNIGHT;         # x14
+    ROAD_BUILDING;  # x2
+    YEAR_OF_PLENTY; # x2
+    MONOPOLY;       # x2
+    VICTORY_POINT;  # x5
+
+    func init_from_bubby(value: *bubby::value) dev_card {
+        if std::str::eq(value.*.str(), "knight") {
+            return dev_card::KNIGHT;
+        }
+        if std::str::eq(value.*.str(), "road-building") {
+            return dev_card::ROAD_BUILDING;
+        }
+        if std::str::eq(value.*.str(), "year-of-plenty") {
+            return dev_card::YEAR_OF_PLENTY;
+        }
+        if std::str::eq(value.*.str(), "monopoly") {
+            return dev_card::MONOPOLY;
+        }
+        if std::str::eq(value.*.str(), "victory-point") {
+            return dev_card::VICTORY_POINT;
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[dev_card]]();
+    }
+
+    func to_bubby(self: *dev_card) bubby::value {
+        switch *self {
+        dev_card::KNIGHT {
+            return bubby::value::init_str("knight");
+        }
+        dev_card::ROAD_BUILDING {
+            return bubby::value::init_str("road-building");
+        }
+        dev_card::YEAR_OF_PLENTY {
+            return bubby::value::init_str("year-of-plenty");
+        }
+        dev_card::MONOPOLY {
+            return bubby::value::init_str("monopoly");
+        }
+        dev_card::VICTORY_POINT {
+            return bubby::value::init_str("victory-point");
+        }
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[bubby::value]]();
+    }
+}
+
+struct purchased_dev_card {
+    var kind: dev_card;
+    var turn: sint; # Turn the dev card was acquired.
+    var used: bool; # True if the player has already used this dev card.
+
+    func init_from_bubby(value: *bubby::value) purchased_dev_card {
+        return (:purchased_dev_card){
+            .kind = dev_card::init_from_bubby(value.*.map_xlookup_str("kind")),
+            .turn = xstr_to_int[[sint]](value.*.map_xlookup_str("turn").*.str()),
+            .used = xstr_to_bool(value.*.map_xlookup_str("used").*.str()),
+        };
+    }
+
+    func to_bubby(self: *purchased_dev_card) bubby::value {
+        var out = bubby::value::init_map();
+        out.map_insert_str("kind", self.*.kind.to_bubby());
+        out.map_insert_str("turn", int_to_bubby[[sint]](self.*.turn));
+        out.map_insert_str("used", bool_to_bubby(self.*.used));
+        return out;
+    }
+}
+
+#   14 knight
+#   02 road building
+#   02 year of plenty
+#   02 monopoly
+# + 05 victory point
+# -------------------
+#   25 total
+type dev_card_array           = [25]dev_card;
+type purchased_dev_card_array = [25]purchased_dev_card;
+
 struct tile {
     var hex: hex;
     var kind: enum {
@@ -831,8 +915,8 @@ struct board {
         var edges = init_edges(&tiles);
         var nodes = init_nodes(&tiles);
         var ports = init_starter_map_for_beginners_ports();
-        var roads = init_starter_map_for_beginners_roads();
-        var towns = init_starter_map_for_beginners_towns();
+        var roads = std::hash_map[[edge, road]]::init();
+        var towns = std::hash_map[[node, town]]::init();
         var robber = hex::init(+0, +0, +0);
         var d6 = (:sint)1;
 
@@ -1165,130 +1249,6 @@ func init_starter_map_for_beginners_ports() std::hash_set[[port]] {
     return ports;
 }
 
-func init_starter_map_for_beginners_roads() std::hash_map[[edge, road]] {
-    var roads = std::hash_map[[edge, road]]::init();
-
-    # Red starting position.
-    insert_road(&roads, road::init(
-        player::RED,
-        edge::init(
-            hex::init(-2, +1, +1),
-            hex::init(-1, +0, +1))));
-    insert_road(&roads, road::init(
-        player::RED,
-        edge::init(
-            hex::init(+0, -1, +1),
-            hex::init(+1, -2, +1))));
-
-    # Blue starting position.
-    insert_road(&roads, road::init(
-        player::BLUE,
-        edge::init(
-            hex::init(-2, +2, +0),
-            hex::init(-1, +1, +0))));
-    insert_road(&roads, road::init(
-        player::BLUE,
-        edge::init(
-            hex::init(+0, +1, -1),
-            hex::init(+1, +1, -2))));
-
-    # White starting position.
-    insert_road(&roads, road::init(
-        player::WHITE,
-        edge::init(
-            hex::init(-1, -1, +2),
-            hex::init(-1, +0, +1))));
-    insert_road(&roads, road::init(
-        player::WHITE,
-        edge::init(
-            hex::init(+1, +0, -1),
-            hex::init(+2, +0, -2))));
-
-    # Orange starting position.
-    insert_road(&roads, road::init(
-        player::ORANGE,
-        edge::init(
-            hex::init(-1, +2, -1),
-            hex::init(+0, +1, -1))));
-    insert_road(&roads, road::init(
-        player::ORANGE,
-        edge::init(
-            hex::init(+1, -1, +0),
-            hex::init(+2, -2, +0))));
-
-    return roads;
-}
-
-func init_starter_map_for_beginners_towns() std::hash_map[[node, town]] {
-    var towns = std::hash_map[[node, town]]::init();
-
-    # Red starting position.
-    insert_town(&towns, town::init(
-        player::RED,
-        node::init(
-            hex::init(-2, +0, +2),
-            hex::init(-2, +1, +1),
-            hex::init(-1, +0, +1)),
-        town::SETTLEMENT));
-    insert_town(&towns, town::init(
-        player::RED,
-        node::init(
-            hex::init(+0, -2, +2),
-            hex::init(+0, -1, +1),
-            hex::init(+1, -2, +1)),
-        town::SETTLEMENT));
-
-    # Blue starting position.
-    insert_town(&towns, town::init(
-        player::BLUE,
-        node::init(
-            hex::init(-2, +1, +1),
-            hex::init(-2, +2, +0),
-            hex::init(-1, +1, +0)),
-        town::SETTLEMENT));
-    insert_town(&towns, town::init(
-        player::BLUE,
-        node::init(
-            hex::init(+0, +1, -1),
-            hex::init(+0, +2, -2),
-            hex::init(+1, +1, -2)),
-        town::SETTLEMENT));
-
-    # White starting position.
-    insert_town(&towns, town::init(
-        player::WHITE,
-        node::init(
-            hex::init(-1, -1, +2),
-            hex::init(-1, +0, +1),
-            hex::init(+0, -1, +1)),
-        town::SETTLEMENT));
-    insert_town(&towns, town::init(
-        player::WHITE,
-        node::init(
-            hex::init(+1, +0, -1),
-            hex::init(+1, +1, -2),
-            hex::init(+2, +0, -2)),
-        town::SETTLEMENT));
-
-    # Orange starting position.
-    insert_town(&towns, town::init(
-        player::ORANGE,
-        node::init(
-            hex::init(-1, +1, +0),
-            hex::init(-1, +2, -1),
-            hex::init(+0, +1, -1)),
-        town::SETTLEMENT));
-    insert_town(&towns, town::init(
-        player::ORANGE,
-        node::init(
-            hex::init(+1, -1, +0),
-            hex::init(+2, -2, +0),
-            hex::init(+2, -1, -1)),
-        town::SETTLEMENT));
-
-    return towns;
-}
-
 func adjacent_edges_to_edge(target: edge, edges: *std::hash_set[[edge]], nodes: *std::hash_set[[node]]) std::hash_set[[edge]] {
     var out = std::hash_set[[edge]]::init();
 
@@ -1520,6 +1480,8 @@ struct hidden_player_info {
     var sheep: sint;
     var wheat: sint;
     var wood: sint;
+    var dev_card_array: purchased_dev_card_array;
+    var dev_card_count: usize;
 
     func init_from_bubby(value: *bubby::value) hidden_player_info {
         var self: hidden_player_info = uninit;
@@ -1528,6 +1490,12 @@ struct hidden_player_info {
         self.sheep = xstr_to_int[[sint]](value.*.map_xlookup_str("sheep").*.str());
         self.wheat = xstr_to_int[[sint]](value.*.map_xlookup_str("wheat").*.str());
         self.wood = xstr_to_int[[sint]](value.*.map_xlookup_str("wood").*.str());
+        var dev_cards = value.*.map_xlookup_str("dev-cards").*.vec();
+        assert dev_cards.*.count() <= countof(self.dev_card_array);
+        for i in dev_cards.*.count() {
+            self.dev_card_array[i] = purchased_dev_card::init_from_bubby(&dev_cards.*.data()[i]);
+        }
+        self.dev_card_count = dev_cards.*.count();
         return self;
     }
 
@@ -1538,6 +1506,11 @@ struct hidden_player_info {
         out.map_insert_str("sheep", int_to_bubby[[sint]](self.*.sheep));
         out.map_insert_str("wheat", int_to_bubby[[sint]](self.*.wheat));
         out.map_insert_str("wood", int_to_bubby[[sint]](self.*.wood));
+        var dev_cards = bubby::value::init_vec();
+        for i in self.*.dev_card_count {
+            dev_cards.vec().*.push(self.*.dev_card_array[i].to_bubby());
+        }
+        out.map_insert_str("dev-cards", dev_cards);
         return out;
     }
 
@@ -1570,13 +1543,19 @@ struct hidden_player_info {
 }
 
 struct public_player_info {
+    var live: bool;
+    var victory_points: sint;
     var resources: sint;
+    var dev_cards: sint;
     var discarded: bool;
     var trade_submitted: bool;
 
     func init_from_bubby(value: *bubby::value) public_player_info {
         var self: public_player_info = uninit;
+        self.live = xstr_to_bool(value.*.map_xlookup_str("live").*.str());
+        self.victory_points = xstr_to_int[[sint]](value.*.map_xlookup_str("victory-points").*.str());
         self.resources = xstr_to_int[[sint]](value.*.map_xlookup_str("resources").*.str());
+        self.dev_cards = xstr_to_int[[sint]](value.*.map_xlookup_str("dev-cards").*.str());
         self.discarded = xstr_to_bool(value.*.map_xlookup_str("discarded").*.str());
         self.trade_submitted = xstr_to_bool(value.*.map_xlookup_str("trade-submitted").*.str());
         return self;
@@ -1584,7 +1563,10 @@ struct public_player_info {
 
     func to_bubby(self: *public_player_info) bubby::value {
         var out = bubby::value::init_map();
+        out.map_insert_str("live", bool_to_bubby(self.*.live));
+        out.map_insert_str("victory-points", int_to_bubby[[sint]](self.*.victory_points));
         out.map_insert_str("resources", int_to_bubby[[sint]](self.*.resources));
+        out.map_insert_str("dev-cards", int_to_bubby[[sint]](self.*.dev_cards));
         out.map_insert_str("discarded", bool_to_bubby(self.*.discarded));
         out.map_insert_str("trade-submitted", bool_to_bubby(self.*.trade_submitted));
         return out;
@@ -1710,6 +1692,7 @@ struct client_message {
         END_TURN;
         BUILD_ROAD;
         BUILD_TOWN;
+        BUY_DEV_CARD;
         MOVE_ROBBER;
         SELECT_PLAYER;
         SUBMIT_PLAYER;
@@ -1763,6 +1746,13 @@ struct client_message {
         return (:client_message){
             .kind = client_message::BUILD_TOWN,
             .data = (:typeof(SELF.data)){.build_town = town},
+        };
+    }
+
+    func init_buy_dev_card() client_message {
+        return (:client_message){
+            .kind = client_message::BUY_DEV_CARD,
+            .data = uninit,
         };
     }
 
@@ -1847,6 +1837,9 @@ struct client_message {
             var town = town::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_build_town(town);
         }
+        if std::str::eq(kind.*.str(), "buy-dev-card") {
+            return client_message::init_buy_dev_card();
+        }
         if std::str::eq(kind.*.str(), "move-robber") {
             var hex = hex::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_move_robber(hex);
@@ -1905,6 +1898,9 @@ struct client_message {
         client_message::BUILD_TOWN {
             out.map_insert_str("kind", bubby::value::init_str("build-town"));
             out.map_insert_str("data", self.*.data.build_town.to_bubby());
+        }
+        client_message::BUY_DEV_CARD {
+            out.map_insert_str("kind", bubby::value::init_str("buy-dev-card"));
         }
         client_message::MOVE_ROBBER {
             out.map_insert_str("kind", bubby::value::init_str("move-robber"));

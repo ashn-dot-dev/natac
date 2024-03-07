@@ -562,6 +562,7 @@ struct client_state {
     var ui_resources_select: resources;
     var ui_main_build_road_selected: bool;
     var ui_main_build_town_selected: bool;
+    var ui_main_play_dev_card_selected: bool;
     var ui_main_trade_with_bank_selected: bool;
     var ui_main_trade_with_bank_resource: std::optional[[resource]]; # x:1 resource->...
     var ui_main_trade_with_players_selected: bool;
@@ -630,6 +631,7 @@ struct client_state {
             .ui_resources_select = uninit,
             .ui_main_build_road_selected = false,
             .ui_main_build_town_selected = false,
+            .ui_main_play_dev_card_selected = false,
             .ui_main_trade_with_bank_selected = false,
             .ui_main_trade_with_bank_resource = uninit,
             .ui_main_trade_with_players_selected = false,
@@ -664,6 +666,29 @@ struct client_state {
         std::delete[[Font]](self.*.ui_font);
         UnloadFont(self.*.font);
         self.*.board.fini();
+    }
+
+    func p_info(self: *client_state, player: player) *public_player_info {
+        switch player {
+        ::player::NIL {
+            std::unreachable(fileof(), lineof());
+        }
+        ::player::RED {
+            return &self.*.r;
+        }
+        ::player::BLUE {
+            return &self.*.b;
+        }
+        ::player::WHITE {
+            return &self.*.w;
+        }
+        ::player::ORANGE {
+            return &self.*.o;
+        }
+        }
+
+        std::unreachable(fileof(), lineof());
+        return std::zeroed[[*public_player_info]]();
     }
 
     func p_discarded(self: *client_state) *bool {
@@ -786,6 +811,56 @@ func ui_number_select(ui: *smol::ui, value: *sint, min: sint, max: sint) void {
     ui.*.pop_id();
 }
 
+let UI_BORDER: sint = 8;
+
+# XXX: Uses ui_main_play_dev_card_selected even though this can be called for
+# the resource production. This should be renamed to ui_play_dev_card_selected,
+# or something similar. Or better yet, use a variant to handle UI state.
+func ui_window_play_dev_card(cstate: *client_state, sender: *message_sender[[client_message]]) void {
+    var screen_w = screen_w();
+    var screen_h = screen_h();
+
+    var ui_w = (:sint)screen_w / 4;
+    var ui_h = (:sint)screen_h / 4;
+    var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
+    var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
+
+    sender; # TODO: Use `sender` for the eventual client messages.
+
+    if cstate.*.ui.begin_window_ex("Play a Development Card", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Window Content
+        cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        if cstate.*.ui.button("Play Knight") {
+            std::print_line(std::err(), "TODO: Play Knight...");
+            cstate.*.ui_main_play_dev_card_selected = false;
+        }
+        if cstate.*.ui.button("Play Road Building") {
+            std::print_line(std::err(), "TODO: Play Road Building...");
+            cstate.*.ui_main_play_dev_card_selected = false;
+        }
+        if cstate.*.ui.button("Play Year of Plenty") {
+            std::print_line(std::err(), "TODO: Play Year of Plenty...");
+            cstate.*.ui_main_play_dev_card_selected = false;
+        }
+        if cstate.*.ui.button("Play Monopoly") {
+            std::print_line(std::err(), "TODO: Play Monopoly...");
+            cstate.*.ui_main_play_dev_card_selected = false;
+        }
+        if cstate.*.ui.button("Back") {
+            cstate.*.ui_main_play_dev_card_selected = false;
+        }
+
+        cstate.*.ui.end_window();
+    }
+}
+
 func client_update(cstate: *client_state, sender: *message_sender[[client_message]]) void {
     # Collect basic information about the state of the window/camera, position
     # of the mouse in screen space & world space, and objects that the mouse is
@@ -878,7 +953,6 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var screen_h = screen_h();
     smol::handle_input(cstate.*.ui.context);
     mu_begin(cstate.*.ui.context);
-    let UI_BORDER: sint = 8;
 
     # Select Player/Color UI Window
     var ui_w = (:sint)screen_w / 4;
@@ -912,36 +986,16 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         cstate.*.ui.end_window();
     }
 
-    # Resource Production Roll UI Window
-    var ui_w = (:sint)screen_w / 4;
-    var ui_h = (:sint)screen_h / 4;
-    var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
-    var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
-    var show_ui = cstate.*.turn.phase == phase::RESOURCE_PRODUCTION and cstate.*.turn.player == cstate.*.player;
-    if show_ui and cstate.*.ui.begin_window_ex("Your Turn (resource production)", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
-
-        # Window Content
-        cstate.*.ui.layout_row((:[]sint)[-1], 0);
-        if cstate.*.ui.button("Roll") {
-            var cmessage = client_message::init_roll();
-            sender.*.sendc(cmessage);
-        }
-
-        cstate.*.ui.end_window();
-    }
-
     # Player Info UI Windows
     let UI_PLAYERS = (:[4]player)[player::RED, player::BLUE, player::WHITE, player::ORANGE];
     var ui_players_w = (:sint)screen_w * 1 / 3;
     var ui_players_h = ((:sint)screen_h * 1 / 2 - 2 * UI_BORDER) / (:sint)countof(UI_PLAYERS);
     for i in countof(UI_PLAYERS) {
         var player = UI_PLAYERS[i];
+        if not cstate.*.p_info(player).*.live {
+            continue;
+        }
+
         var pcolor = player_color(player);
         cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].r = pcolor.r;
         cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].g = pcolor.g;
@@ -985,36 +1039,56 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             win.*.rect.y = ui_y;
 
             # Window Content
+            var victory_points: sint = uninit;
             var resources: sint = uninit;
+            var dev_cards: sint = uninit;
             switch player {
             ::player::NIL {
                 std::unreachable(fileof(), lineof());
             }
             ::player::RED {
+                victory_points = cstate.*.r.victory_points;
                 resources = cstate.*.r.resources;
+                dev_cards = cstate.*.r.dev_cards;
             }
             ::player::BLUE {
+                victory_points = cstate.*.b.victory_points;
                 resources = cstate.*.b.resources;
+                dev_cards = cstate.*.b.dev_cards;
             }
             ::player::WHITE {
+                victory_points = cstate.*.w.victory_points;
                 resources = cstate.*.w.resources;
+                dev_cards = cstate.*.w.dev_cards;
             }
             ::player::ORANGE {
+                victory_points = cstate.*.o.victory_points;
                 resources = cstate.*.o.resources;
+                dev_cards = cstate.*.o.dev_cards;
             }
+            }
+
+            if player == cstate.*.player {
+                for i in cstate.*.pinfo.dev_card_count {
+                    if cstate.*.pinfo.dev_card_array[i].kind == dev_card::VICTORY_POINT {
+                        victory_points += 1;
+                    }
+                }
             }
 
             cstate.*.ui.layout_row((:[]sint)[-1], 1);
             var s = std::string::init_from_format(
-                "resources: {}",
+                "Victory Points: {}, Resources: {}, Dev Cards: {}",
                 (:[]std::formatter)[
-                    std::formatter::init[[sint]](&resources)]);
+                    std::formatter::init[[sint]](&victory_points),
+                    std::formatter::init[[sint]](&resources),
+                    std::formatter::init[[sint]](&dev_cards)]);
             defer s.fini();
             cstate.*.ui.text(s.data());
 
             if player == cstate.*.player {
                 var s = std::string::init_from_format(
-                    "brick: {}, ore: {}, sheep: {}, wheat: {}, wood: {}",
+                    "Brick: {}, Ore: {}, Sheep: {}, Wheat: {}, Wood: {}",
                     (:[]std::formatter)[
                         std::formatter::init[[sint]](&cstate.*.pinfo.brick),
                         std::formatter::init[[sint]](&cstate.*.pinfo.ore),
@@ -1023,11 +1097,51 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                         std::formatter::init[[sint]](&cstate.*.pinfo.wood)]);
                 defer s.fini();
                 cstate.*.ui.text(s.data());
+
+                var knight_count: usize = 0;
+                var road_building_count: usize = 0;
+                var year_of_plenty_count: usize = 0;
+                var monopoly_count: usize = 0;
+                var victory_point_count: usize = 0;
+                for i in cstate.*.pinfo.dev_card_count {
+                    if cstate.*.pinfo.dev_card_array[i].used {
+                        continue;
+                    }
+                    switch cstate.*.pinfo.dev_card_array[i].kind {
+                    dev_card::KNIGHT {
+                        knight_count += 1;
+                    }
+                    dev_card::ROAD_BUILDING {
+                        road_building_count += 1;
+                    }
+                    dev_card::YEAR_OF_PLENTY {
+                        year_of_plenty_count += 1;
+                    }
+                    dev_card::MONOPOLY {
+                        monopoly_count += 1;
+                    }
+                    dev_card::VICTORY_POINT {
+                        victory_point_count += 1;
+                    }
+                    }
+                }
+                var s = std::string::init_from_format(
+                    "[Dev Cards] Kn: {}, RB: {}, YoP: {}, Mo: {}, VP: {}",
+                    (:[]std::formatter)[
+                        std::formatter::init[[usize]](&knight_count),
+                        std::formatter::init[[usize]](&road_building_count),
+                        std::formatter::init[[usize]](&year_of_plenty_count),
+                        std::formatter::init[[usize]](&monopoly_count),
+                        std::formatter::init[[usize]](&victory_point_count)]);
+                defer s.fini();
+                cstate.*.ui.text(s.data());
             }
 
             cstate.*.ui.end_window();
         }
     }
+
+    # Log UI Window
     cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].r = BLACK.r;
     cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].g = BLACK.g;
     cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].b = BLACK.b;
@@ -1060,6 +1174,35 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         if cstate.*.ui_log_updated {
             win.*.scroll.y = win.*.content_size.y;
             cstate.*.ui_log_updated = false;
+        }
+
+        cstate.*.ui.end_window();
+    }
+
+    # Resource Production Roll UI Window
+    var ui_w = (:sint)screen_w / 4;
+    var ui_h = (:sint)screen_h / 4;
+    var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
+    var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
+    var show_ui = cstate.*.turn.phase == phase::RESOURCE_PRODUCTION and cstate.*.turn.player == cstate.*.player;
+    if show_ui and cstate.*.ui_main_play_dev_card_selected {
+        ui_window_play_dev_card(cstate, sender);
+    }
+    elif show_ui and cstate.*.ui.begin_window_ex("Your Turn (resource production)", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Window Content
+        cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        if cstate.*.ui.button("Roll") {
+            sender.*.sendc(client_message::init_roll());
+        }
+        if cstate.*.ui.button("Play a Development Card") {
+            cstate.*.ui_main_play_dev_card_selected = true;
         }
 
         cstate.*.ui.end_window();
@@ -1174,6 +1317,40 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         if cstate.*.ui.button("Back") {
             cstate.*.ui_main_build_town_selected = false;
+        }
+
+        cstate.*.ui.end_window();
+    }
+    elif show_ui
+    and cstate.*.ui_main_play_dev_card_selected
+    and cstate.*.ui.begin_window_ex("Play a Development Card", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Window Content
+        cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        if cstate.*.ui.button("Play Knight") {
+            std::print_line(std::err(), "TODO: Play Knight...");
+            cstate.*.ui_main_play_dev_card_selected = false;
+        }
+        if cstate.*.ui.button("Play Road Building") {
+            std::print_line(std::err(), "TODO: Play Road Building...");
+            cstate.*.ui_main_play_dev_card_selected = false;
+        }
+        if cstate.*.ui.button("Play Year of Plenty") {
+            std::print_line(std::err(), "TODO: Play Year of Plenty...");
+            cstate.*.ui_main_play_dev_card_selected = false;
+        }
+        if cstate.*.ui.button("Play Monopoly") {
+            std::print_line(std::err(), "TODO: Play Monopoly...");
+            cstate.*.ui_main_play_dev_card_selected = false;
+        }
+        if cstate.*.ui.button("Back") {
+            cstate.*.ui_main_play_dev_card_selected = false;
         }
 
         cstate.*.ui.end_window();
@@ -1340,7 +1517,13 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         if cstate.*.ui.button("Build a Settlement/City") {
             cstate.*.ui_main_build_town_selected = true;
         }
-        if cstate.*.ui.button("Trade with Bank") {
+        if cstate.*.ui.button("Buy a Development Card") {
+            sender.*.sendc(client_message::init_buy_dev_card());
+        }
+        if cstate.*.ui.button("Play a Development Card") {
+            cstate.*.ui_main_play_dev_card_selected = true;
+        }
+        if cstate.*.ui.button("Trade with the Bank") {
             cstate.*.ui_main_trade_with_bank_selected = true;
             cstate.*.ui_main_trade_with_bank_resource = std::optional[[resource]]::EMPTY;
         }
@@ -1350,8 +1533,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             cstate.*.ui_main_trade_with_players_recv = std::zeroed[[resources]]();
         }
         if cstate.*.ui.button("End Turn") {
-            var cmessage = client_message::init_end_turn();
-            sender.*.sendc(cmessage);
+            sender.*.sendc(client_message::init_end_turn());
         }
 
         cstate.*.ui.end_window();
