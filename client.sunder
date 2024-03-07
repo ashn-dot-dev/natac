@@ -842,7 +842,7 @@ func ui_window_play_dev_card(cstate: *client_state, sender: *message_sender[[cli
             cstate.*.ui_main_play_dev_card_selected = false;
         }
         if cstate.*.ui.button("Play Road Building") {
-            std::print_line(std::err(), "TODO: Play Road Building...");
+            sender.*.sendc(client_message::init_use_dev_card_road_building());
             cstate.*.ui_main_play_dev_card_selected = false;
         }
         if cstate.*.ui.button("Play Year of Plenty") {
@@ -1666,7 +1666,9 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         sender.*.sendc(cmessage);
         return;
     }
-    elif cstate.*.ui_main_build_road_selected and IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
+    elif
+    (cstate.*.ui_main_build_road_selected or cstate.*.turn.phase == phase::ROAD_BUILDING_1 or cstate.*.turn.phase == phase::ROAD_BUILDING_2)
+    and IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
     and cstate.*.world_edge.is_value() {
         var tile_a = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[0]);
         var tile_b = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[1]);
@@ -1761,9 +1763,12 @@ func client_render(cstate: *client_state) void {
         draw_road(points[0], points[1], HEX_RADIUS, player_color(road.*.player));
     }
 
+    var show_world_edge_road_valid =
+        cstate.*.turn.phase == phase::ROAD_BUILDING_1 or
+        cstate.*.turn.phase == phase::ROAD_BUILDING_2 or
+        (cstate.*.turn.phase == phase::MAIN and cstate.*.ui_main_build_road_selected);
     var show_world_edge_road =
-        cstate.*.turn.phase == phase::MAIN and
-        cstate.*.ui_main_build_road_selected and
+        show_world_edge_road_valid and
         cstate.*.world_edge.is_value() and
         not cstate.*.board.roads.contains(cstate.*.world_edge.value()) and
         not cstate.*.world_node.is_value();
@@ -1946,6 +1951,12 @@ func client_render(cstate: *client_state) void {
         }
         phase::STEAL {
             phase_text = "steal";
+        }
+        phase::ROAD_BUILDING_1 {
+            phase_text = "road building (1)";
+        }
+        phase::ROAD_BUILDING_2 {
+            phase_text = "road building (2)";
         }
         phase::MAIN {
             phase_text = "main";

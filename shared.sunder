@@ -1578,6 +1578,8 @@ enum phase {
     DISCARD;
     ROBBER;
     STEAL;
+    ROAD_BUILDING_1;
+    ROAD_BUILDING_2;
     MAIN;
     TRADE;
 
@@ -1593,6 +1595,12 @@ enum phase {
         }
         if std::str::eq(value.*.str(), "steal") {
             return phase::STEAL;
+        }
+        if std::str::eq(value.*.str(), "road-building-1") {
+            return phase::ROAD_BUILDING_1;
+        }
+        if std::str::eq(value.*.str(), "road-building-2") {
+            return phase::ROAD_BUILDING_2;
         }
         if std::str::eq(value.*.str(), "main") {
             return phase::MAIN;
@@ -1618,6 +1626,12 @@ enum phase {
         }
         phase::STEAL {
             return bubby::value::init_str("steal");
+        }
+        phase::ROAD_BUILDING_1 {
+            return bubby::value::init_str("road-building-1");
+        }
+        phase::ROAD_BUILDING_2 {
+            return bubby::value::init_str("road-building-2");
         }
         phase::MAIN {
             return bubby::value::init_str("main");
@@ -1694,6 +1708,7 @@ struct client_message {
         BUILD_TOWN;
         BUY_DEV_CARD;
         USE_DEV_CARD_KNGIHT;
+        USE_DEV_CARD_ROAD_BUILDING;
         MOVE_ROBBER;
         SELECT_PLAYER;
         SUBMIT_PLAYER;
@@ -1760,6 +1775,13 @@ struct client_message {
     func init_use_dev_card_knight() client_message {
         return (:client_message){
             .kind = client_message::USE_DEV_CARD_KNGIHT,
+            .data = uninit,
+        };
+    }
+
+    func init_use_dev_card_road_building() client_message {
+        return (:client_message){
+            .kind = client_message::USE_DEV_CARD_ROAD_BUILDING,
             .data = uninit,
         };
     }
@@ -1851,6 +1873,9 @@ struct client_message {
         if std::str::eq(kind.*.str(), "use-dev-card-knight") {
             return client_message::init_use_dev_card_knight();
         }
+        if std::str::eq(kind.*.str(), "use-dev-card-road-building") {
+            return client_message::init_use_dev_card_road_building();
+        }
         if std::str::eq(kind.*.str(), "move-robber") {
             var hex = hex::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_move_robber(hex);
@@ -1915,6 +1940,9 @@ struct client_message {
         }
         client_message::USE_DEV_CARD_KNGIHT {
             out.map_insert_str("kind", bubby::value::init_str("use-dev-card-knight"));
+        }
+        client_message::USE_DEV_CARD_ROAD_BUILDING {
+            out.map_insert_str("kind", bubby::value::init_str("use-dev-card-road-building"));
         }
         client_message::MOVE_ROBBER {
             out.map_insert_str("kind", bubby::value::init_str("move-robber"));

@@ -70,6 +70,7 @@ struct server_state {
         for _ in 2 {
             dev_cards.push(dev_card::VICTORY_POINT);
         }
+        dev_cards.push(dev_card::ROAD_BUILDING);
 
         return (:server_state){
             .connections = std::vector[[connection]]::init(),
@@ -383,8 +384,8 @@ struct server_state {
             connection.*.sendc(server_message::init_rejected("cannot build road (it is not your road)"));
             return;
         }
-        if self.*.turn.phase != phase::MAIN {
-            connection.*.sendc(server_message::init_rejected("cannot build road (it is not the main phase)"));
+        if self.*.turn.phase != phase::MAIN and self.*.turn.phase != phase::ROAD_BUILDING_1 and self.*.turn.phase != phase::ROAD_BUILDING_2 {
+            connection.*.sendc(server_message::init_rejected("cannot build road (invalid phase)"));
             return;
         }
 
@@ -485,13 +486,16 @@ struct server_state {
         }
 
         var info = self.*.p_info(self.*.turn.player);
-        if not (info.*.brick >= 1 and info.*.wood >= 1) {
-            connection.*.sendc(server_message::init_rejected("cannot build road (insufficient resources)"));
-            return;
+        if self.*.turn.phase == phase::MAIN {
+            if not (info.*.brick >= 1 and info.*.wood >= 1) {
+                connection.*.sendc(server_message::init_rejected("cannot build road (insufficient resources)"));
+                return;
+            }
+
+            info.*.brick -= 1;
+            info.*.wood -= 1;
         }
 
-        info.*.brick -= 1;
-        info.*.wood -= 1;
         insert_road(&self.*.board.roads, road);
 
         connection.*.sendc(server_message::init_accepted("built road"));
@@ -500,6 +504,14 @@ struct server_state {
             "{} built a road.",
             (:[]std::formatter)[
                 std::formatter::init[[typeof(name)]](&name)]));
+
+        if self.*.turn.phase == phase::ROAD_BUILDING_1 {
+            self.*.turn.phase = phase::ROAD_BUILDING_2;
+        }
+        elif self.*.turn.phase == phase::ROAD_BUILDING_2 {
+            assert self.*.prev_phase.is_value();
+            self.*.turn.phase = self.*.prev_phase.value();
+        }
     }
 
     func process_build_town(self: *server_state, connection: *connection, town: town) void {
@@ -652,7 +664,7 @@ struct server_state {
                 std::formatter::init[[typeof(name)]](&name)]));
     }
 
-    func process_use_dev_card_kngiht(self: *server_state, connection: *connection) void {
+    func process_use_dev_card_knight(self: *server_state, connection: *connection) void {
         if self.*.turn.player != connection.*.player {
             connection.*.sendc(server_message::init_rejected("cannot use development card (it is not your turn)"));
             return;
@@ -692,6 +704,50 @@ struct server_state {
         var name = player_to_name(self.*.turn.player);
         self.*.sendc_all(server_message::init_log_format(
             "{} played a knight.",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name)]));
+    }
+
+    func process_use_dev_card_road_building(self: *server_state, connection: *connection) void {
+        if self.*.turn.player != connection.*.player {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (it is not your turn)"));
+            return;
+        }
+        if self.*.turn.phase != phase::RESOURCE_PRODUCTION and self.*.turn.phase != phase::MAIN {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (invalid phase)"));
+            return;
+        }
+        if self.*.prev_phase.is_value() {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (development card has already been played this turn)"));
+            return;
+        }
+
+        var info = self.*.p_info(self.*.turn.player);
+        var card = std::ptr[[purchased_dev_card]]::NULL;
+        for i in info.*.dev_card_count {
+            if info.*.dev_card_array[i].kind != dev_card::ROAD_BUILDING {
+                continue;
+            }
+            if info.*.dev_card_array[i].turn >= self.*.turn.number {
+                continue;
+            }
+            if info.*.dev_card_array[i].used {
+                continue;
+            }
+            card = &info.*.dev_card_array[i];
+        }
+        if card == std::ptr[[purchased_dev_card]]::NULL {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (no valid road building)"));
+            return;
+        }
+
+        card.*.used = true;
+        self.*.prev_phase = std::optional[[phase]]::init_value(self.*.turn.phase);
+        self.*.turn.phase = phase::ROAD_BUILDING_1;
+
+        var name = player_to_name(self.*.turn.player);
+        self.*.sendc_all(server_message::init_log_format(
+            "{} played road building.",
             (:[]std::formatter)[
                 std::formatter::init[[typeof(name)]](&name)]));
     }
@@ -1274,7 +1330,10 @@ struct server_state {
             self.*.process_buy_dev_card(connection);
         }
         client_message::USE_DEV_CARD_KNGIHT {
-            self.*.process_use_dev_card_kngiht(connection);
+            self.*.process_use_dev_card_knight(connection);
+        }
+        client_message::USE_DEV_CARD_ROAD_BUILDING {
+            self.*.process_use_dev_card_road_building(connection);
         }
         client_message::MOVE_ROBBER {
             self.*.process_move_robber(connection, message.*.data.move_robber);
