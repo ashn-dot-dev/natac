@@ -1447,6 +1447,36 @@ struct resources {
     func count(self: *resources) sint {
         return self.*.brick + self.*.ore + self.*.sheep + self.*.wheat + self.*.wood;
     }
+
+    func add(self: *resources, resource: resource, count: sint) void {
+        self.*.resource(resource).* += count;
+    }
+
+    func sub(self: *resources, resource: resource, count: sint) void {
+        self.*.resource(resource).* -= count;
+    }
+
+    func resource(self: *resources, resource: resource) *sint {
+        var out: *sint = uninit;
+        switch resource {
+        ::resource::BRICK {
+            out = &self.*.brick;
+        }
+        ::resource::ORE {
+            out = &self.*.ore;
+        }
+        ::resource::SHEEP {
+            out = &self.*.sheep;
+        }
+        ::resource::WHEAT {
+            out = &self.*.wheat;
+        }
+        ::resource::WOOD {
+            out = &self.*.wood;
+        }
+        }
+        return out;
+    }
 }
 
 struct trade {
@@ -1709,6 +1739,8 @@ struct client_message {
         BUY_DEV_CARD;
         USE_DEV_CARD_KNGIHT;
         USE_DEV_CARD_ROAD_BUILDING;
+        USE_DEV_CARD_YEAR_OF_PLENTY;
+        USE_DEV_CARD_MONOPOLY;
         MOVE_ROBBER;
         SELECT_PLAYER;
         SUBMIT_PLAYER;
@@ -1721,6 +1753,8 @@ struct client_message {
     var data: union {
         var build_road: road;
         var build_town: town;
+        var use_dev_card_year_of_plenty: resources;
+        var use_dev_card_monopoly: resource;
         var move_robber: hex;
         var select_player: player;
         var submit_player: player;
@@ -1783,6 +1817,20 @@ struct client_message {
         return (:client_message){
             .kind = client_message::USE_DEV_CARD_ROAD_BUILDING,
             .data = uninit,
+        };
+    }
+
+    func init_use_dev_card_year_of_plenty(resources: resources) client_message {
+        return (:client_message){
+            .kind = client_message::USE_DEV_CARD_YEAR_OF_PLENTY,
+            .data = (:typeof(SELF.data)){.use_dev_card_year_of_plenty = resources},
+        };
+    }
+
+    func init_use_dev_card_monopoly(resource: resource) client_message {
+        return (:client_message){
+            .kind = client_message::USE_DEV_CARD_MONOPOLY,
+            .data = (:typeof(SELF.data)){.use_dev_card_monopoly = resource},
         };
     }
 
@@ -1873,6 +1921,14 @@ struct client_message {
         if std::str::eq(kind.*.str(), "use-dev-card-knight") {
             return client_message::init_use_dev_card_knight();
         }
+        if std::str::eq(kind.*.str(), "use-dev-card-year-of-plenty") {
+            var resources = resources::init_from_bubby(value.*.map_xlookup_str("data"));
+            return client_message::init_use_dev_card_year_of_plenty(resources);
+        }
+        if std::str::eq(kind.*.str(), "use-dev-card-monopoly") {
+            var resource = resource::init_from_bubby(value.*.map_xlookup_str("data"));
+            return client_message::init_use_dev_card_monopoly(resource);
+        }
         if std::str::eq(kind.*.str(), "use-dev-card-road-building") {
             return client_message::init_use_dev_card_road_building();
         }
@@ -1940,6 +1996,14 @@ struct client_message {
         }
         client_message::USE_DEV_CARD_KNGIHT {
             out.map_insert_str("kind", bubby::value::init_str("use-dev-card-knight"));
+        }
+        client_message::USE_DEV_CARD_YEAR_OF_PLENTY {
+            out.map_insert_str("kind", bubby::value::init_str("use-dev-card-year-of-plenty"));
+            out.map_insert_str("data", self.*.data.use_dev_card_year_of_plenty.to_bubby());
+        }
+        client_message::USE_DEV_CARD_MONOPOLY {
+            out.map_insert_str("kind", bubby::value::init_str("use-dev-card-monopoly"));
+            out.map_insert_str("data", self.*.data.use_dev_card_monopoly.to_bubby());
         }
         client_message::USE_DEV_CARD_ROAD_BUILDING {
             out.map_insert_str("kind", bubby::value::init_str("use-dev-card-road-building"));

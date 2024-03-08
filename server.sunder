@@ -70,7 +70,8 @@ struct server_state {
         for _ in 2 {
             dev_cards.push(dev_card::VICTORY_POINT);
         }
-        dev_cards.push(dev_card::ROAD_BUILDING);
+dev_cards.push(dev_card::MONOPOLY);
+dev_cards.push(dev_card::MONOPOLY);
 
         return (:server_state){
             .connections = std::vector[[connection]]::init(),
@@ -752,6 +753,219 @@ struct server_state {
                 std::formatter::init[[typeof(name)]](&name)]));
     }
 
+    func process_use_dev_card_year_of_plenty(self: *server_state, connection: *connection, resources: resources) void {
+        if self.*.turn.player != connection.*.player {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (it is not your turn)"));
+            return;
+        }
+        if self.*.turn.phase != phase::RESOURCE_PRODUCTION and self.*.turn.phase != phase::MAIN {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (invalid phase)"));
+            return;
+        }
+        if self.*.prev_phase.is_value() {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (development card has already been played this turn)"));
+            return;
+        }
+
+        var info = self.*.p_info(self.*.turn.player);
+        var card = std::ptr[[purchased_dev_card]]::NULL;
+        for i in info.*.dev_card_count {
+            if info.*.dev_card_array[i].kind != dev_card::YEAR_OF_PLENTY {
+                continue;
+            }
+            if info.*.dev_card_array[i].turn >= self.*.turn.number {
+                continue;
+            }
+            if info.*.dev_card_array[i].used {
+                continue;
+            }
+            card = &info.*.dev_card_array[i];
+        }
+        if card == std::ptr[[purchased_dev_card]]::NULL {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (no valid year of plenty)"));
+            return;
+        }
+
+        if resources.count() != 2 {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (invalid resources)"));
+            return;
+        }
+        info.*.brick += resources.brick;
+        info.*.ore += resources.ore;
+        info.*.sheep += resources.sheep;
+        info.*.wheat += resources.wheat;
+        info.*.wood += resources.wood;
+
+        card.*.used = true;
+        self.*.prev_phase = std::optional[[phase]]::init_value(self.*.turn.phase);
+        self.*.turn.phase = self.*.turn.phase; # TODO: Should Year of Plenty have a distinct phase?
+
+        var name = player_to_name(self.*.turn.player);
+        self.*.sendc_all(server_message::init_log_format(
+            "{} played year of plenty.",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name)]));
+        if resources.brick != 0 {
+            self.*.sendc_all(server_message::init_log_format(
+                "{} gained {} brick.",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(name)]](&name),
+                    std::formatter::init[[sint]](&resources.brick)]));
+        }
+        if resources.ore != 0 {
+            self.*.sendc_all(server_message::init_log_format(
+                "{} gained {} ore.",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(name)]](&name),
+                    std::formatter::init[[sint]](&resources.ore)]));
+        }
+        if resources.sheep != 0 {
+            self.*.sendc_all(server_message::init_log_format(
+                "{} gained {} sheep.",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(name)]](&name),
+                    std::formatter::init[[sint]](&resources.sheep)]));
+        }
+        if resources.wheat != 0 {
+            self.*.sendc_all(server_message::init_log_format(
+                "{} gained {} wheat.",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(name)]](&name),
+                    std::formatter::init[[sint]](&resources.wheat)]));
+        }
+        if resources.wood != 0 {
+            self.*.sendc_all(server_message::init_log_format(
+                "{} gained {} wood.",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(name)]](&name),
+                    std::formatter::init[[sint]](&resources.wood)]));
+        }
+    }
+
+    func process_use_dev_card_monopoly(self: *server_state, connection: *connection, resource: resource) void {
+        if self.*.turn.player != connection.*.player {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (it is not your turn)"));
+            return;
+        }
+        if self.*.turn.phase != phase::RESOURCE_PRODUCTION and self.*.turn.phase != phase::MAIN {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (invalid phase)"));
+            return;
+        }
+        if self.*.prev_phase.is_value() {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (development card has already been played this turn)"));
+            return;
+        }
+
+        var info = self.*.p_info(self.*.turn.player);
+        var card = std::ptr[[purchased_dev_card]]::NULL;
+        for i in info.*.dev_card_count {
+            if info.*.dev_card_array[i].kind != dev_card::MONOPOLY {
+                continue;
+            }
+            if info.*.dev_card_array[i].turn >= self.*.turn.number {
+                continue;
+            }
+            if info.*.dev_card_array[i].used {
+                continue;
+            }
+            card = &info.*.dev_card_array[i];
+        }
+        if card == std::ptr[[purchased_dev_card]]::NULL {
+            connection.*.sendc(server_message::init_rejected("cannot use development card (no valid monopoly)"));
+            return;
+        }
+
+
+        var kind: []byte = uninit;
+        switch resource {
+        ::resource::BRICK {
+            kind = "brick";
+        }
+        ::resource::ORE {
+            kind = "ore";
+        }
+        ::resource::SHEEP {
+            kind = "sheep";
+        }
+        ::resource::WHEAT {
+            kind = "wheat";
+        }
+        ::resource::WOOD {
+            kind = "wood";
+        }
+        }
+        var name = player_to_name(self.*.turn.player);
+        self.*.sendc_all(server_message::init_log_format(
+            "{} played monopoly ({}).",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name),
+                std::formatter::init[[typeof(kind)]](&kind)]));
+
+        var gained: sint = 0;
+        if self.*.r_live and self.*.turn.player != player::RED {
+            var ref = self.*.r_info.resource_ref(resource);
+            var name = player_to_name(player::RED);
+            self.*.sendc_all(server_message::init_log_format(
+                "{} lost {} {}.",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(name)]](&name),
+                    std::formatter::init[[typeof(*ref)]](ref),
+                    std::formatter::init[[typeof(kind)]](&kind)]));
+            gained += *ref;
+            *ref = 0;
+        }
+        if self.*.b_live and self.*.turn.player != player::BLUE {
+            var ref = self.*.b_info.resource_ref(resource);
+            var name = player_to_name(player::BLUE);
+            self.*.sendc_all(server_message::init_log_format(
+                "{} lost {} {}.",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(name)]](&name),
+                    std::formatter::init[[typeof(*ref)]](ref),
+                    std::formatter::init[[typeof(kind)]](&kind)]));
+            gained += *ref;
+            *ref = 0;
+        }
+        if self.*.w_live and self.*.turn.player != player::WHITE {
+            var ref = self.*.w_info.resource_ref(resource);
+            var name = player_to_name(player::WHITE);
+            self.*.sendc_all(server_message::init_log_format(
+                "{} lost {} {}.",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(name)]](&name),
+                    std::formatter::init[[typeof(*ref)]](ref),
+                    std::formatter::init[[typeof(kind)]](&kind)]));
+            gained += *ref;
+            *ref = 0;
+        }
+        if self.*.o_live and self.*.turn.player != player::ORANGE {
+            var ref = self.*.o_info.resource_ref(resource);
+            var name = player_to_name(player::ORANGE);
+            self.*.sendc_all(server_message::init_log_format(
+                "{} lost {} {}.",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(name)]](&name),
+                    std::formatter::init[[typeof(*ref)]](ref),
+                    std::formatter::init[[typeof(kind)]](&kind)]));
+            gained += *ref;
+            *ref = 0;
+        }
+
+        var ref = self.*.p_info(self.*.turn.player).*.resource_ref(resource);
+        var name = player_to_name(player::ORANGE);
+        self.*.sendc_all(server_message::init_log_format(
+            "{} gained {} {}.",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name),
+                std::formatter::init[[typeof(gained)]](&gained),
+                std::formatter::init[[typeof(kind)]](&kind)]));
+        *ref += gained;
+
+        card.*.used = true;
+        self.*.prev_phase = std::optional[[phase]]::init_value(self.*.turn.phase);
+        self.*.turn.phase = self.*.turn.phase; # TODO: Should Monopoly have a distinct phase?
+    }
+
     func process_move_robber(self: *server_state, connection: *connection, hex: hex) void {
         if self.*.turn.player != connection.*.player {
             connection.*.sendc(server_message::init_rejected("cannot move robber (it is not your turn)"));
@@ -1334,6 +1548,12 @@ struct server_state {
         }
         client_message::USE_DEV_CARD_ROAD_BUILDING {
             self.*.process_use_dev_card_road_building(connection);
+        }
+        client_message::USE_DEV_CARD_YEAR_OF_PLENTY {
+            self.*.process_use_dev_card_year_of_plenty(connection, message.*.data.use_dev_card_year_of_plenty);
+        }
+        client_message::USE_DEV_CARD_MONOPOLY {
+            self.*.process_use_dev_card_monopoly(connection, message.*.data.use_dev_card_monopoly);
         }
         client_message::MOVE_ROBBER {
             self.*.process_move_robber(connection, message.*.data.move_robber);

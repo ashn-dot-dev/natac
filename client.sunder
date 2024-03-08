@@ -561,6 +561,8 @@ struct client_state {
     var ui_log_updated: bool;
     var ui_resources_select: resources;
     var ui_play_dev_card_selected: bool;
+    var ui_play_dev_card_year_of_plenty_selected: bool;
+    var ui_play_dev_card_monopoly_selected: bool;
     var ui_main_build_road_selected: bool;
     var ui_main_build_town_selected: bool;
     var ui_main_trade_with_bank_selected: bool;
@@ -630,6 +632,8 @@ struct client_state {
             .ui_log_updated = false,
             .ui_resources_select = uninit,
             .ui_play_dev_card_selected = false,
+            .ui_play_dev_card_year_of_plenty_selected = false,
+            .ui_play_dev_card_monopoly_selected = false,
             .ui_main_build_road_selected = false,
             .ui_main_build_town_selected = false,
             .ui_main_trade_with_bank_selected = false,
@@ -822,8 +826,6 @@ func ui_window_play_dev_card(cstate: *client_state, sender: *message_sender[[cli
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
 
-    sender; # TODO: Use `sender` for the eventual client messages.
-
     if cstate.*.ui.begin_window_ex("Play a Development Card", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
         var win = cstate.*.ui.get_current_container();
@@ -843,15 +845,120 @@ func ui_window_play_dev_card(cstate: *client_state, sender: *message_sender[[cli
             cstate.*.ui_play_dev_card_selected = false;
         }
         if cstate.*.ui.button("Play Year of Plenty") {
-            std::print_line(std::err(), "TODO: Play Year of Plenty...");
             cstate.*.ui_play_dev_card_selected = false;
+            cstate.*.ui_play_dev_card_year_of_plenty_selected = true;
         }
         if cstate.*.ui.button("Play Monopoly") {
-            std::print_line(std::err(), "TODO: Play Monopoly...");
             cstate.*.ui_play_dev_card_selected = false;
+            cstate.*.ui_play_dev_card_monopoly_selected = true;
         }
         if cstate.*.ui.button("Back") {
             cstate.*.ui_play_dev_card_selected = false;
+        }
+
+        cstate.*.ui.end_window();
+    }
+}
+
+func ui_window_play_dev_card_year_of_plenty(cstate: *client_state, sender: *message_sender[[client_message]]) void {
+    var screen_w = screen_w();
+    var screen_h = screen_h();
+
+    var ui_w = (:sint)screen_w / 4;
+    var ui_h = (:sint)screen_h / 4;
+    var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
+    var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
+
+    if cstate.*.ui.begin_window_ex("Select Resources (Year of Plenty)", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Window Content
+        cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
+        cstate.*.ui.label("Brick:");
+        var max = 2 - cstate.*.ui_resources_select.count() + cstate.*.ui_resources_select.brick;
+        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.brick, 0, max);
+        cstate.*.ui.label("Ore:");
+        var max = 2 - cstate.*.ui_resources_select.count() + cstate.*.ui_resources_select.ore;
+        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.ore, 0, max);
+        cstate.*.ui.label("Sheep:");
+        var max = 2 - cstate.*.ui_resources_select.count() + cstate.*.ui_resources_select.sheep;
+        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.sheep, 0, max);
+        cstate.*.ui.label("Wheat:");
+        var max = 2 - cstate.*.ui_resources_select.count() + cstate.*.ui_resources_select.wheat;
+        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.wheat, 0, max);
+        cstate.*.ui.label("Wood:");
+        var max = 2 - cstate.*.ui_resources_select.count() + cstate.*.ui_resources_select.wood;
+        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.wood, 0, max);
+        cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        if cstate.*.ui.button("Submit") {
+            sender.*.sendc(client_message::init_use_dev_card_year_of_plenty(cstate.*.ui_resources_select));
+            cstate.*.ui_play_dev_card_selected = false;
+            cstate.*.ui_play_dev_card_year_of_plenty_selected = false;
+            cstate.*.ui_resources_select = std::zeroed[[resources]]();
+        }
+        if cstate.*.ui.button("Back") {
+            cstate.*.ui_play_dev_card_selected = true;
+            cstate.*.ui_play_dev_card_year_of_plenty_selected = false;
+            cstate.*.ui_resources_select = std::zeroed[[resources]]();
+        }
+
+        cstate.*.ui.end_window();
+    }
+}
+
+func ui_window_play_dev_card_monopoly(cstate: *client_state, sender: *message_sender[[client_message]]) void {
+    var screen_w = screen_w();
+    var screen_h = screen_h();
+
+    var ui_w = (:sint)screen_w / 4;
+    var ui_h = (:sint)screen_h / 4;
+    var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
+    var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
+
+    if cstate.*.ui.begin_window_ex("Select Resource (Monopoly)", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Window Content
+        cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
+        cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        if cstate.*.ui.button("Brick") {
+            sender.*.sendc(client_message::init_use_dev_card_monopoly(resource::BRICK));
+            cstate.*.ui_play_dev_card_selected = false;
+            cstate.*.ui_play_dev_card_monopoly_selected = false;
+        }
+        if cstate.*.ui.button("Ore") {
+            sender.*.sendc(client_message::init_use_dev_card_monopoly(resource::ORE));
+            cstate.*.ui_play_dev_card_selected = false;
+            cstate.*.ui_play_dev_card_monopoly_selected = false;
+        }
+        if cstate.*.ui.button("Sheep") {
+            sender.*.sendc(client_message::init_use_dev_card_monopoly(resource::SHEEP));
+            cstate.*.ui_play_dev_card_selected = false;
+            cstate.*.ui_play_dev_card_monopoly_selected = false;
+        }
+        if cstate.*.ui.button("Wheat") {
+            sender.*.sendc(client_message::init_use_dev_card_monopoly(resource::WHEAT));
+            cstate.*.ui_play_dev_card_selected = false;
+            cstate.*.ui_play_dev_card_monopoly_selected = false;
+        }
+        if cstate.*.ui.button("Wood") {
+            sender.*.sendc(client_message::init_use_dev_card_monopoly(resource::WOOD));
+            cstate.*.ui_play_dev_card_selected = false;
+            cstate.*.ui_play_dev_card_monopoly_selected = false;
+        }
+        if cstate.*.ui.button("Back") {
+            cstate.*.ui_play_dev_card_selected = true;
+            cstate.*.ui_play_dev_card_monopoly_selected = false;
         }
 
         cstate.*.ui.end_window();
@@ -1185,6 +1292,12 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     if show_ui and cstate.*.ui_play_dev_card_selected {
         ui_window_play_dev_card(cstate, sender);
     }
+    if show_ui and cstate.*.ui_play_dev_card_year_of_plenty_selected {
+        ui_window_play_dev_card_year_of_plenty(cstate, sender);
+    }
+    if show_ui and cstate.*.ui_play_dev_card_monopoly_selected {
+        ui_window_play_dev_card_monopoly(cstate, sender);
+    }
     elif show_ui and cstate.*.ui.begin_window_ex("Your Turn (resource production)", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
         var win = cstate.*.ui.get_current_container();
@@ -1224,7 +1337,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         cstate.*.ui.label("Brick:");
         ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.brick, 0, cstate.*.pinfo.brick);
         cstate.*.ui.label("Ore:");
-        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.ore, 0,  cstate.*.pinfo.ore);
+        ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.ore, 0, cstate.*.pinfo.ore);
         cstate.*.ui.label("Sheep:");
         ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.sheep, 0, cstate.*.pinfo.sheep);
         cstate.*.ui.label("Wheat:");
@@ -1321,6 +1434,14 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     elif show_ui
     and cstate.*.ui_play_dev_card_selected {
         ui_window_play_dev_card(cstate, sender);
+    }
+    elif show_ui
+    and cstate.*.ui_play_dev_card_year_of_plenty_selected {
+        ui_window_play_dev_card_year_of_plenty(cstate, sender);
+    }
+    elif show_ui
+    and cstate.*.ui_play_dev_card_monopoly_selected {
+        ui_window_play_dev_card_monopoly(cstate, sender);
     }
     elif show_ui
     and cstate.*.ui_main_trade_with_bank_selected
