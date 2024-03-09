@@ -1288,10 +1288,10 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     if show_ui and cstate.*.ui_play_dev_card_selected {
         ui_window_play_dev_card(cstate, sender);
     }
-    if show_ui and cstate.*.ui_play_dev_card_year_of_plenty_selected {
+    elif show_ui and cstate.*.ui_play_dev_card_year_of_plenty_selected {
         ui_window_play_dev_card_year_of_plenty(cstate, sender);
     }
-    if show_ui and cstate.*.ui_play_dev_card_monopoly_selected {
+    elif show_ui and cstate.*.ui_play_dev_card_monopoly_selected {
         ui_window_play_dev_card_monopoly(cstate, sender);
     }
     elif show_ui and cstate.*.ui.begin_window_ex("Your Turn (resource production)", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
