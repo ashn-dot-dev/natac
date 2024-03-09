@@ -1538,6 +1538,12 @@ struct server_state {
     }
 
     func update_from_client_message(self: *server_state, message: *client_message, connection: *connection) void {
+        # TODO: Checking for a winner before every message is a hack for not
+        # having an end-of-game state. Remove this once such a state is added.
+        if self.*.winner != player::NIL {
+            return; # Do not process additonal messages.
+        }
+
         switch message.*.kind {
         client_message::ROLL {
             self.*.process_roll(connection);
@@ -1600,6 +1606,54 @@ struct server_state {
         self.*.b_info.victory_points = self.*.hidden_victory_points(player::BLUE);
         self.*.w_info.victory_points = self.*.hidden_victory_points(player::WHITE);
         self.*.o_info.victory_points = self.*.hidden_victory_points(player::ORANGE);
+
+        # TODO: Checking for a winner after every message is a hack for not
+        # having an end-of-game state. Remove this once such a state is added.
+        let WINNING_VICTORY_POINTS: sint = 3;
+        if self.*.r_info.victory_points >= WINNING_VICTORY_POINTS {
+            var name = player_to_name(player::RED);
+            self.*.sendc_all(server_message::init_log_format(
+                "{} has {} victory points! {} wins the game!",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(name)]](&name),
+                    std::formatter::init[[sint]](&self.*.r_info.victory_points),
+                    std::formatter::init[[typeof(name)]](&name)]));
+            self.*.winner = player::RED;
+            self.*.turn.player = player::NIL;
+        }
+        if self.*.b_info.victory_points >= WINNING_VICTORY_POINTS {
+            var name = player_to_name(player::BLUE);
+            self.*.sendc_all(server_message::init_log_format(
+                "{} has {} victory points! {} wins the game!",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(name)]](&name),
+                    std::formatter::init[[sint]](&self.*.b_info.victory_points),
+                    std::formatter::init[[typeof(name)]](&name)]));
+            self.*.winner = player::BLUE;
+            self.*.turn.player = player::NIL;
+        }
+        if self.*.w_info.victory_points >= WINNING_VICTORY_POINTS {
+            var name = player_to_name(player::WHITE);
+            self.*.sendc_all(server_message::init_log_format(
+                "{} has {} victory points! {} wins the game!",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(name)]](&name),
+                    std::formatter::init[[sint]](&self.*.w_info.victory_points),
+                    std::formatter::init[[typeof(name)]](&name)]));
+            self.*.winner = player::WHITE;
+            self.*.turn.player = player::NIL;
+        }
+        if self.*.o_info.victory_points >= WINNING_VICTORY_POINTS {
+            var name = player_to_name(player::ORANGE);
+            self.*.sendc_all(server_message::init_log_format(
+                "{} has {} victory points! {} wins the game!",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(name)]](&name),
+                    std::formatter::init[[sint]](&self.*.o_info.victory_points),
+                    std::formatter::init[[typeof(name)]](&name)]));
+            self.*.winner = player::ORANGE;
+            self.*.turn.player = player::NIL;
+        }
     }
 }
 
