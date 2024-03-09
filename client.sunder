@@ -1173,11 +1173,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             }
 
             if player == cstate.*.player {
-                for i in cstate.*.pinfo.dev_card_count {
-                    if cstate.*.pinfo.dev_card_array[i].kind == dev_card::VICTORY_POINT {
-                        victory_points += 1;
-                    }
-                }
+                victory_points = cstate.*.pinfo.victory_points;
             }
 
             cstate.*.ui.layout_row((:[]sint)[-1], 1);

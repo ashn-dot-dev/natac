@@ -1512,6 +1512,7 @@ struct hidden_player_info {
     var wood: sint;
     var dev_card_array: purchased_dev_card_array;
     var dev_card_count: usize;
+    var victory_points: sint;
 
     func init_from_bubby(value: *bubby::value) hidden_player_info {
         var self: hidden_player_info = uninit;
@@ -1526,6 +1527,7 @@ struct hidden_player_info {
             self.dev_card_array[i] = purchased_dev_card::init_from_bubby(&dev_cards.*.data()[i]);
         }
         self.dev_card_count = dev_cards.*.count();
+        self.victory_points = xstr_to_int[[sint]](value.*.map_xlookup_str("victory-points").*.str());
         return self;
     }
 
@@ -1541,6 +1543,7 @@ struct hidden_player_info {
             dev_cards.vec().*.push(self.*.dev_card_array[i].to_bubby());
         }
         out.map_insert_str("dev-cards", dev_cards);
+        out.map_insert_str("victory-points", int_to_bubby[[sint]](self.*.victory_points));
         return out;
     }
 

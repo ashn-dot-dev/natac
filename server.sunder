@@ -46,6 +46,7 @@ struct server_state {
     # the turn state after a development card has resolved. An empty optional
     # indicates that a development card has not been played this turn.
     var prev_phase: std::optional[[phase]];
+    var winner: player;
 
     func init() server_state {
         # TODO: Perform Fisher–Yates shuffle on the dev card stack.
@@ -70,8 +71,6 @@ struct server_state {
         for _ in 2 {
             dev_cards.push(dev_card::VICTORY_POINT);
         }
-dev_cards.push(dev_card::MONOPOLY);
-dev_cards.push(dev_card::MONOPOLY);
 
         return (:server_state){
             .connections = std::vector[[connection]]::init(),
@@ -97,6 +96,7 @@ dev_cards.push(dev_card::MONOPOLY);
             .trade = uninit,
             .turn = turn::init(0, player::NIL),
             .prev_phase = std::optional[[phase]]::EMPTY,
+            .winner = player::NIL
         };
     }
 
@@ -227,6 +227,19 @@ dev_cards.push(dev_card::MONOPOLY);
             ::town::CITY {
                 victory_points += 2;
             }
+            }
+        }
+
+        return victory_points;
+    }
+
+    func hidden_victory_points(self: *server_state, player: player) sint {
+        var victory_points: sint = self.*.public_victory_points(player);
+
+        var info = self.*.p_info(player);
+        for i in info.*.dev_card_count {
+            if info.*.dev_card_array[i].kind == dev_card::VICTORY_POINT {
+                victory_points += 1;
             }
         }
 
@@ -375,7 +388,6 @@ dev_cards.push(dev_card::MONOPOLY);
         self.*.change_turn(PLAYERS[idx]);
     }
 
-
     func process_build_road(self: *server_state, connection: *connection, road: road) void {
         if self.*.turn.player != connection.*.player {
             connection.*.sendc(server_message::init_rejected("cannot build road (it is not your turn)"));
@@ -496,7 +508,6 @@ dev_cards.push(dev_card::MONOPOLY);
             info.*.brick -= 1;
             info.*.wood -= 1;
         }
-
         insert_road(&self.*.board.roads, road);
 
         connection.*.sendc(server_message::init_accepted("built road"));
@@ -1580,6 +1591,15 @@ dev_cards.push(dev_card::MONOPOLY);
             self.*.process_trade_reject(connection, message.*.data.trade_reject);
         }
         }
+
+        # TODO: Probably don't need to update every player's victory points
+        # after every message. Once the structure of the server is a little bit
+        # more stable, only update victory points when they would change (i.e.
+        # road built, town built, dev card drawn, knight played, etc.).
+        self.*.r_info.victory_points = self.*.hidden_victory_points(player::RED);
+        self.*.b_info.victory_points = self.*.hidden_victory_points(player::BLUE);
+        self.*.w_info.victory_points = self.*.hidden_victory_points(player::WHITE);
+        self.*.o_info.victory_points = self.*.hidden_victory_points(player::ORANGE);
     }
 }
 
