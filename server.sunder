@@ -46,6 +46,7 @@ struct server_state {
     # the turn state after a development card has resolved. An empty optional
     # indicates that a development card has not been played this turn.
     var prev_phase: std::optional[[phase]];
+    var largest_army: player;
     var winner: player;
 
     func init() server_state {
@@ -96,7 +97,8 @@ struct server_state {
             .trade = uninit,
             .turn = turn::init(0, player::NIL),
             .prev_phase = std::optional[[phase]]::EMPTY,
-            .winner = player::NIL
+            .largest_army = player::NIL,
+            .winner = player::NIL,
         };
     }
 
@@ -228,6 +230,10 @@ struct server_state {
                 victory_points += 2;
             }
             }
+        }
+
+        if self.*.largest_army == player {
+            victory_points += 2;
         }
 
         return victory_points;
@@ -709,6 +715,48 @@ struct server_state {
             return;
         }
 
+        var r_knights: sint = 0;
+        var b_knights: sint = 0;
+        var w_knights: sint = 0;
+        var o_knights: sint = 0;
+        for i in self.*.r_info.dev_card_count {
+            if self.*.r_info.dev_card_array[i].kind != dev_card::KNIGHT {
+                continue;
+            }
+            if not self.*.r_info.dev_card_array[i].used {
+                continue;
+            }
+            r_knights += 1;
+        }
+        for i in self.*.b_info.dev_card_count {
+            if self.*.b_info.dev_card_array[i].kind != dev_card::KNIGHT {
+                continue;
+            }
+            if not self.*.b_info.dev_card_array[i].used {
+                continue;
+            }
+            b_knights += 1;
+        }
+        for i in self.*.w_info.dev_card_count {
+            if self.*.w_info.dev_card_array[i].kind != dev_card::KNIGHT {
+                continue;
+            }
+            if not self.*.w_info.dev_card_array[i].used {
+                continue;
+            }
+            w_knights += 1;
+        }
+        for i in self.*.o_info.dev_card_count {
+            if self.*.o_info.dev_card_array[i].kind != dev_card::KNIGHT {
+                continue;
+            }
+            if not self.*.o_info.dev_card_array[i].used {
+                continue;
+            }
+            o_knights += 1;
+        }
+        var cur_max_knights = sint::max(r_knights, sint::max(b_knights, sint::max(w_knights, o_knights)));
+
         card.*.used = true;
         self.*.prev_phase = std::optional[[phase]]::init_value(self.*.turn.phase);
         self.*.turn.phase = phase::ROBBER;
@@ -718,6 +766,25 @@ struct server_state {
             "{} played a knight.",
             (:[]std::formatter)[
                 std::formatter::init[[typeof(name)]](&name)]));
+
+        var p_knights: sint = 0;
+        for i in info.*.dev_card_count {
+            if info.*.dev_card_array[i].kind != dev_card::KNIGHT {
+                continue;
+            }
+            if not info.*.dev_card_array[i].used {
+                continue;
+            }
+            p_knights += 1;
+        }
+        if p_knights == cur_max_knights + 1 and p_knights >= 3 {
+            self.*.largest_army = self.*.turn.player;
+            self.*.sendc_all(server_message::init_log_format(
+                "{} has the largest army ({} knights).",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(name)]](&name),
+                    std::formatter::init[[sint]](&p_knights)]));
+        }
     }
 
     func process_use_dev_card_road_building(self: *server_state, connection: *connection) void {
@@ -1609,7 +1676,7 @@ struct server_state {
 
         # TODO: Checking for a winner after every message is a hack for not
         # having an end-of-game state. Remove this once such a state is added.
-        let WINNING_VICTORY_POINTS: sint = 3;
+        let WINNING_VICTORY_POINTS: sint = 15;
         if self.*.r_info.victory_points >= WINNING_VICTORY_POINTS {
             var name = player_to_name(player::RED);
             self.*.sendc_all(server_message::init_log_format(
