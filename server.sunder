@@ -213,6 +213,80 @@ struct server_state {
         return std::zeroed[[*bool]]();
     }
 
+    func calculate_longest_road_visit(
+        self: *server_state,
+        edges: *std::hash_set[[edge]],
+        edges_visited: *std::hash_set[[edge]],
+        nodes_visited: *std::hash_set[[node]],
+        visiting: edge,
+        player: player
+    ) usize {
+        if edges_visited.*.contains(visiting) {
+            return 0;
+        }
+        edges_visited.*.insert(visiting);
+
+        var longest = 1u;
+        var adjacent_nodes = adjacent_nodes_to_edge(visiting, &self.*.board.nodes);
+        defer adjacent_nodes.fini();
+        var iter = std::hash_set_iterator[[node]]::init(&adjacent_nodes);
+        for iter.advance() {
+            if nodes_visited.*.contains(*iter.current()) {
+                continue;
+            }
+            nodes_visited.*.insert(*iter.current());
+
+            var town = self.*.board.towns.lookup(*iter.current());
+            if town.is_value() and town.value().*.player != player {
+                continue;
+            }
+
+            var edges_visited = std::hash_set[[edge]]::init_assign(edges_visited);
+            defer edges_visited.fini();
+            var nodes_visited = std::hash_set[[node]]::init_assign(nodes_visited);
+            defer nodes_visited.fini();
+
+            var adjacent_edges = adjacent_edges_to_node(*iter.current(), &self.*.board.edges);
+            defer adjacent_edges.fini();
+            var iter = std::hash_set_iterator[[edge]]::init(&adjacent_edges);
+            for iter.advance() {
+                if not edges.*.contains(*iter.current()) {
+                    continue;
+                }
+                var length = 1 + self.*.calculate_longest_road_visit(edges, &edges_visited, &nodes_visited, *iter.current(), player);
+                longest = usize::max(longest, length);
+            }
+        }
+
+        return longest;
+    }
+
+    func calculate_longest_road(self: *server_state, player: player) usize {
+        var edges = std::hash_set[[edge]]::init();
+        defer edges.fini();
+        var iter = std::hash_map_iterator[[edge, road]]::init(&self.*.board.roads);
+        for iter.advance() {
+            if iter.current().*.value.*.player != player {
+                continue;
+            }
+            edges.insert(*iter.current().*.key);
+        }
+
+        var longest = 0u;
+        var edges_visited = std::hash_set[[edge]]::init();
+        defer edges_visited.fini();
+        var nodes_visited = std::hash_set[[node]]::init();
+        defer nodes_visited.fini();
+
+        var iter = std::hash_set_iterator[[edge]]::init(&edges);
+        for iter.advance() {
+            var length = self.*.calculate_longest_road_visit(&edges, &edges_visited, &nodes_visited, *iter.current(), player);
+            longest = usize::max(longest, length);
+        }
+
+        return longest;
+    }
+
     func public_victory_points(self: *server_state, player: player) sint {
         var victory_points: sint = 0;
 
@@ -1161,6 +1235,34 @@ struct server_state {
                     edge::init(
                         hex::init(+0, -1, +1),
                         hex::init(+1, -2, +1))));
+
+                # vvv ROADS FOR LONGEST ROAD TEST vvvv
+                insert_road(&self.*.board.roads, road::init(
+                    player::RED,
+                    edge::init(
+                        hex::init(+0, -1, +1),
+                        hex::init(+1, -2, +1))));
+                insert_road(&self.*.board.roads, road::init(
+                    player::RED,
+                    edge::init(
+                        hex::init(-2, +1, +1),
+                        hex::init(-1, +1, +0))));
+                insert_road(&self.*.board.roads, road::init(
+                    player::RED,
+                    edge::init(
+                        hex::init(-2, +2, +0),
+                        hex::init(-1, +1, +0))));
+                insert_road(&self.*.board.roads, road::init(
+                    player::RED,
+                    edge::init(
+                        hex::init(-2, +1, +1),
+                        hex::init(-2, +2, +0))));
+                insert_road(&self.*.board.roads, road::init(
+                    player::RED,
+                    edge::init(
+                        hex::init(-3, +2, +1),
+                        hex::init(-2, +2, +0))));
+                # ^^^ ROADS FOR LONGEST ROAD TEST ^^^
             }
             player::BLUE {
                 insert_town(&self.*.board.towns, town::init(
@@ -1664,6 +1766,19 @@ struct server_state {
             self.*.process_trade_reject(connection, message.*.data.trade_reject);
         }
         }
+
+        # TODO: Probably don't need to re-calculate longest road after every
+        # message. Once the structure of the server is a little bit more
+        # stable, only update victory points when they would change (i.e. road
+        # built or town built).
+        var r_longest = self.*.calculate_longest_road(player::RED);
+        var b_longest = self.*.calculate_longest_road(player::BLUE);
+        var w_longest = self.*.calculate_longest_road(player::WHITE);
+        var o_longest = self.*.calculate_longest_road(player::ORANGE);
+        std::print_format_line(std::err(), "RED LONGEST ROAD: {}", (:[]std::formatter)[std::formatter::init[[usize]](&r_longest)]);
+        std::print_format_line(std::err(), "BLUE LONGEST ROAD: {}", (:[]std::formatter)[std::formatter::init[[usize]](&b_longest)]);
+        std::print_format_line(std::err(), "WHITE LONGEST ROAD: {}", (:[]std::formatter)[std::formatter::init[[usize]](&w_longest)]);
+        std::print_format_line(std::err(), "ORANGE LONGEST ROAD: {}", (:[]std::formatter)[std::formatter::init[[usize]](&o_longest)]);
 
         # TODO: Probably don't need to update every player's victory points
         # after every message. Once the structure of the server is a little bit
