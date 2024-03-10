@@ -1243,31 +1243,31 @@ struct server_state {
                         hex::init(+1, -2, +1))));
 
                 # vvv ROADS FOR LONGEST ROAD TEST vvvv
-                insert_road(&self.*.board.roads, road::init(
-                    player::RED,
-                    edge::init(
-                        hex::init(+0, -1, +1),
-                        hex::init(+1, -2, +1))));
-                insert_road(&self.*.board.roads, road::init(
-                    player::RED,
-                    edge::init(
-                        hex::init(-2, +1, +1),
-                        hex::init(-1, +1, +0))));
-                insert_road(&self.*.board.roads, road::init(
-                    player::RED,
-                    edge::init(
-                        hex::init(-2, +2, +0),
-                        hex::init(-1, +1, +0))));
-                insert_road(&self.*.board.roads, road::init(
-                    player::RED,
-                    edge::init(
-                        hex::init(-2, +1, +1),
-                        hex::init(-2, +2, +0))));
-                insert_road(&self.*.board.roads, road::init(
-                    player::RED,
-                    edge::init(
-                        hex::init(-3, +2, +1),
-                        hex::init(-2, +2, +0))));
+                #insert_road(&self.*.board.roads, road::init(
+                #    player::RED,
+                #    edge::init(
+                #        hex::init(+0, -1, +1),
+                #        hex::init(+1, -2, +1))));
+                #insert_road(&self.*.board.roads, road::init(
+                #    player::RED,
+                #    edge::init(
+                #        hex::init(-2, +1, +1),
+                #        hex::init(-1, +1, +0))));
+                #insert_road(&self.*.board.roads, road::init(
+                #    player::RED,
+                #    edge::init(
+                #        hex::init(-2, +2, +0),
+                #        hex::init(-1, +1, +0))));
+                #insert_road(&self.*.board.roads, road::init(
+                #    player::RED,
+                #    edge::init(
+                #        hex::init(-2, +1, +1),
+                #        hex::init(-2, +2, +0))));
+                #insert_road(&self.*.board.roads, road::init(
+                #    player::RED,
+                #    edge::init(
+                #        hex::init(-3, +2, +1),
+                #        hex::init(-2, +2, +0))));
                 # ^^^ ROADS FOR LONGEST ROAD TEST ^^^
             }
             player::BLUE {
@@ -1781,10 +1781,6 @@ struct server_state {
         var b_longest_road = self.*.calculate_longest_road(player::BLUE);
         var w_longest_road = self.*.calculate_longest_road(player::WHITE);
         var o_longest_road = self.*.calculate_longest_road(player::ORANGE);
-        std::print_format_line(std::err(), "RED LONGEST ROAD: {}", (:[]std::formatter)[std::formatter::init[[usize]](&r_longest_road)]);
-        std::print_format_line(std::err(), "BLUE LONGEST ROAD: {}", (:[]std::formatter)[std::formatter::init[[usize]](&b_longest_road)]);
-        std::print_format_line(std::err(), "WHITE LONGEST ROAD: {}", (:[]std::formatter)[std::formatter::init[[usize]](&w_longest_road)]);
-        std::print_format_line(std::err(), "ORANGE LONGEST ROAD: {}", (:[]std::formatter)[std::formatter::init[[usize]](&o_longest_road)]);
         var p_longest_road = usize::max(r_longest_road, usize::max(b_longest_road, usize::max(w_longest_road, o_longest_road)));
         let MIN_LONGEST_ROAD = 5u;
         if p_longest_road >= MIN_LONGEST_ROAD {
