@@ -542,7 +542,7 @@ func camera(radius: f32) Camera2D {
             .y = 0.0f32,
         },
         .offset = (:Vector2){
-            .x = screen_w() / 2.0 - screen_w() / 6.0,
+            .x = screen_w() / 2.0 - screen_w() / 5.0,
             .y = screen_h() / 2.0 - screen_h() / 8.0,
         },
         .rotation = 0.0f32,
