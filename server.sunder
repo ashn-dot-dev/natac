@@ -46,6 +46,7 @@ struct server_state {
     # the turn state after a development card has resolved. An empty optional
     # indicates that a development card has not been played this turn.
     var prev_phase: std::optional[[phase]];
+    var longest_road: player;
     var largest_army: player;
     var winner: player;
 
@@ -97,6 +98,7 @@ struct server_state {
             .trade = uninit,
             .turn = turn::init(0, player::NIL),
             .prev_phase = std::optional[[phase]]::EMPTY,
+            .longest_road = player::NIL,
             .largest_army = player::NIL,
             .winner = player::NIL,
         };
@@ -304,6 +306,10 @@ struct server_state {
                 victory_points += 2;
             }
             }
+        }
+
+        if self.*.longest_road == player {
+            victory_points += 2;
         }
 
         if self.*.largest_army == player {
@@ -1771,14 +1777,64 @@ struct server_state {
         # message. Once the structure of the server is a little bit more
         # stable, only update victory points when they would change (i.e. road
         # built or town built).
-        var r_longest = self.*.calculate_longest_road(player::RED);
-        var b_longest = self.*.calculate_longest_road(player::BLUE);
-        var w_longest = self.*.calculate_longest_road(player::WHITE);
-        var o_longest = self.*.calculate_longest_road(player::ORANGE);
-        std::print_format_line(std::err(), "RED LONGEST ROAD: {}", (:[]std::formatter)[std::formatter::init[[usize]](&r_longest)]);
-        std::print_format_line(std::err(), "BLUE LONGEST ROAD: {}", (:[]std::formatter)[std::formatter::init[[usize]](&b_longest)]);
-        std::print_format_line(std::err(), "WHITE LONGEST ROAD: {}", (:[]std::formatter)[std::formatter::init[[usize]](&w_longest)]);
-        std::print_format_line(std::err(), "ORANGE LONGEST ROAD: {}", (:[]std::formatter)[std::formatter::init[[usize]](&o_longest)]);
+        var r_longest_road = self.*.calculate_longest_road(player::RED);
+        var b_longest_road = self.*.calculate_longest_road(player::BLUE);
+        var w_longest_road = self.*.calculate_longest_road(player::WHITE);
+        var o_longest_road = self.*.calculate_longest_road(player::ORANGE);
+        std::print_format_line(std::err(), "RED LONGEST ROAD: {}", (:[]std::formatter)[std::formatter::init[[usize]](&r_longest_road)]);
+        std::print_format_line(std::err(), "BLUE LONGEST ROAD: {}", (:[]std::formatter)[std::formatter::init[[usize]](&b_longest_road)]);
+        std::print_format_line(std::err(), "WHITE LONGEST ROAD: {}", (:[]std::formatter)[std::formatter::init[[usize]](&w_longest_road)]);
+        std::print_format_line(std::err(), "ORANGE LONGEST ROAD: {}", (:[]std::formatter)[std::formatter::init[[usize]](&o_longest_road)]);
+        var p_longest_road = usize::max(r_longest_road, usize::max(b_longest_road, usize::max(w_longest_road, o_longest_road)));
+        let MIN_LONGEST_ROAD = 5u;
+        if p_longest_road >= MIN_LONGEST_ROAD {
+            var tied =
+                (:usize)(r_longest_road == p_longest_road) +
+                (:usize)(b_longest_road == p_longest_road) +
+                (:usize)(w_longest_road == p_longest_road) +
+                (:usize)(o_longest_road == p_longest_road) > 1;
+            if not tied and r_longest_road == p_longest_road and self.*.longest_road != player::RED {
+                self.*.longest_road = player::RED;
+                var name = player_to_name(self.*.longest_road);
+                self.*.sendc_all(server_message::init_log_format(
+                    "{} has the longest road ({} segments).",
+                    (:[]std::formatter)[
+                        std::formatter::init[[typeof(name)]](&name),
+                        std::formatter::init[[usize]](&r_longest_road)]));
+                self.*.longest_road = player::RED;
+            }
+            if not tied and b_longest_road == p_longest_road and self.*.longest_road != player::BLUE {
+                self.*.longest_road = player::BLUE;
+                var name = player_to_name(self.*.longest_road);
+                self.*.sendc_all(server_message::init_log_format(
+                    "{} has the longest road ({} segments).",
+                    (:[]std::formatter)[
+                        std::formatter::init[[typeof(name)]](&name),
+                        std::formatter::init[[usize]](&b_longest_road)]));
+                self.*.longest_road = player::BLUE;
+            }
+            if not tied and w_longest_road == p_longest_road and self.*.longest_road != player::WHITE {
+                self.*.longest_road = player::WHITE;
+                var name = player_to_name(self.*.longest_road);
+                self.*.sendc_all(server_message::init_log_format(
+                    "{} has the longest road ({} segments).",
+                    (:[]std::formatter)[
+                        std::formatter::init[[typeof(name)]](&name),
+                        std::formatter::init[[usize]](&w_longest_road)]));
+            }
+            if not tied and o_longest_road == p_longest_road and self.*.longest_road != player::ORANGE {
+                self.*.longest_road = player::ORANGE;
+                var name = player_to_name(self.*.longest_road);
+                self.*.sendc_all(server_message::init_log_format(
+                    "{} has the longest road ({} segments).",
+                    (:[]std::formatter)[
+                        std::formatter::init[[typeof(name)]](&name),
+                        std::formatter::init[[usize]](&o_longest_road)]));
+            }
+        }
+        else {
+            self.*.longest_road == player::NIL;
+        }
 
         # TODO: Probably don't need to update every player's victory points
         # after every message. Once the structure of the server is a little bit
