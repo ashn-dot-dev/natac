@@ -1,0 +1,262 @@
+import "c";
+
+let MU_COMMANDLIST_SIZE     = 256u * 1024u;
+let MU_ROOTLIST_SIZE        = 32u;
+let MU_CONTAINERSTACK_SIZE  = 32u;
+let MU_CLIPSTACK_SIZE       = 32u;
+let MU_IDSTACK_SIZE         = 32u;
+let MU_LAYOUTSTACK_SIZE     = 16u;
+let MU_CONTAINERPOOL_SIZE   = 48u;
+let MU_TREENODEPOOL_SIZE    = 48u;
+let MU_MAX_WIDTHS           = 16u;
+type MU_REAL                = float;
+let MU_REAL_FMT             = startof("%.3g");
+let MU_SLIDER_FMT           = startof("%.2f");
+let MU_MAX_FMT              = 127u;
+
+let MU_CLIP_PART: sint = 1;
+let MU_CLIP_ALL:  sint = 2;
+
+let MU_COMMAND_JUMP: sint = 1;
+let MU_COMMAND_CLIP: sint = 2;
+let MU_COMMAND_RECT: sint = 3;
+let MU_COMMAND_TEXT: sint = 4;
+let MU_COMMAND_ICON: sint = 5;
+let MU_COMMAND_MAX:  usize = 6;
+
+let MU_COLOR_TEXT:        sint = 0;
+let MU_COLOR_BORDER:      sint = 1;
+let MU_COLOR_WINDOWBG:    sint = 2;
+let MU_COLOR_TITLEBG:     sint = 3;
+let MU_COLOR_TITLETEXT:   sint = 4;
+let MU_COLOR_PANELBG:     sint = 5;
+let MU_COLOR_BUTTON:      sint = 6;
+let MU_COLOR_BUTTONHOVER: sint = 7;
+let MU_COLOR_BUTTONFOCUS: sint = 8;
+let MU_COLOR_BASE:        sint = 9;
+let MU_COLOR_BASEHOVER:   sint = 10;
+let MU_COLOR_BASEFOCUS:   sint = 11;
+let MU_COLOR_SCROLLBASE:  sint = 12;
+let MU_COLOR_SCROLLTHUMB: sint = 13;
+let MU_COLOR_MAX:         usize = 14;
+
+let MU_ICON_CLOSE:     sint = 1;
+let MU_ICON_CHECK:     sint = 2;
+let MU_ICON_COLLAPSED: sint = 3;
+let MU_ICON_EXPANDED:  sint = 4;
+let MU_ICON_MAX:       usize = 5;
+
+let MU_RES_ACTIVE      = (:sint)(1u << 0);
+let MU_RES_SUBMIT      = (:sint)(1u << 1);
+let MU_RES_CHANGE      = (:sint)(1u << 2);
+
+let MU_OPT_ALIGNCENTER = (:sint)(1u << 0);
+let MU_OPT_ALIGNRIGHT  = (:sint)(1u << 1);
+let MU_OPT_NOINTERACT  = (:sint)(1u << 2);
+let MU_OPT_NOFRAME     = (:sint)(1u << 3);
+let MU_OPT_NORESIZE    = (:sint)(1u << 4);
+let MU_OPT_NOSCROLL    = (:sint)(1u << 5);
+let MU_OPT_NOCLOSE     = (:sint)(1u << 6);
+let MU_OPT_NOTITLE     = (:sint)(1u << 7);
+let MU_OPT_NODRAG      = (:sint)(1u << 8);
+let MU_OPT_HOLDFOCUS   = (:sint)(1u << 9);
+let MU_OPT_AUTOSIZE    = (:sint)(1u << 10);
+let MU_OPT_POPUP       = (:sint)(1u << 11);
+let MU_OPT_CLOSED      = (:sint)(1u << 12);
+let MU_OPT_EXPANDED    = (:sint)(1u << 13);
+
+let MU_MOUSE_LEFT      = (:sint)(1u << 0);
+let MU_MOUSE_RIGHT     = (:sint)(1u << 1);
+let MU_MOUSE_MIDDLE    = (:sint)(1u << 2);
+
+let MU_KEY_SHIFT       = (:sint)(1u << 0);
+let MU_KEY_CTRL        = (:sint)(1u << 1);
+let MU_KEY_ALT         = (:sint)(1u << 2);
+let MU_KEY_BACKSPACE   = (:sint)(1u << 3);
+let MU_KEY_RETURN      = (:sint)(1u << 4);
+
+type mu_Id = uint;
+type mu_Real = MU_REAL;
+type mu_Font = *any;
+
+struct mu_Vec2 { var x: sint; var y: sint; }
+struct mu_Rect { var x: sint; var y: sint; var w: sint; var h: sint; }
+struct mu_Color { var r: u8; var g: u8; var b: u8; var a: u8; }
+struct mu_PoolItem { var id: mu_Id; var last_update: sint; }
+
+struct mu_BaseCommand { var kind: sint; var size: sint; }
+struct mu_JumpCommand { var base: mu_BaseCommand; var dst: *any; }
+struct mu_ClipCommand { var base: mu_BaseCommand; var rect: mu_Rect; }
+struct mu_RectCommand { var base: mu_BaseCommand; var rect: mu_Rect; var color: mu_Color; }
+struct mu_TextCommand { var base: mu_BaseCommand; var font: mu_Font; var pos: mu_Vec2; var color: mu_Color; var str: [1]char; }
+struct mu_IconCommand { var base: mu_BaseCommand; var rect: mu_Rect; var id: sint; var color: mu_Color; }
+
+union mu_Command {
+    var kind: sint;
+    var base: mu_BaseCommand;
+    var jump: mu_JumpCommand;
+    var clip: mu_ClipCommand;
+    var rect: mu_RectCommand;
+    var text: mu_TextCommand;
+    var icon: mu_IconCommand;
+}
+
+struct mu_Layout {
+    var body: mu_Rect;
+    var next: mu_Rect;
+    var position: mu_Vec2;
+    var size: mu_Vec2;
+    var max: mu_Vec2;
+    var widths: [MU_MAX_WIDTHS]sint;
+    var items: sint;
+    var item_index: sint;
+    var next_row: sint;
+    var next_type: sint;
+    var indent: sint;
+}
+
+struct mu_Container {
+    var head: *mu_Command;
+    var tail: *mu_Command;
+    var rect: mu_Rect;
+    var body: mu_Rect;
+    var content_size: mu_Vec2;
+    var scroll: mu_Vec2;
+    var zindex: sint;
+    var open: sint;
+}
+
+struct mu_Style {
+    var font: mu_Font;
+    var size: mu_Vec2;
+    var padding: sint;
+    var spacing: sint;
+    var indent: sint;
+    var title_height: sint;
+    var scrollbar_size: sint;
+    var thumb_size: sint;
+    var colors: [MU_COLOR_MAX]mu_Color;
+}
+
+struct mu_Context {
+    # callbacks
+    var text_width: func(mu_Font, *char, sint) sint;
+    var text_height: func(mu_Font) sint;
+    var draw_frame: func(mu_Context, mu_Rect, sint) void;
+    # core state
+    var _style: mu_Style;
+    var style: *mu_Style;
+    var hover: mu_Id;
+    var focus: mu_Id;
+    var last_id: mu_Id;
+    var last_rect: mu_Rect;
+    var last_zindex: sint;
+    var updated_focus: sint;
+    var frame: sint;
+    var hover_root: *mu_Container;
+    var next_hover_root: *mu_Container;
+    var scroll_target: *mu_Container;
+    var number_edit_buf: [MU_MAX_FMT]char;
+    var number_edit: mu_Id;
+    # stacks
+    var command_list: struct { var idx: sint; var items: [MU_COMMANDLIST_SIZE]char; };
+    var root_list: struct { var idx: sint; var items: [MU_ROOTLIST_SIZE]*mu_Container; };
+    var container_stack: struct { var idx: sint; var items: [MU_CONTAINERSTACK_SIZE]*mu_Container; };
+    var clip_stack: struct { var idx: sint; var items: [MU_CLIPSTACK_SIZE]mu_Rect; };
+    var id_stack: struct { var idx: sint; var items: [MU_IDSTACK_SIZE]mu_Id; };
+    var layout_stack: struct { var idx: sint; var items: [MU_LAYOUTSTACK_SIZE]mu_Layout; };
+    # retained state pools
+    var container_pool: [MU_CONTAINERPOOL_SIZE]mu_PoolItem;
+    var containers: [MU_CONTAINERPOOL_SIZE]mu_Container;
+    var treenode_pool: [MU_TREENODEPOOL_SIZE]mu_PoolItem;
+    # input state
+    var mouse_pos: mu_Vec2;
+    var last_mouse_pos: mu_Vec2;
+    var mouse_delta: mu_Vec2;
+    var scroll_delta: mu_Vec2;
+    var mouse_down: sint;
+    var mouse_pressed: sint;
+    var key_down: sint;
+    var key_pressed: sint;
+    var input_text: [32]char;
+}
+
+extern func mu_vec2(x: sint, y: sint) mu_Vec2;
+extern func mu_rect(x: sint, y: sint, w: sint, h: sint) mu_Rect;
+extern func mu_color(r: sint, g: sint, b: sint, a: sint) mu_Color;
+
+extern func mu_init(ctx: *mu_Context) void;
+extern func mu_begin(ctx: *mu_Context) void;
+extern func mu_end(ctx: *mu_Context) void;
+extern func mu_set_focus(ctx: *mu_Context, id: mu_Id) void;
+extern func mu_get_id(ctx: *mu_Context, data: *any, size: sint) mu_Id;
+extern func mu_push_id(ctx: *mu_Context, data: *any, size: sint) void;
+extern func mu_pop_id(ctx: *mu_Context) void;
+extern func mu_push_clip_rect(ctx: *mu_Context, rect: mu_Rect) void;
+extern func mu_pop_clip_rect(ctx: *mu_Context) void;
+extern func mu_get_clip_rect(ctx: *mu_Context) mu_Rect;
+extern func mu_check_clip(ctx: *mu_Context, r: mu_Rect) sint;
+extern func mu_get_current_container(ctx: *mu_Context) *mu_Container;
+extern func mu_get_container(ctx: *mu_Context, name: *char) *mu_Container;
+extern func mu_bring_to_front(ctx: *mu_Context, cnt: *mu_Container) void;
+
+extern func mu_pool_init(ctx: *mu_Context, items: *mu_PoolItem, len: sint, id: mu_Id) sint;
+extern func mu_pool_get(ctx: *mu_Context, items: *mu_PoolItem, len: sint, id: mu_Id) sint;
+extern func mu_pool_update(ctx: *mu_Context, items: *mu_PoolItem, idx: sint) void;
+
+extern func mu_input_mousemove(ctx: *mu_Context, x: sint, y: sint) void;
+extern func mu_input_mousedown(ctx: *mu_Context, x: sint, y: sint, btn: sint) void;
+extern func mu_input_mouseup(ctx: *mu_Context, x: sint, y: sint, btn: sint) void;
+extern func mu_input_scroll(ctx: *mu_Context, x: sint, y: sint) void;
+extern func mu_input_keydown(ctx: *mu_Context, key: sint) void;
+extern func mu_input_keyup(ctx: *mu_Context, key: sint) void;
+extern func mu_input_text(ctx: *mu_Context, tex: *char) void;
+
+extern func mu_push_command(ctx: *mu_Context, kind: sint, size: sint) *mu_Command;
+extern func mu_next_command(ctx: *mu_Context, cmd: **mu_Command) sint;
+extern func mu_set_clip(ctx: *mu_Context, rect: mu_Rect) void;
+extern func mu_draw_rect(ctx: *mu_Context, rect: mu_Rect, color: mu_Color) void;
+extern func mu_draw_box(ctx: *mu_Context, rect: mu_Rect, color: mu_Color) void;
+extern func mu_draw_text(ctx: *mu_Context, font: mu_Font, str: *char, len: sint, pos: mu_Vec2, color: mu_Color) void;
+extern func mu_draw_icon(ctx: *mu_Context, id: sint, rect: mu_Rect, color: mu_Color) void;
+
+extern func mu_layout_row(ctx: *mu_Context, items: sint, widths: *sint, height: sint) void;
+extern func mu_layout_width(ctx: *mu_Context, width: sint) void;
+extern func mu_layout_height(ctx: *mu_Context, height: sint) void;
+extern func mu_layout_begin_column(ctx: *mu_Context) void;
+extern func mu_layout_end_column(ctx: *mu_Context) void;
+extern func mu_layout_set_next(ctx: *mu_Context, r: mu_Rect, relative: sint) void;
+extern func mu_layout_next(ctx: *mu_Context) mu_Rect;
+
+extern func mu_draw_control_frame(ctx: *mu_Context, id: mu_Id, rect: mu_Rect, colorid: sint, opt: sint) void;
+extern func mu_draw_control_text(ctx: *mu_Context, str: *char, rect: mu_Rect, colorid: sint, opt: sint) void;
+extern func mu_mouse_over(ctx: *mu_Context, rect: mu_Rect) sint;
+extern func mu_update_control(ctx: *mu_Context, id: mu_Id, rect: mu_Rect, opt: sint) void;
+
+extern func mu_text(ctx: *mu_Context, text: *char) void;
+extern func mu_label(ctx: *mu_Context, text: *char) void;
+extern func mu_button(ctx: *mu_Context, label: *char) sint;
+extern func mu_button_ex(ctx: *mu_Context, label: *char, icon: sint, opt: sint) sint;
+extern func mu_button_raw(ctx: *mu_Context, label: *char, labelsz: sint, icon: sint, id: mu_Id, r: mu_Rect, opt: sint) sint;
+extern func mu_checkbox(ctx: *mu_Context, label: *char, state: *bool) sint;
+extern func mu_textbox(ctx: *mu_Context, buf: *char, bufsz: sint) sint;
+extern func mu_textbox_ex(ctx: *mu_Context, buf: *char, bufsz: sint, opt: sint) sint;
+extern func mu_textbox_raw(ctx: *mu_Context, buf: *char, bufsz: sint, id: mu_Id, r: mu_Rect, opt: sint) sint;
+extern func mu_slider(ctx: *mu_Context, value: *mu_Real, lo: mu_Real, hi: mu_Real) sint;
+extern func mu_slider_ex(ctx: *mu_Context, value: *mu_Real, low: mu_Real, high: mu_Real, step: mu_Real, fmt: *char, opt: sint) sint;
+extern func mu_number(ctx: *mu_Context, value: *mu_Real, step: mu_Real) sint;
+extern func mu_number_ex(ctx: *mu_Context, value: *mu_Real, step: mu_Real, fmt: *char, opt: sint) sint;
+extern func mu_begin_treenode(ctx: *mu_Context, label: *char) sint;
+extern func mu_begin_treenode_ex(ctx: *mu_Context, label: *char, opt: sint) sint;
+extern func mu_end_treenode(ctx: *mu_Context) void;
+extern func mu_header(ctx: *mu_Context, label: *char) sint;
+extern func mu_header_ex(ctx: *mu_Context, label: *char, opt: sint) sint;
+extern func mu_begin_window(ctx: *mu_Context, title: *char, rect: mu_Rect) sint;
+extern func mu_begin_window_ex(ctx: *mu_Context, title: *char, rect: mu_Rect, opt: sint) sint;
+extern func mu_end_window(ctx: *mu_Context) void;
+extern func mu_open_popup(ctx: *mu_Context, name: *char) void;
+extern func mu_begin_popup(ctx: *mu_Context, name: *char) sint;
+extern func mu_end_popup(ctx: *mu_Context) void;
+extern func mu_begin_panel(ctx: *mu_Context, name: *char) void;
+extern func mu_begin_panel_ex(ctx: *mu_Context, name: *char, opt: sint) void;
+extern func mu_end_panel(ctx: *mu_Context) void;
