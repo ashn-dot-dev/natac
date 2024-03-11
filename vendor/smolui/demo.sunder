@@ -1,0 +1,281 @@
+import "c";
+import "std";
+
+import "raylib";
+
+import "microui.sunder";
+import "smolui.sunder";
+
+var log_buffer: std::string = uninit;
+var log_buffer_updated = false;
+func write_log(text: []byte) void
+{
+    if log_buffer.count() != 0 {
+        std::print(std::writer::init[[std::string]](&log_buffer), "\n");
+    }
+    std::print(std::writer::init[[std::string]](&log_buffer), text);
+    log_buffer_updated = true;
+}
+
+var incremented: sint = 0;
+func incrementer(ui: *smol::ui, value: *sint) sint {
+    var id = ui.*.get_id(&value, sizeof(typeof(value)));
+    var rect = ui.*.layout_next();
+    ui.*.update_control(id, rect, 0);
+
+    # handle input
+    var res: sint = 0;
+    if ui.*.context.*.mouse_pressed == MU_MOUSE_LEFT and ui.*.context.*.focus == id {
+        *value = *value + 1;
+        res = res | MU_RES_CHANGE;
+    }
+
+    # draw
+    var s = std::string::init();
+    defer s.fini();
+    var w = std::writer::init[[std::string]](&s);
+    std::print_format(w, "{}", (:[]std::formatter)[std::formatter::init[[sint]](value)]);
+    ui.*.draw_control_frame(id, rect, MU_COLOR_BUTTON, 0);
+    ui.*.draw_control_text(s.data(), rect, MU_COLOR_TEXT, MU_OPT_ALIGNCENTER);
+
+    return res;
+}
+
+var bcolor = (:[3]float)[90.0, 95.0, 100.0];
+var checks = (:[3]bool)[true, false, true];
+func test_window(ui: *smol::ui) void {
+    # do window
+    if ui.*.begin_window("Demo Window", smol::rect::init(40, 40, 300, 450)) {
+        var win = ui.*.get_current_container();
+        win.*.rect.w = sint::max(win.*.rect.w, 240);
+        win.*.rect.h = sint::max(win.*.rect.h, 300);
+
+        # window info
+        if ui.*.header("Window Info") {
+            var win = ui.*.get_current_container();
+            ui.*.layout_row((:[]sint)[54, -1], 0);
+            ui.*.label("Position:");
+            var s = std::string::init();
+            defer s.fini();
+            var w = std::writer::init[[std::string]](&s);
+            std::print_format(w, "{} {}", (:[]std::formatter)[std::formatter::init[[sint]](&win.*.rect.x), std::formatter::init[[sint]](&win.*.rect.y)]);
+            ui.*.label(s.data());
+            ui.*.label("Size:");
+            var s = std::string::init();
+            defer s.fini();
+            var w = std::writer::init[[std::string]](&s);
+            std::print_format(w, "{} {}", (:[]std::formatter)[std::formatter::init[[sint]](&win.*.rect.w), std::formatter::init[[sint]](&win.*.rect.h)]);
+            ui.*.label(s.data());
+        }
+
+        # labels + buttons
+        if ui.*.header_ex("Test Buttons", MU_OPT_EXPANDED) {
+            ui.*.layout_row((:[]sint)[86, -110, -1], 0);
+            ui.*.label("Test buttons 1:");
+            if ui.*.button("Button 1") { write_log("Pressed button 1"); }
+            if ui.*.button("Button 2") { write_log("Pressed button 2"); }
+            ui.*.label("Test buttons 2:");
+            if ui.*.button("Button 3") { write_log("Pressed button 3"); }
+            if ui.*.button("Popup") { ui.*.open_popup("Test Popup"); }
+            if ui.*.begin_popup("Test Popup") {
+                ui.*.button("Hello");
+                ui.*.button("World");
+                ui.*.end_popup();
+            }
+        }
+
+        # tree
+        if ui.*.header_ex("Tree and Text", MU_OPT_EXPANDED) {
+            ui.*.layout_row((:[]sint)[140, -1], 0);
+            ui.*.layout_begin_column();
+            if ui.*.begin_treenode("Test 1") {
+                if ui.*.begin_treenode("Test 1a") {
+                    ui.*.label("Hello");
+                    ui.*.label("world");
+                    ui.*.end_treenode();
+                }
+                if ui.*.begin_treenode("Test 1b") {
+                    if ui.*.button("Button 1") { write_log("Pressed button 1"); }
+                    if ui.*.button("Button 2") { write_log("Pressed button 2"); }
+                    ui.*.end_treenode();
+                }
+                ui.*.end_treenode();
+            }
+            if ui.*.begin_treenode("Test 2") {
+                ui.*.layout_row((:[]sint)[54, 54], 0);
+                if ui.*.button("Button 3") { write_log("Pressed button 3"); }
+                if ui.*.button("Button 4") { write_log("Pressed button 4"); }
+                if ui.*.button("Button 5") { write_log("Pressed button 5"); }
+                if ui.*.button("Button 6") { write_log("Pressed button 6"); }
+                ui.*.end_treenode();
+            }
+            if ui.*.begin_treenode("Test 3") {
+                ui.*.checkbox("Checkbox 1", &checks[0]);
+                ui.*.checkbox("Checkbox 2", &checks[1]);
+                ui.*.checkbox("Checkbox 3", &checks[2]);
+                ui.*.end_treenode();
+            }
+            ui.*.layout_end_column();
+
+            ui.*.layout_begin_column();
+            ui.*.layout_row((:[]sint)[-1], 0);
+            ui.*.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas lacinia, sem eu lacinia molestie, mi risus faucibus ipsum, eu varius magna felis a nulla.");
+            ui.*.layout_end_column();
+        }
+
+        # background color sliders
+        if ui.*.header_ex("Background Color", MU_OPT_EXPANDED) {
+            ui.*.layout_row((:[]sint)[-78, -1], 74);
+            # sliders
+            ui.*.layout_begin_column();
+            ui.*.layout_row((:[]sint)[46, -1], 0);
+            ui.*.label("Red:");   ui.*.slider(&bcolor[0], 0.0, 255.0);
+            ui.*.label("Green:"); ui.*.slider(&bcolor[1], 0.0, 255.0);
+            ui.*.label("Blue:");  ui.*.slider(&bcolor[2], 0.0, 255.0);
+            ui.*.layout_end_column();
+            # color preview
+            var rect = ui.*.layout_next();
+            var bcolor = (:[3]sint)[
+                (:sint)bcolor[0],
+                (:sint)bcolor[1],
+                (:sint)bcolor[2]
+            ];
+            ui.*.draw_rect(rect, smol::color::init(bcolor[0], bcolor[1], bcolor[2], 255));
+            var s = std::string::init();
+            defer s.fini();
+            var w = std::writer::init[[std::string]](&s);
+            std::print_format(
+                w,
+                "{x} {x} {x}",
+                (:[]std::formatter)[
+                    std::formatter::init[[sint]](&bcolor[0]),
+                    std::formatter::init[[sint]](&bcolor[1]),
+                    std::formatter::init[[sint]](&bcolor[2])]);
+            ui.*.draw_control_text(s.data(), rect, MU_COLOR_TEXT, MU_OPT_ALIGNCENTER);
+        }
+
+        # custom control
+        if ui.*.header_ex("Custom Incrementer", MU_OPT_EXPANDED) {
+            if incrementer(ui, &incremented) != 0 {
+                write_log("custom incrementer interaction");
+            }
+        }
+
+        ui.*.end_window();
+    }
+}
+
+var textbox_buffer = (:[128]char)[0...];
+func log_window(ui: *smol::ui) void
+{
+    if ui.*.begin_window_ex("Log Window", smol::rect::init(350, 40, 300, 200), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
+        # output text panel
+        ui.*.layout_row((:[]sint)[-1], -25);
+        ui.*.begin_panel("Log Output");
+        var panel = ui.*.get_current_container();
+        ui.*.layout_row((:[]sint)[-1], -1);
+        ui.*.text(log_buffer.data());
+        ui.*.end_panel();
+        if log_buffer_updated {
+            panel.*.scroll.y = panel.*.content_size.y;
+            log_buffer_updated = false;
+        }
+
+        # input textbox + submit button
+        var submitted = false;
+        ui.*.layout_row((:[]sint)[-70, -1], 0);
+        if (ui.*.textbox_buffer(textbox_buffer[0:countof(textbox_buffer)]) & smol::RES_SUBMIT) != 0 {
+            ui.*.set_focus(ui.*.context.*.last_id);
+            submitted = true;
+        }
+        if ui.*.button("Submit") {
+            submitted = true;
+        }
+        if submitted {
+            write_log((:[]byte){&textbox_buffer[0], std::cstr::count(&textbox_buffer[0])});
+            textbox_buffer[0] = '\0';
+        }
+
+        ui.*.end_window();
+    }
+}
+
+var _u8_slider_tmp: float = 0.0;
+func u8_slider(ui: *smol::ui, value: *u8, low: sint, high: sint) bool
+{
+    ui.*.push_id(&value, sizeof(typeof(value)));
+    _u8_slider_tmp = (:float)*value;
+    var res = ui.*.slider_ex(&_u8_slider_tmp, (:f32)low, (:f32)high, 0.0, startof("%.0f"), MU_OPT_ALIGNCENTER);
+    *value = (:u8)_u8_slider_tmp;
+    ui.*.pop_id();
+    return res;
+}
+
+func style_window(ui: *smol::ui) void {
+    type color_mapping = struct { var label: []byte; var idx: sint; };
+    let colors = (:[]color_mapping)[
+        (:color_mapping){.label = "text:",         .idx = MU_COLOR_TEXT       },
+        (:color_mapping){.label = "border:",       .idx = MU_COLOR_BORDER     },
+        (:color_mapping){.label = "windowbg:",     .idx = MU_COLOR_WINDOWBG   },
+        (:color_mapping){.label = "titlebg:",      .idx = MU_COLOR_TITLEBG    },
+        (:color_mapping){.label = "titletext:",    .idx = MU_COLOR_TITLETEXT  },
+        (:color_mapping){.label = "panelbg:",      .idx = MU_COLOR_PANELBG    },
+        (:color_mapping){.label = "button:",       .idx = MU_COLOR_BUTTON     },
+        (:color_mapping){.label = "buttonhover:",  .idx = MU_COLOR_BUTTONHOVER},
+        (:color_mapping){.label = "buttonfocus:",  .idx = MU_COLOR_BUTTONFOCUS},
+        (:color_mapping){.label = "base:",         .idx = MU_COLOR_BASE       },
+        (:color_mapping){.label = "basehover:",    .idx = MU_COLOR_BASEHOVER  },
+        (:color_mapping){.label = "basefocus:",    .idx = MU_COLOR_BASEFOCUS  },
+        (:color_mapping){.label = "scrollbase:",   .idx = MU_COLOR_SCROLLBASE },
+        (:color_mapping){.label = "scrollthumb:",  .idx = MU_COLOR_SCROLLTHUMB},
+    ];
+
+    if ui.*.begin_window("Style Editor", mu_rect(350, 250, 300, 240)) {
+        var sw = (:sint)((:float)mu_get_current_container(ui.*.context).*.body.w * 0.14);
+        ui.*.layout_row((:[]sint)[80, sw, sw, sw, sw, -1], 0);
+        for i in countof(colors) {
+            ui.*.label(colors[i].label);
+            u8_slider(ui, &ui.*.context.*.style.*.colors[i].r, 0, 255);
+            u8_slider(ui, &ui.*.context.*.style.*.colors[i].g, 0, 255);
+            u8_slider(ui, &ui.*.context.*.style.*.colors[i].b, 0, 255);
+            u8_slider(ui, &ui.*.context.*.style.*.colors[i].a, 0, 255);
+            ui.*.draw_rect(ui.*.layout_next(), ui.*.context.*.style.*.colors[i]);
+        }
+        ui.*.end_window();
+    }
+}
+
+func main() void {
+    SetTraceLogLevel(LOG_WARNING);
+    InitWindow(800, 600, startof("demo"));
+    defer CloseWindow();
+    SetTargetFPS(60);
+
+    var ctx: mu_Context = uninit;
+    mu_init(&ctx);
+    smol::setup_font(&ctx, std::ptr[[Font]]::NULL);
+    var ui = smol::ui::init(&ctx);
+
+    log_buffer = std::string::init();
+    defer log_buffer.fini();
+
+    for not WindowShouldClose() {
+        BeginDrawing();
+        ClearBackground(BLACK);
+
+        if IsKeyPressed(KEY_F1) {
+            ToggleFullscreen();
+        }
+
+        smol::handle_input(ui.context);
+        mu_begin(ui.context);
+
+        log_window(&ui);
+        test_window(&ui);
+        style_window(&ui);
+
+        mu_end(ui.context);
+        smol::render(ui.context);
+        EndDrawing();
+    }
+}
