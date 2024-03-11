@@ -7,8 +7,6 @@
 
 TARGET=natac
 
-all: build
-
 # NOTE: Compiling with -O0 and -O1 on ARM64 macOS will produce a binary that
 # causes a stack overflow when run, presumably due to large stack frame size.
 # Bumping up the stack size to 16 MB with:
@@ -24,7 +22,17 @@ CFLAGS_DBG=-O0 -Wl,-stack_size -Wl,0x1000000 -g
 CFLAGS_REL=-Os
 CFLAGS=$(CFLAGS_REL)
 
-build:
+SUNDER_HOME := $$(pwd)/.sunder
+SUNDER_SEARCH_PATH := $$(pwd)/.sunder/lib
+
+NBNET_REPODIR := $$(realpath vendor/nbnet)
+RAYLIB_REPODIR := $$(realpath vendor/raylib)
+
+all: build
+
+build: .sunder .sunder/lib/bubby .sunder/lib/nbnet .sunder/lib/raylib .sunder/lib/smolui
+	SUNDER_HOME=$(SUNDER_HOME) \
+	SUNDER_SEARCH_PATH=$(SUNDER_SEARCH_PATH) \
 	SUNDER_CC=clang \
 	SUNDER_CFLAGS="$(CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --cflags)" \
 	sunder-compile \
@@ -34,5 +42,33 @@ build:
 		-L$(SUNDER_HOME)/lib/smolui -lsmolui \
 		main.sunder
 
+.sunder:
+	SUNDER_HOME=$(SUNDER_HOME) \
+	SUNDER_SEARCH_PATH=$(SUNDER_SEARCH_PATH) \
+	$(MAKE) -e -C vendor/sunder install
+
+.sunder/lib/bubby: .sunder
+	SUNDER_HOME=$(SUNDER_HOME) \
+	SUNDER_SEARCH_PATH=$(SUNDER_SEARCH_PATH) \
+	$(MAKE) -e -C vendor/bubby install
+
+.sunder/lib/nbnet: .sunder
+	SUNDER_HOME=$(SUNDER_HOME) \
+	SUNDER_SEARCH_PATH=$(SUNDER_SEARCH_PATH) \
+	NBNET_REPODIR=$(NBNET_REPODIR) \
+	$(MAKE) -e -C vendor/nbnet-sunder install
+
+.sunder/lib/raylib: .sunder
+	SUNDER_HOME=$(SUNDER_HOME) \
+	SUNDER_SEARCH_PATH=$(SUNDER_SEARCH_PATH) \
+	RAYLIB_REPODIR=$(RAYLIB_REPODIR) \
+	$(MAKE) -e -C vendor/raylib-sunder install
+
+.sunder/lib/smolui: .sunder
+	SUNDER_HOME=$(SUNDER_HOME) \
+	SUNDER_SEARCH_PATH=$(SUNDER_SEARCH_PATH) \
+	$(MAKE) -e -C vendor/smolui install
+
 clean:
 	rm -f $(TARGET) *.o *.c
+	rm -rf $(SUNDER_HOME)
