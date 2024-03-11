@@ -275,13 +275,14 @@ struct server_state {
         }
 
         var longest = 0u;
-        var edges_visited = std::hash_set[[edge]]::init();
-        defer edges_visited.fini();
-        var nodes_visited = std::hash_set[[node]]::init();
-        defer nodes_visited.fini();
 
         var iter = std::hash_set_iterator[[edge]]::init(&edges);
         for iter.advance() {
+            var edges_visited = std::hash_set[[edge]]::init();
+            defer edges_visited.fini();
+            var nodes_visited = std::hash_set[[node]]::init();
+            defer nodes_visited.fini();
+
             var length = self.*.calculate_longest_road_visit(&edges, &edges_visited, &nodes_visited, *iter.current(), player);
             longest = usize::max(longest, length);
         }
@@ -1246,6 +1247,16 @@ struct server_state {
                 #insert_road(&self.*.board.roads, road::init(
                 #    player::RED,
                 #    edge::init(
+                #        hex::init(-2, +0, +2),
+                #        hex::init(-2, +1, +1))));
+                #insert_road(&self.*.board.roads, road::init(
+                #    player::RED,
+                #    edge::init(
+                #        hex::init(-2, +0, +2),
+                #        hex::init(-1, +0, +1))));
+                #insert_road(&self.*.board.roads, road::init(
+                #    player::RED,
+                #    edge::init(
                 #        hex::init(+0, -1, +1),
                 #        hex::init(+1, -2, +1))));
                 #insert_road(&self.*.board.roads, road::init(
@@ -1704,10 +1715,10 @@ struct server_state {
         *submitted = true;
 
         connection.*.sendc(server_message::init_accepted("trade rejected"));
-        if (self.*.r_live and self.*.r_trade_submitted)
-        and (self.*.b_live and self.*.b_trade_submitted)
-        and (self.*.w_live and self.*.w_trade_submitted)
-        and (self.*.o_live and self.*.o_trade_submitted) {
+        if (not self.*.r_live or self.*.r_trade_submitted)
+        and (not self.*.b_live or self.*.b_trade_submitted)
+        and (not self.*.w_live or self.*.w_trade_submitted)
+        and (not self.*.o_live or self.*.o_trade_submitted) {
             self.*.turn.phase = phase::MAIN;
         }
     }
@@ -1789,6 +1800,40 @@ struct server_state {
                 (:usize)(b_longest_road == p_longest_road) +
                 (:usize)(w_longest_road == p_longest_road) +
                 (:usize)(o_longest_road == p_longest_road) > 1;
+            # Cases where someone loses longest road without someone stealing longest road.
+            if tied and r_longest_road < p_longest_road and self.*.longest_road == player::RED {
+                self.*.longest_road = player::NIL;
+                var name = player_to_name(self.*.longest_road);
+                self.*.sendc_all(server_message::init_log_format(
+                    "{} lost the longest road.",
+                    (:[]std::formatter)[
+                        std::formatter::init[[typeof(name)]](&name)]));
+            }
+            if tied and b_longest_road < p_longest_road and self.*.longest_road == player::BLUE {
+                self.*.longest_road = player::NIL;
+                var name = player_to_name(self.*.longest_road);
+                self.*.sendc_all(server_message::init_log_format(
+                    "{} lost the longest road.",
+                    (:[]std::formatter)[
+                        std::formatter::init[[typeof(name)]](&name)]));
+            }
+            if tied and w_longest_road < p_longest_road and self.*.longest_road == player::WHITE {
+                self.*.longest_road = player::NIL;
+                var name = player_to_name(self.*.longest_road);
+                self.*.sendc_all(server_message::init_log_format(
+                    "{} lost the longest road.",
+                    (:[]std::formatter)[
+                        std::formatter::init[[typeof(name)]](&name)]));
+            }
+            if tied and o_longest_road < p_longest_road and self.*.longest_road == player::ORANGE {
+                self.*.longest_road = player::NIL;
+                var name = player_to_name(self.*.longest_road);
+                self.*.sendc_all(server_message::init_log_format(
+                    "{} lost the longest road.",
+                    (:[]std::formatter)[
+                        std::formatter::init[[typeof(name)]](&name)]));
+            }
+            # Cases where someone steals longest road.
             if not tied and r_longest_road == p_longest_road and self.*.longest_road != player::RED {
                 self.*.longest_road = player::RED;
                 var name = player_to_name(self.*.longest_road);
@@ -1797,7 +1842,6 @@ struct server_state {
                     (:[]std::formatter)[
                         std::formatter::init[[typeof(name)]](&name),
                         std::formatter::init[[usize]](&r_longest_road)]));
-                self.*.longest_road = player::RED;
             }
             if not tied and b_longest_road == p_longest_road and self.*.longest_road != player::BLUE {
                 self.*.longest_road = player::BLUE;
@@ -1807,7 +1851,6 @@ struct server_state {
                     (:[]std::formatter)[
                         std::formatter::init[[typeof(name)]](&name),
                         std::formatter::init[[usize]](&b_longest_road)]));
-                self.*.longest_road = player::BLUE;
             }
             if not tied and w_longest_road == p_longest_road and self.*.longest_road != player::WHITE {
                 self.*.longest_road = player::WHITE;
@@ -1829,7 +1872,14 @@ struct server_state {
             }
         }
         else {
-            self.*.longest_road == player::NIL;
+            if self.*.longest_road != player::NIL {
+                var name = player_to_name(self.*.longest_road);
+                self.*.sendc_all(server_message::init_log_format(
+                    "{} lost the longest road.",
+                    (:[]std::formatter)[
+                        std::formatter::init[[typeof(name)]](&name)]));
+            }
+            self.*.longest_road = player::NIL;
         }
 
         # TODO: Probably don't need to update every player's victory points
