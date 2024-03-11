@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en-us">
+
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title><!--TITLE--></title>
+<style>
+  body {
+    font-size: 18px;
+    font-family: sans-serif;
+    padding: 0;
+    margin: 0;
+  }
+  input {
+    display: block;
+    margin-top: 1rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  canvas {
+    display: block;
+    border: 1px solid;
+    padding-left: 0;
+    padding-right: 0;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  textarea {
+    display: block;
+    font-family: monospace;
+    width: 80ch;
+    padding-left: 0;
+    padding-right: 0;
+    margin-left: auto;
+    margin-right: auto;
+  }
+</style>
+</head>
+
+<body>
+<div>
+  <input type="button" value="FULLSCREEN" onclick="Module.requestFullscreen(false, false)">
+</div>
+
+<div>
+  <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+</div>
+
+<script type="text/javascript">
+const MakePrintFunction = (method) => {
+  return function(text) {
+    if (arguments.length > 1) {
+      text = Array.prototype.slice.call(arguments).join(" ");
+    }
+    method(text);
+  };
+};
+
+var Module = {
+  preRun: [],
+  postRun: [],
+  print: MakePrintFunction(console.log),
+  printErr: MakePrintFunction(console.error),
+  canvas: (() => {
+    const canvas = document.querySelector("#canvas");
+    canvas.addEventListener("webglcontextlost", function(e) {
+      alert("WebGL context lost. You will need to reload the page.");
+      e.preventDefault();
+    }, false);
+    return canvas;
+  })()
+};
+</script>
+{{{ SCRIPT }}}
+</body>
+
+</html>

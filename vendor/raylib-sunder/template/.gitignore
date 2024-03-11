@@ -1,0 +1,6 @@
+game
+game.html
+
+*.wasm
+*.o
+*.c
