@@ -1,0 +1,25 @@
+import "c";
+import "raylib";
+
+func main() void {
+    InitWindow(640, 480, startof("game"));
+    defer CloseWindow();
+    SetTargetFPS(60);
+
+    for not WindowShouldClose() {
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+
+        DrawFPS(2, 2);
+
+        let text = startof("HELLO WORLD");
+        let font_size: sint = 36;
+        var text_w = MeasureText(text, font_size);
+        var text_h = GetFontDefault().baseSize;
+        var text_x = GetScreenWidth() / 2 - text_w / 2;
+        var text_y = GetScreenHeight() / 2 - text_h / 2;
+        DrawText(text, text_x, text_y, font_size, LIGHTGRAY);
+
+        EndDrawing();
+    }
+}
