@@ -1,0 +1,22 @@
+import "sys";
+
+func main() void {
+    sys::dump[[bool]]((:bool)123);
+    sys::dump[[byte]]((:byte)123);
+    sys::dump[[u8]]((:u8)123);
+    sys::dump[[usize]]((:usize)123);
+
+    sys::dump[[bool]]((:bool)(123 + 1));
+    sys::dump[[byte]]((:byte)(123 + 1));
+    sys::dump[[u8]]((:u8)(123 + 1));
+    sys::dump[[usize]]((:usize)(123 + 1));
+}
+################################################################################
+# 01
+# 7B
+# 7B
+# 7B 00 00 00 00 00 00 00
+# 01
+# 7C
+# 7C
+# 7C 00 00 00 00 00 00 00

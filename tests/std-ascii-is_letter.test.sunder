@@ -1,0 +1,21 @@
+import "std";
+
+func main() void {
+    assert std::ascii::is_letter('a');
+    assert std::ascii::is_letter('b');
+    assert std::ascii::is_letter('c');
+    assert std::ascii::is_letter('z');
+
+    assert std::ascii::is_letter('A');
+    assert std::ascii::is_letter('B');
+    assert std::ascii::is_letter('C');
+    assert std::ascii::is_letter('Z');
+
+    assert not std::ascii::is_letter('1');
+    assert not std::ascii::is_letter('~');
+    assert not std::ascii::is_letter('\n');
+    assert not std::ascii::is_letter('\t');
+    assert not std::ascii::is_letter(' ');
+    assert not std::ascii::is_letter('@');
+    assert not std::ascii::is_letter('[');
+}

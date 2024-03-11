@@ -1,0 +1,18 @@
+import "std";
+import "sys";
+import "import";
+import "import/c";
+
+func main() void {
+    sys::dump[[u16]](a);
+    sys::dump[[u16]](b());
+    c = c + 1u16;
+    sys::dump[[u16]](c);
+
+    std::print_line(std::out(), "imported from the standard library");
+}
+################################################################################
+# AA AA
+# BB BB
+# CC CC
+# imported from the standard library

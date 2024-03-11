@@ -1,0 +1,17 @@
+import "std";
+
+let x = +1.0f64 / 0.0f64;
+
+func main() void {
+    std::print_format_line(
+        std::out(),
+        "{}",
+        (:[]std::formatter)[std::formatter::init[[f64]](&x)]);
+    std::print_format_line(
+        std::out(),
+        "{}",
+        (:[]std::formatter)[std::formatter::init[[f64]](&f64::INFINITY)]);
+}
+################################################################################
+# infinity
+# infinity

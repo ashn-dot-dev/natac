@@ -1,0 +1,15 @@
+import "sys";
+
+func main() void {
+    let not_t: bool = not true;
+    let not_f: bool = not false;
+    sys::dump[[bool]](not_t);
+    sys::dump[[bool]](not_f);
+    sys::dump[[bool]](not true);
+    sys::dump[[bool]](not false);
+}
+################################################################################
+# 00
+# 01
+# 00
+# 01

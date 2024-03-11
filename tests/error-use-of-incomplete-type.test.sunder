@@ -1,0 +1,11 @@
+struct baz {
+    let VAL: typeof(qux::VAL) = 123;
+}
+
+struct qux {
+    let VAL: typeof(baz::VAL) = 123;
+}
+################################################################################
+# [error-use-of-incomplete-type.test.sunder:6] error: use of incomplete type `baz`
+#     let VAL: typeof(baz::VAL) = 123;
+#                     ^

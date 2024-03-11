@@ -1,0 +1,64 @@
+import "sys";
+
+func main() void {
+    let a = 1u << 0;
+    let b = 1u << 1;
+    let c = 1u << 2;
+    let d = 1u << 8;
+    let e = 1u << 63;
+    let f = 1u << 64;
+
+    sys::dump[[usize]](a);
+    sys::dump[[usize]](b);
+    sys::dump[[usize]](c);
+    sys::dump[[usize]](d);
+    sys::dump[[usize]](e);
+    sys::dump[[usize]](f);
+
+    var x = 1u;
+    sys::dump[[usize]](x << 0);
+    sys::dump[[usize]](x << 1);
+    sys::dump[[usize]](x << 2);
+    sys::dump[[usize]](x << 8);
+    sys::dump[[usize]](x << 63);
+    sys::dump[[usize]](x << 64);
+
+    var some_u8 = 1u8;
+    var some_u16 = 1u16;
+    var some_u32 = 1u32;
+    var some_u64 = 1u64;
+    var some_s8 = -1s8;
+    var some_s16 = -1s16;
+    var some_s32 = -1s32;
+    var some_s64 = -1s64;
+
+    sys::dump[[u8]](some_u8 << 1);
+    sys::dump[[u16]](some_u16 << 1);
+    sys::dump[[u32]](some_u32 << 1);
+    sys::dump[[u64]](some_u64 << 1);
+    sys::dump[[s8]](some_s8 << 1);
+    sys::dump[[s16]](some_s16 << 1);
+    sys::dump[[s32]](some_s32 << 1);
+    sys::dump[[s64]](some_s64 << 1);
+}
+################################################################################
+# 01 00 00 00 00 00 00 00
+# 02 00 00 00 00 00 00 00
+# 04 00 00 00 00 00 00 00
+# 00 01 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 80
+# 00 00 00 00 00 00 00 00
+# 01 00 00 00 00 00 00 00
+# 02 00 00 00 00 00 00 00
+# 04 00 00 00 00 00 00 00
+# 00 01 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 80
+# 00 00 00 00 00 00 00 00
+# 02
+# 02 00
+# 02 00 00 00
+# 02 00 00 00 00 00 00 00
+# FE
+# FE FF
+# FE FF FF FF
+# FE FF FF FF FF FF FF FF

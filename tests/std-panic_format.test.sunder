@@ -1,0 +1,10 @@
+import "std";
+
+func main() void {
+    var int: usize = 42;
+    std::panic_format(
+        "foo bar {}",
+        (:[]std::formatter)[std::formatter::init[[usize]](&int)]);
+}
+################################################################################
+# panic: foo bar 42

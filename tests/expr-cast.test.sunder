@@ -1,0 +1,214 @@
+import "std";
+import "sys";
+
+let a: u64 = (:u64)true;
+let b: u64 = (:u64)false;
+
+let c: u64 = (:u64)0xFFy;
+let d: s64 = (:s64)0xFFy;
+
+let e: bool = (:bool)0x00y;
+let f: bool = (:bool)0xFFy;
+
+let g: u64 = (:u64)0xFFFFu16;
+let h: u64 = (:u64)0x7777s16;
+let i: u64 = (:u64)-1s16;
+
+func main() void {
+    sys::dump[[u64]](a);
+    sys::dump[[u64]](b);
+
+    std::print(std::err(), "\n");
+
+    sys::dump[[u64]](c);
+    sys::dump[[s64]](d);
+
+    std::print(std::err(), "\n");
+
+    sys::dump[[bool]](e);
+    sys::dump[[bool]](f);
+
+    std::print(std::err(), "\n");
+
+    sys::dump[[u64]](g);
+    sys::dump[[u64]](h);
+    sys::dump[[u64]](i);
+
+    std::print(std::err(), "\n");
+
+    sys::dump[[byte]]((:byte)true);
+    sys::dump[[u8]]((:u8)true);
+    sys::dump[[s8]]((:s8)true);
+    sys::dump[[u16]]((:u16)true);
+    sys::dump[[s16]]((:s16)true);
+    sys::dump[[u32]]((:u32)true);
+    sys::dump[[s32]]((:s32)true);
+    sys::dump[[u64]]((:u64)true);
+    sys::dump[[s64]]((:s64)true);
+
+    std::print(std::err(), "\n");
+
+    sys::dump[[byte]]((:byte)false);
+    sys::dump[[u8]]((:u8)false);
+    sys::dump[[s8]]((:s8)false);
+    sys::dump[[u16]]((:u16)false);
+    sys::dump[[s16]]((:s16)false);
+    sys::dump[[u32]]((:u32)false);
+    sys::dump[[s32]]((:s32)false);
+    sys::dump[[u64]]((:u64)false);
+    sys::dump[[s64]]((:s64)false);
+
+    std::print(std::err(), "\n");
+
+    sys::dump[[bool]]((:bool)0x0000000000000000u64);
+    sys::dump[[bool]]((:bool)0xFFFFFFFFFFFFFFFFu64);
+    sys::dump[[bool]]((:bool)0x0000000000000000s64);
+    sys::dump[[bool]]((:bool)-1s64);
+
+    std::print(std::err(), "\n");
+
+    sys::dump[[u8]]((:u8)0xFFy);
+    sys::dump[[s8]]((:s8)0xFFy);
+    sys::dump[[u16]]((:u16)0xFFy);
+    sys::dump[[s16]]((:s16)0xFFy);
+    sys::dump[[u32]]((:u32)0xFFy);
+    sys::dump[[s32]]((:s32)0xFFy);
+    sys::dump[[u64]]((:u64)0xFFy);
+    sys::dump[[s64]]((:s64)0xFFy);
+
+    std::print(std::err(), "\n");
+
+    sys::dump[[byte]]((:byte)0x77u8);
+    sys::dump[[byte]]((:byte)0x77s8);
+    sys::dump[[byte]]((:byte)0xFFu8);
+    sys::dump[[byte]]((:byte)-1s8);
+    sys::dump[[byte]]((:byte)0xFFFFFFFFFFFFFFFFu64);
+    sys::dump[[byte]]((:byte)-1s64);
+
+    std::print(std::err(), "\n");
+
+    sys::dump[[u64]]((:u64)0x77u8);
+    sys::dump[[s64]]((:s64)0x77u8);
+    sys::dump[[u64]]((:u64)0x77s8);
+    sys::dump[[s64]]((:s64)0x77s8);
+
+    std::print(std::err(), "\n");
+
+    sys::dump[[u64]]((:u64)0xFFu8);
+    sys::dump[[s64]]((:s64)0xFFu8);
+    sys::dump[[u64]]((:u64)-1s8);
+    sys::dump[[s64]]((:s64)-1s8);
+
+    std::print(std::err(), "\n");
+
+    sys::dump[[ssize]]((:ssize)0xFFFFFFFFFFFFFFFFu);
+    sys::dump[[usize]]((:usize)-1s);
+
+    std::print(std::err(), "\n");
+
+    sys::dump[[*byte]]((:*byte)0xBBBBBBBBBBBBBBBBu);
+    sys::dump[[usize]]((:usize)(:*byte)0xBBBBBBBBBBBBBBBBu);
+
+    std::print(std::err(), "\n");
+
+    # pointer to pointer
+    sys::dump[[*u32]]((:*u32)(:*byte)0xCCCCCCCCCCCCCCCCu);
+
+    std::print(std::err(), "\n");
+
+    # Check negatives are sign-extended correctly.
+    sys::dump[[u64]]((:u64)-1s8);
+    sys::dump[[u64]]((:u64)-1s16);
+    sys::dump[[u64]]((:u64)-1s32);
+    sys::dump[[u64]]((:u64)-1s64);
+
+    std::print(std::err(), "\n");
+
+    # Check constant expression casts.
+    # usize -> pointer is allowed
+    # pointer -> pointer is allowed
+    let x = (:*byte)0xAABBCCDDAABBCCDDu;
+    let y = (:*bool)x;
+    sys::dump[[*byte]](x);
+    sys::dump[[*bool]](y);
+}
+################################################################################
+# 01 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00
+#
+# FF 00 00 00 00 00 00 00
+# FF 00 00 00 00 00 00 00
+#
+# 00
+# 01
+#
+# FF FF 00 00 00 00 00 00
+# 77 77 00 00 00 00 00 00
+# FF FF FF FF FF FF FF FF
+#
+# 01
+# 01
+# 01
+# 01 00
+# 01 00
+# 01 00 00 00
+# 01 00 00 00
+# 01 00 00 00 00 00 00 00
+# 01 00 00 00 00 00 00 00
+#
+# 00
+# 00
+# 00
+# 00 00
+# 00 00
+# 00 00 00 00
+# 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00
+#
+# 00
+# 01
+# 00
+# 01
+#
+# FF
+# FF
+# FF 00
+# FF 00
+# FF 00 00 00
+# FF 00 00 00
+# FF 00 00 00 00 00 00 00
+# FF 00 00 00 00 00 00 00
+#
+# 77
+# 77
+# FF
+# FF
+# FF
+# FF
+#
+# 77 00 00 00 00 00 00 00
+# 77 00 00 00 00 00 00 00
+# 77 00 00 00 00 00 00 00
+# 77 00 00 00 00 00 00 00
+#
+# FF 00 00 00 00 00 00 00
+# FF 00 00 00 00 00 00 00
+# FF FF FF FF FF FF FF FF
+# FF FF FF FF FF FF FF FF
+#
+# FF FF FF FF FF FF FF FF
+# FF FF FF FF FF FF FF FF
+#
+# BB BB BB BB BB BB BB BB
+# BB BB BB BB BB BB BB BB
+#
+# CC CC CC CC CC CC CC CC
+#
+# FF FF FF FF FF FF FF FF
+# FF FF FF FF FF FF FF FF
+# FF FF FF FF FF FF FF FF
+# FF FF FF FF FF FF FF FF
+#
+# DD CC BB AA DD CC BB AA
+# DD CC BB AA DD CC BB AA

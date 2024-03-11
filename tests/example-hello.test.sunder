@@ -1,0 +1,7 @@
+import "std";
+
+func main() void {
+    std::print_line(std::out(), "Hello, world!");
+}
+################################################################################
+# Hello, world!

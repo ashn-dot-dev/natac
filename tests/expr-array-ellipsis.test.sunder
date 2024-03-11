@@ -1,0 +1,34 @@
+import "sys";
+
+let a: [5u]u16 = (:[5u]u16)[0xAAu16, 0xBBu16, 0xCCu16...];
+let b: [5u]u16 = (:[5u]u16)[0xAAu16...];
+
+let f: [3u][5u]u16 = (:[3u][5u]u16)[(:[5u]u16)[0xAA, 0xBB, 0xCC...]...];
+let g: [2u][2u][3u]u16 = (:[2u][2u][3u]u16)[
+    (:[2u][3u]u16)[
+        (:[3u]u16)[0xFF...],
+        (:[3u]u16)[0xAA, 0xBB, 0xCC...]...
+    ]...
+];
+
+func main() void {
+    var c: [5u]u16 = (:[5u]u16)[0xAAu16, 0xBBu16, 0xCCu16...];
+    var d: [5u]u16 = (:[5u]u16)[0xAAu16...];
+    var e: [0u]u16 = (:[0u]u16)[0xFFFFu16...];
+
+    sys::dump[[[5]u16]](a);
+    sys::dump[[[5]u16]](b);
+    sys::dump[[[5]u16]](c);
+    sys::dump[[[5]u16]](d);
+    sys::dump[[[0]u16]](e);
+    sys::dump[[[3][5]u16]](f);
+    sys::dump[[[2][2][3]u16]](g);
+}
+################################################################################
+# AA 00 BB 00 CC 00 CC 00 CC 00
+# AA 00 AA 00 AA 00 AA 00 AA 00
+# AA 00 BB 00 CC 00 CC 00 CC 00
+# AA 00 AA 00 AA 00 AA 00 AA 00
+#
+# AA 00 BB 00 CC 00 CC 00 CC 00 AA 00 BB 00 CC 00 CC 00 CC 00 AA 00 BB 00 CC 00 CC 00 CC 00
+# FF 00 FF 00 FF 00 AA 00 BB 00 CC 00 FF 00 FF 00 FF 00 AA 00 BB 00 CC 00

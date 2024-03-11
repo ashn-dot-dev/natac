@@ -1,0 +1,17 @@
+import "std";
+import "sys";
+
+func main() void {
+    var string = std::string::init();
+    defer string.fini();
+
+    sys::dump[[*byte]](string.start());
+    sys::dump[[usize]](string.count());
+    sys::dump[[usize]](string.capacity());
+    sys::dump[[[]byte]](string.data());
+}
+################################################################################
+# 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00

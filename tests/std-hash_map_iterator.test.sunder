@@ -1,0 +1,29 @@
+import "std";
+
+func main() void {
+    var map = std::hash_map[[[]byte, ssize]]::init();
+    defer map.fini();
+
+    map.insert("foo", 0x123);
+    map.insert("bar", 0x456);
+    map.insert("baz", 0x789);
+    map.insert("qux", 0xABC);
+    map.insert("quz", 0xDEF);
+
+    var iter = std::hash_map_iterator[[[]byte, ssize]]::init(&map);
+    var iter = std::iterator[[std::key_value_view[[[]byte, ssize]]]]::init[[std::hash_map_iterator[[[]byte, ssize]]]](&iter);
+    for iter.advance() {
+        std::print_format_line(
+            std::out(),
+            "{}, {#X}",
+            (:[]std::formatter)[
+                std::formatter::init[[[]byte]](iter.current().*.key),
+                std::formatter::init[[ssize]](iter.current().*.value)]);
+    }
+}
+################################################################################
+# foo, 0x123
+# bar, 0x456
+# baz, 0x789
+# qux, 0xABC
+# quz, 0xDEF

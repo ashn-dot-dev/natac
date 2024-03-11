@@ -1,0 +1,34 @@
+import "std";
+import "sys";
+
+func test_value[[T]](lhs: T, rhs: T) void {
+   sys::dump[[T]](*std::min[[T]](&lhs, &rhs));
+}
+
+func main() void {
+    test_value[[u16]](0xBEEF, 0xCAFE);
+    test_value[[u16]](0xCAFE, 0xBEEF);
+    test_value[[s16]](-123, +123);
+    test_value[[s16]](+123, -123);
+    test_value[[ssize]](-123, +123);
+    test_value[[ssize]](+123, -123);
+    test_value[[ssize]](0, 0);
+
+    var x = std::big_integer::init_from_str("+12345678901234567890", 0);
+    var x = x.value();
+    defer x.fini();
+    var y = std::big_integer::init_from_str("-12345678901234567890", 0);
+    var y = y.value();
+    defer y.fini();
+    var min = std::min[[std::big_integer]](&x, &y);
+    std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[std::big_integer]](min)]);
+}
+################################################################################
+# EF BE
+# EF BE
+# 85 FF
+# 85 FF
+# 85 FF FF FF FF FF FF FF
+# 85 FF FF FF FF FF FF FF
+# 00 00 00 00 00 00 00 00
+# -12345678901234567890

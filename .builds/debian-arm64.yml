@@ -1,0 +1,14 @@
+image: debian/unstable
+arch: arm64
+packages:
+  - build-essential
+sources:
+  - https://git.sr.ht/~ashn/sunder
+tasks:
+  - c99-release: |
+      cd sunder
+      make clean check examples CFLAGS='$(C99_REL)'
+triggers:
+  - action: email
+    condition: failure
+    to: "<me@ashn.dev>"

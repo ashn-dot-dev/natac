@@ -1,0 +1,21 @@
+import "std";
+import "sys";
+
+let path: []byte = "data.tmp";
+
+func main() void {
+    var result = std::file::open(path, std::file::OPEN_READ | std::file::OPEN_WRITE);
+    var file = result.value();
+
+    var reader = std::reader::init[[std::file]](&file);
+    var writer = std::writer::init[[std::file]](&file);
+    std::print_line(writer, "SOME TEXT");
+
+    file.seek(0, std::file::SEEK_START);
+    var buf = (:[512]byte)[0...];
+    var result = reader.read(buf[0:countof(buf)]);
+    std::print_line(std::out(), buf[0:result.value()]);
+    file.close();
+}
+################################################################################
+# SOME TEXT

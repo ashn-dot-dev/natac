@@ -1,0 +1,5 @@
+let foo: ssize = 0x123zu;
+################################################################################
+# [error-integer-literal-unknown-suffix.test.sunder:1] error: unknown integer literal suffix `zu`
+# let foo: ssize = 0x123zu;
+#                  ^

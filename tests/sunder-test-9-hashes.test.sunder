@@ -1,0 +1,7 @@
+import "sys";
+
+func main() void {
+    sys::dump[[u8]](0x01);
+}
+#########
+# 01

@@ -1,0 +1,80 @@
+import "sys";
+
+struct s1 {
+    var x: u32;
+}
+
+struct s2 {
+    var x: u32;
+    var y: u32;
+}
+
+struct s3 {
+    var u: s1;
+    var v: s2;
+}
+
+var a = (:s1){.x = uninit};
+var b = (:s2){.x = uninit, .y = 123};
+var c = (:s2){.x = (:s1){.x = 123}.x, .y = uninit};
+var d = (:s3){
+    .u = A,
+    .v = (:s2){.x = uninit, .y = uninit}
+};
+var e = (:[2]s3)[D, D];
+var f = (:[]s3)[D, D];
+
+let A = (:s1){.x = uninit};
+let B = (:s2){.x = uninit, .y = 123};
+let C = (:s2){.x = (:s1){.x = 123}.x, .y = uninit};
+let D = (:s3){
+    .u = A,
+    .v = (:s2){.x = uninit, .y = uninit}
+};
+let E = (:[2]s3)[D, D];
+let F = (:[]s3)[D, D];
+
+func main() void {
+    # Uninitialized local variables do not have a defined bit pattern. These
+    # declarations are mostly here to make sure the syntax & semantic analysis
+    # works for local variables.
+    var g_ = (:s1){.x = uninit};
+    var h = (:s2){.x = uninit, .y = 123};
+    var i = (:s2){.x = 123, .y = uninit};
+    var j_ = (:s3){
+        .u = A,
+        .v = (:s2){.x = uninit, .y = uninit}
+    };
+
+    sys::dump[[s1]](a);
+    sys::dump[[s2]](b);
+    sys::dump[[s2]](c);
+    sys::dump[[s3]](d);
+    sys::dump[[[2]s3]](e);
+    sys::dump[[s3]](f[0]);
+
+    sys::dump[[s1]](A);
+    sys::dump[[s2]](B);
+    sys::dump[[s2]](C);
+    sys::dump[[s3]](D);
+    sys::dump[[[2]s3]](E);
+    sys::dump[[s3]](F[0]);
+
+    sys::dump[[u32]](h.y);
+    sys::dump[[u32]](i.x);
+}
+################################################################################
+# 00 00 00 00
+# 00 00 00 00 7B 00 00 00
+# 7B 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00 00 00 00 00
+# 00 00 00 00
+# 00 00 00 00 7B 00 00 00
+# 7B 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00 00 00 00 00
+# 7B 00 00 00
+# 7B 00 00 00

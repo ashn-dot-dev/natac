@@ -1,0 +1,45 @@
+import "std";
+
+func normal() void {
+    # Skipping '\0' and since it is a pain to check.
+    # Using newline for the escaped hex sequence.
+    var string = std::string::init_from_str("hello\t\n\'\"\x0A");
+    defer string.fini();
+    std::print_format_line(
+        std::out(),
+        "{}",
+        (:[]std::formatter)[
+            std::formatter::init[[std::string]](&string)]);
+}
+
+func escaped_with_format_e() void {
+    var string = std::string::init_from_str("hello\t\n\'\"\x10\xAB");
+    defer string.fini();
+    std::print_format_line(
+        std::out(),
+        "{e}",
+        (:[]std::formatter)[
+            std::formatter::init[[std::string]](&string)]);
+}
+
+func escaped_with_format_escaped() void {
+    var string = std::string::init_from_str("hello\t\n\'\"\x10\xAB");
+    defer string.fini();
+    std::print_format_line(
+        std::out(),
+        "{escaped}",
+        (:[]std::formatter)[
+            std::formatter::init[[std::string]](&string)]);
+}
+
+func main() void {
+    normal();
+    escaped_with_format_e();
+    escaped_with_format_escaped();
+}
+################################################################################
+# hello	
+# '"
+#
+# hello\t\n\'\"\x10\xAB
+# hello\t\n\'\"\x10\xAB

@@ -1,0 +1,79 @@
+import "sys";
+
+func max[[T]](lhs: T, rhs: T) T {
+    if lhs > rhs {
+        return lhs;
+    }
+    return rhs;
+}
+
+func fib[[T]](n: usize) T {
+    if n == 0 {
+        return 0;
+    }
+    if n == 1 {
+        return 1;
+    }
+    return fib[[T]](n - 1) + fib[[T]](n - 2);
+}
+
+func can_roundtrip[[A, B]]() bool {
+    # Largest value that can be held by a sunder unsigned integer.
+    let largest: u64 = 0xFFFFFFFFFFFFFFFFu64;
+
+    # Start with the initial type A.
+    var a: A = (:A)largest;
+    # Trip to B.
+    var b: B = (:B)a;
+    # Roundtrip back to A.
+    var r: A = (:A)b;
+
+    return r == a;
+}
+
+func main() void {
+    sys::dump[[u16]](max[[u16]](123u16, 456u16));
+    sys::dump[[u16]](max[[u16]](123u16, 456u16)); # Should reuse the first instantiation.
+    sys::dump[[s16]](max[[s16]](+42s16, -42s16));
+    sys::dump[[u32]](max[[u32]](0xDEADBEEFu32, 0xCAFEF00Du32));
+
+    sys::dump[[u16]](fib[[u16]](0));
+    sys::dump[[u16]](fib[[u16]](1));
+    sys::dump[[u16]](fib[[u16]](3));
+    sys::dump[[u16]](fib[[u16]](5));
+    sys::dump[[u16]](fib[[u16]](10));
+
+    sys::dump[[u32]](fib[[u32]](0));
+    sys::dump[[u32]](fib[[u32]](1));
+    sys::dump[[u32]](fib[[u32]](3));
+    sys::dump[[u32]](fib[[u32]](5));
+    sys::dump[[u32]](fib[[u32]](10));
+
+    sys::dump[[bool]](can_roundtrip[[u32, u8]]());
+    sys::dump[[bool]](can_roundtrip[[u32, u16]]());
+    sys::dump[[bool]](can_roundtrip[[u32, u32]]());
+    sys::dump[[bool]](can_roundtrip[[u32, u64]]());
+    sys::dump[[bool]](can_roundtrip[[u8, s8]]());
+    sys::dump[[bool]](can_roundtrip[[s8, u8]]());
+}
+################################################################################
+# C8 01
+# C8 01
+# 2A 00
+# EF BE AD DE
+# 00 00
+# 01 00
+# 02 00
+# 05 00
+# 37 00
+# 00 00 00 00
+# 01 00 00 00
+# 02 00 00 00
+# 05 00 00 00
+# 37 00 00 00
+# 00
+# 00
+# 01
+# 01
+# 01
+# 01

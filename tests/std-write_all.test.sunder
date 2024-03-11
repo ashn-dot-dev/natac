@@ -1,0 +1,12 @@
+import "std";
+
+func main() void {
+    var result = std::write_all(std::out(), "Call to write_all (stdout)!\n");
+    assert result.is_value();
+
+    var result = std::write_all(std::err(), "Call to write_all (stderr)!\n");
+    assert result.is_value();
+}
+################################################################################
+# Call to write_all (stdout)!
+# Call to write_all (stderr)!

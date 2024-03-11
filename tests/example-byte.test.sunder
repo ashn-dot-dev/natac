@@ -1,0 +1,36 @@
+import "sys";
+
+let gc0: byte = 0xABy;
+let gc1: byte = gc0;
+
+var gv0: byte = 0xBCy;
+
+func main() void {
+    sys::dump[[byte]](gc0);
+    sys::dump[[byte]](gc1);
+
+    sys::dump[[byte]](gv0);
+    var x: byte = gv0;
+    sys::dump[[byte]](x);
+
+    let lc0: byte = 0xCDy;
+    let lc1: byte = lc0;
+
+    var lv0: byte = 0xDEy;
+    var lv1: byte = lv0;
+
+    sys::dump[[byte]](lc0);
+    sys::dump[[byte]](lc1);
+
+    sys::dump[[byte]](lv0);
+    sys::dump[[byte]](lv1);
+}
+################################################################################
+# AB
+# AB
+# BC
+# BC
+# CD
+# CD
+# DE
+# DE

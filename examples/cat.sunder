@@ -1,0 +1,45 @@
+# Simplified (non-POSIX-compliant) version of `cat`.
+import "std";
+
+func cat(filename: []byte) void {
+    var result = std::file::open(filename, std::file::OPEN_READ);
+    if result.is_error() {
+        std::print_format_line(
+            std::err(),
+            "{}: {}",
+            (:[]std::formatter)[
+                std::formatter::init[[[]byte]](&filename),
+                std::formatter::init[[[]byte]](&result.error().*.data)]);
+        std::exit(std::EXIT_FAILURE);
+    }
+
+    var file = result.value();
+    defer file.close();
+
+    var buf = (:[512]byte)[0...];
+    for true {
+        var result = file.read(buf[0:countof(buf)]);
+        if result.is_error() {
+            std::print_format_line(
+                std::err(),
+                "{}: {}",
+                (:[]std::formatter)[
+                    std::formatter::init[[[]byte]](&filename),
+                    std::formatter::init[[[]byte]](&result.error().*.data)]);
+            std::exit(std::EXIT_FAILURE);
+        }
+
+        if result.value() == 0 {
+            break;
+        }
+
+        std::print(std::out(), buf[0:result.value()]);
+    }
+}
+
+func main() void {
+    var parser = std::argument_parser::init((:[][]byte)[]);
+    for parser.advance() {
+        cat(parser.argument_value());
+    }
+}

@@ -1,0 +1,113 @@
+import "std";
+
+func check[[T]](lhs: T, rhs: T) void {
+    var eq = (:u8)std::eq[[T]](&lhs, &rhs);
+    std::print_format_line(
+        std::out(),
+        "{} == {} => {}",
+        (:[]std::formatter)[
+            std::formatter::init[[T]](&lhs),
+            std::formatter::init[[T]](&rhs),
+            std::formatter::init[[u8]](&eq)]);
+
+    var ne = (:u8)std::ne[[T]](&lhs, &rhs);
+    std::print_format_line(
+        std::out(),
+        "{} != {} => {}",
+        (:[]std::formatter)[
+            std::formatter::init[[T]](&lhs),
+            std::formatter::init[[T]](&rhs),
+            std::formatter::init[[u8]](&ne)]);
+
+    var lt = (:u8)std::lt[[T]](&lhs, &rhs);
+    std::print_format_line(
+        std::out(),
+        "{} <  {} => {}",
+        (:[]std::formatter)[
+            std::formatter::init[[T]](&lhs),
+            std::formatter::init[[T]](&rhs),
+            std::formatter::init[[u8]](&lt)]);
+
+    var le = (:u8)std::le[[T]](&lhs, &rhs);
+    std::print_format_line(
+        std::out(),
+        "{} <= {} => {}",
+        (:[]std::formatter)[
+            std::formatter::init[[T]](&lhs),
+            std::formatter::init[[T]](&rhs),
+            std::formatter::init[[u8]](&le)]);
+
+    var gt = (:u8)std::gt[[T]](&lhs, &rhs);
+    std::print_format_line(
+        std::out(),
+        "{} >  {} => {}",
+        (:[]std::formatter)[
+            std::formatter::init[[T]](&lhs),
+            std::formatter::init[[T]](&rhs),
+            std::formatter::init[[u8]](&gt)]);
+
+    var ge = (:u8)std::ge[[T]](&lhs, &rhs);
+    std::print_format_line(
+        std::out(),
+        "{} >= {} => {}",
+        (:[]std::formatter)[
+            std::formatter::init[[T]](&lhs),
+            std::formatter::init[[T]](&rhs),
+            std::formatter::init[[u8]](&ge)]);
+}
+
+func main() void {
+    check[[ssize]](0, 0);
+    std::print_line(std::out(), "========");
+    check[[ssize]](0, 1);
+    std::print_line(std::out(), "========");
+    check[[ssize]](1, 0);
+    std::print_line(std::out(), "========");
+    check[[ssize]](-1, 0);
+    std::print_line(std::out(), "========");
+    check[[ssize]](0, -1);
+    std::print_line(std::out(), "========");
+    check[[u16]](123, 456);
+}
+################################################################################
+# 0 == 0 => 1
+# 0 != 0 => 0
+# 0 <  0 => 0
+# 0 <= 0 => 1
+# 0 >  0 => 0
+# 0 >= 0 => 1
+# ========
+# 0 == 1 => 0
+# 0 != 1 => 1
+# 0 <  1 => 1
+# 0 <= 1 => 1
+# 0 >  1 => 0
+# 0 >= 1 => 0
+# ========
+# 1 == 0 => 0
+# 1 != 0 => 1
+# 1 <  0 => 0
+# 1 <= 0 => 0
+# 1 >  0 => 1
+# 1 >= 0 => 1
+# ========
+# -1 == 0 => 0
+# -1 != 0 => 1
+# -1 <  0 => 1
+# -1 <= 0 => 1
+# -1 >  0 => 0
+# -1 >= 0 => 0
+# ========
+# 0 == -1 => 0
+# 0 != -1 => 1
+# 0 <  -1 => 0
+# 0 <= -1 => 0
+# 0 >  -1 => 1
+# 0 >= -1 => 1
+# ========
+# 123 == 456 => 0
+# 123 != 456 => 1
+# 123 <  456 => 1
+# 123 <= 456 => 1
+# 123 >  456 => 0
+# 123 >= 456 => 0

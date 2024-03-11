@@ -1,0 +1,24 @@
+#!/usr/bin/env sunder-run
+import "std";
+
+func main() void {
+    std::print(std::out(), "What is your name?\n> ");
+
+    var result = std::read_line(std::input());
+    if result.is_error() {
+        std::print_line(std::err(), result.error().*.data);
+        std::exit(std::EXIT_FAILURE);
+    }
+
+    var optional = result.value();
+    if optional.is_empty() or countof(optional.value()) == 0 {
+        std::print_line(std::err(), "unexpected empty input");
+        std::exit(std::EXIT_FAILURE);
+    }
+
+    var line = optional.value();
+    defer std::slice[[byte]]::delete(line);
+
+    var name = std::ascii::view_trimmed(line);
+    std::print_format_line(std::out(), "Nice to meet you {}!", (:[]std::formatter)[std::formatter::init[[typeof(name)]](&name)]);
+}

@@ -1,0 +1,71 @@
+import "std";
+
+func test_add(allocator: std::allocator) void {
+    var res = std::big_integer::init_with_allocator(allocator);
+    defer {
+        res.fini();
+    }
+
+    var rhs = std::big_integer::init_from_str_with_allocator(allocator, "123", 0);
+    var rhs = rhs.value();
+    defer {
+        rhs.fini();
+    }
+    std::big_integer::add(&res, &res, &rhs);
+
+    var rhs = std::big_integer::init_from_str_with_allocator(allocator, "456", 0);
+    var rhs = rhs.value();
+    defer {
+        rhs.fini();
+    }
+    std::big_integer::add(&res, &res, &rhs);
+
+    var rhs = std::big_integer::init_from_str_with_allocator(allocator, "1234567890123456789012345678901234567890", 0);
+    var rhs = rhs.value();
+    defer { rhs.fini(); }
+    std::big_integer::add(&res, &res, &rhs);
+
+    std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[std::big_integer]](&res)]);
+}
+
+func test_sub(allocator: std::allocator) void {
+    var res = std::big_integer::init_with_allocator(allocator);
+    defer {
+        res.fini();
+    }
+
+    var rhs = std::big_integer::init_from_str_with_allocator(allocator, "123", 0);
+    var rhs = rhs.value();
+    defer {
+        rhs.fini();
+    }
+    std::big_integer::sub(&res, &res, &rhs);
+
+    var rhs = std::big_integer::init_from_str_with_allocator(allocator, "456", 0);
+    var rhs = rhs.value();
+    defer {
+        rhs.fini();
+    }
+    std::big_integer::sub(&res, &res, &rhs);
+
+    var rhs = std::big_integer::init_from_str_with_allocator(allocator, "1234567890123456789012345678901234567890", 0);
+    var rhs = rhs.value();
+    defer { rhs.fini(); }
+    std::big_integer::sub(&res, &res, &rhs);
+
+    std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[std::big_integer]](&res)]);
+}
+
+func main() void {
+    var allocator = std::general_allocator::init();
+    defer {
+        allocator.fini();
+    }
+    var allocator = std::allocator::init[[typeof(allocator)]](&allocator);
+
+    test_add(allocator);
+    test_sub(allocator);
+}
+################################################################################
+# 1234567890123456789012345678901234568469
+# -1234567890123456789012345678901234568469

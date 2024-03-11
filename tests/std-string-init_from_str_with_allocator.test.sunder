@@ -1,0 +1,17 @@
+import "std";
+
+func main() void {
+    var string = std::string::init_from_str_with_allocator(std::global_allocator(), "foo bar");
+    defer string.fini();
+
+    var count = string.count();
+    std::print_format_line(
+        std::out(),
+        "count = {}",
+        (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
+
+    std::print_line(std::out(), string.data());
+}
+################################################################################
+# count = 7
+# foo bar

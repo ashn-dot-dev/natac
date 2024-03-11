@@ -1,0 +1,5 @@
+let a: byte = '\z';
+################################################################################
+# [error-invalid-escape-sequence-character-literal.test.sunder:1] error: unknown escape sequence
+# let a: byte = '\z';
+#                ^

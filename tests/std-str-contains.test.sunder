@@ -1,0 +1,20 @@
+import "std";
+
+func main() void {
+    assert std::str::contains("", "");
+    assert std::str::contains("a", "");
+    assert not std::str::contains("", "a");
+
+    assert std::str::contains("foobar", "f");
+    assert std::str::contains("foobar", "fo");
+    assert std::str::contains("foobar", "foo");
+    assert not std::str::contains("foobar", "fooo");
+    assert std::str::contains("foobar", "bar");
+
+    assert std::str::contains("foobar", "foobar");
+    assert not std::str::contains("foobar", "barfoo");
+    assert not std::str::contains("foobar", "foobarg");
+
+    assert std::str::contains("kpvwblrizaabmnhz", "ab");
+    assert std::str::contains("foofoo", "foo");
+}

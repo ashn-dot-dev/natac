@@ -1,0 +1,18 @@
+import "std";
+
+let x = -1.0f32 / 0.0f32;
+
+func main() void {
+    std::print_format_line(
+        std::out(),
+        "{}",
+        (:[]std::formatter)[std::formatter::init[[f32]](&x)]);
+    var neg_inf = -f32::INFINITY;
+    std::print_format_line(
+        std::out(),
+        "{}",
+        (:[]std::formatter)[std::formatter::init[[f32]](&neg_inf)]);
+}
+################################################################################
+# -infinity
+# -infinity

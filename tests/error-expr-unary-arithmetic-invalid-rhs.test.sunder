@@ -1,0 +1,5 @@
+let foo: ssize = +true;
+################################################################################
+# [error-expr-unary-arithmetic-invalid-rhs.test.sunder:1] error: invalid argument of type `bool` in unary `+` expression
+# let foo: ssize = +true;
+#                  ^

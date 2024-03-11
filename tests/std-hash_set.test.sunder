@@ -1,0 +1,93 @@
+import "std";
+
+func main() void {
+    var set = std::hash_set[[[]byte]]::init();
+    defer set.fini();
+
+    assert set.count() == 0;
+    assert not set.contains("foo");
+    assert not set.contains("bar");
+
+    var existing = set.update("foo");
+    assert existing.is_empty();
+    assert set.count() == 1;
+    assert set.contains("foo");
+    assert not set.contains("bar");
+
+    var existing = set.update("foo");
+    assert existing.is_value() and std::str::eq(existing.value(), "foo");
+    assert set.count() == 1;
+    assert set.contains("foo");
+    assert not set.contains("bar");
+
+    var existing = set.update("bar");
+    assert existing.is_empty();
+    assert set.count() == 2;
+    assert set.contains("foo");
+    assert set.contains("bar");
+
+    var removed = set.remove("foo");
+    assert removed.is_value() and std::str::eq(removed.value(), "foo");
+    assert set.count() == 1;
+    assert not set.contains("foo");
+    assert set.contains("bar");
+
+    var removed = set.remove("baz");
+    assert removed.is_empty();
+    assert set.count() == 1;
+    assert not set.contains("foo");
+    assert set.contains("bar");
+
+    var lookup = set.lookup("bar");
+    assert std::str::eq(*lookup.value(), "bar");
+
+    # Test set inserts. Also test std::set::init_with_allocator.
+    var set = std::hash_set[[ssize]]::init_with_allocator(std::global_allocator());
+    defer set.fini();
+
+    for x in 0x123456:0x123456+100000 {
+        set.insert((:ssize)x);
+    }
+    for x in 0x123456:0x123456+100000 {
+        assert set.contains((:ssize)x);
+    }
+    assert set.count() == 100000;
+    for x in 0x123456:0x123456+100000 {
+        set.remove((:ssize)x);
+    }
+    assert set.count() == 0;
+
+    std::print(std::out(), "\n");
+
+    var set_a = std::hash_set[[ssize]]::init();
+    var set_b = std::hash_set[[ssize]]::init();
+    defer set_a.fini();
+    defer set_b.fini();
+    set_a.insert(123);
+    set_a.insert(456);
+    set_a.insert(789);
+    assert set_a.count() == 3;
+    assert set_b.count() == 0;
+    set_b.assign(&set_a);
+    assert set_a.count() == 3;
+    assert set_b.count() == 3;
+    assert set_a.contains(123);
+    assert set_b.contains(123);
+    assert set_a.contains(456);
+    assert set_b.contains(456);
+    assert set_a.contains(789);
+    assert set_b.contains(789);
+
+    std::print(std::out(), "\n");
+
+    var set_c = std::hash_set[[ssize]]::init_assign(&set_a);
+    defer set_c.fini();
+    assert set_a.count() == 3;
+    assert set_c.count() == 3;
+    assert set_a.contains(123);
+    assert set_c.contains(123);
+    assert set_a.contains(456);
+    assert set_c.contains(456);
+    assert set_a.contains(789);
+    assert set_c.contains(789);
+}

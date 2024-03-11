@@ -1,0 +1,12 @@
+import "std";
+
+func main() void {
+    var count = std::cstr::count(&"\0"[0]);
+    std::print_format_line(std::err(), "count = {}", (:[]std::formatter)[std::formatter::init[[typeof(count)]](&count)]);
+
+    var count = std::cstr::count(&"123\0"[0]);
+    std::print_format_line(std::err(), "count = {}", (:[]std::formatter)[std::formatter::init[[typeof(count)]](&count)]);
+}
+################################################################################
+# count = 0
+# count = 3

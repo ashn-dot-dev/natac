@@ -1,0 +1,7 @@
+func main() void {
+    var a: u64 = 0xFFFFFFFFFFFFFFFFu64;
+    var b: u64 = 1u64;
+    a + b;
+}
+################################################################################
+# fatal: operation produces out-of-range result

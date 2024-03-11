@@ -1,0 +1,13 @@
+import "std";
+
+func main() void {
+    assert std::str::starts_with("", "");
+    assert std::str::starts_with("a", "");
+    assert not std::str::starts_with("", "a");
+
+    assert std::str::starts_with("foobar", "f");
+    assert std::str::starts_with("foobar", "fo");
+    assert std::str::starts_with("foobar", "foo");
+    assert not std::str::starts_with("foobar", "fooo");
+    assert not std::str::starts_with("foobar", "bar");
+}

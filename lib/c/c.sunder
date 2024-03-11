@@ -1,0 +1,39 @@
+import "sys";
+
+type char = sys::char;
+type uchar = sys::uchar;
+type schar = sys::schar;
+
+type ushort = sys::ushort;
+type sshort = sys::sshort;
+
+type uint = sys::uint;
+type sint = sys::sint;
+
+type ulong = sys::ulong;
+type slong = sys::slong;
+
+type slonglong = sys::slonglong;
+type ulonglong = sys::ulonglong;
+
+type  size_t = usize;
+type ssize_t = ssize;
+
+type uint8_t = u8;
+type  int8_t = s8;
+
+type uint16_t = u16;
+type  int16_t = s16;
+
+type uint32_t = u32;
+type  int32_t = s32;
+
+type uint64_t = u64;
+type  int64_t = s64;
+
+type uintptr_t = usize;
+type  intptr_t = ssize;
+type ptrdiff_t = intptr_t;
+
+type float = f32;
+type double = f64;

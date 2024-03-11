@@ -1,0 +1,14 @@
+import "std";
+
+func main() void {
+    var result = std::file::open("data.txt", std::file::OPEN_READ);
+    var file = result.value();
+    var reader = std::reader::init[[std::file]](&file);
+    var buf = (:[512]byte)[0...];
+    var result = reader.read(buf[0:countof(buf)]);
+    std::print(std::out(), buf[0:result.value()]);
+    file.close();
+}
+################################################################################
+# TEST DATA FILE LINE 1
+# TEST DATA FILE LINE 2

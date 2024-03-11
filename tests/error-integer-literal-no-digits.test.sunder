@@ -1,0 +1,5 @@
+let foo: ssize = 0xs;
+################################################################################
+# [error-integer-literal-no-digits.test.sunder:1] error: integer literal has no digits
+# let foo: ssize = 0xs;
+#                    ^

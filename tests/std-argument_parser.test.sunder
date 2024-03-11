@@ -1,0 +1,170 @@
+import "std";
+import "util";
+
+func dump_parser_info(parser: *std::argument_parser) void {
+    var opt = parser.*.option();
+    std::print(std::out(), "parser option   => ");
+    if opt.is_value() {
+        std::print_line(std::out(), opt.value());
+    }
+    else {
+        std::print_line(std::out(), "<empty>");
+    }
+
+    var arg = parser.*.argument();
+    std::print(std::out(), "parser argument => ");
+    if arg.is_value() {
+        std::print_line(std::out(), arg.value());
+    }
+    else {
+        std::print_line(std::out(), "<empty>");
+    }
+}
+
+func main() void {
+    var options = (:[][]byte)[];
+    var argv = util::argv::new((:[][]byte)[]);
+    var parser = std::argument_parser::init_from_argv(options, argv);
+
+    assert not parser.advance();
+    dump_parser_info(&parser);
+    std::print_line(std::out(), parser.program());
+
+    std::print(std::out(), "\n"); ##############################################
+
+    var options = (:[][]byte)[];
+    var argv = util::argv::new((:[][]byte)["arg0"]);
+    var parser = std::argument_parser::init_from_argv(options, argv);
+
+    assert not parser.advance();
+    dump_parser_info(&parser);
+    std::print_line(std::out(), parser.program());
+
+    std::print(std::out(), "\n"); ##############################################
+
+    var options = (:[][]byte)[];
+    var argv = util::argv::new((:[][]byte)[
+        "arg0",
+        "arg1",
+        "arg2"
+    ]);
+    var parser = std::argument_parser::init_from_argv(options, argv);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert not parser.advance();
+    dump_parser_info(&parser);
+
+    std::print(std::out(), "\n"); ##############################################
+
+    var options = (:[][]byte)["foo", "bar:"];
+    var argv = util::argv::new((:[][]byte)[
+        "arg0",
+        "arg1",
+        "-foo",
+        "--foo",
+        "---foo",
+        "arg5",
+        "-bar",
+        "arg7",
+        "--bar",
+        "arg9",
+        "--bar",
+        "--arg11",
+        "--bar=arg12",
+        "--bar=--arg13",
+        "-",
+        "--", # <-- marks the rest of the arguments as verbatim
+        "--foo",
+        "--bar",
+        "--bar",
+        "--",
+        "arg20"
+    ]);
+    var parser = std::argument_parser::init_from_argv(options, argv);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert parser.advance();
+    dump_parser_info(&parser);
+    assert not parser.advance();
+    dump_parser_info(&parser);
+}
+################################################################################
+# parser option   => <empty>
+# parser argument => <empty>
+# <program-name>
+#
+# parser option   => <empty>
+# parser argument => <empty>
+# arg0
+#
+# parser option   => <empty>
+# parser argument => arg1
+# parser option   => <empty>
+# parser argument => arg2
+# parser option   => <empty>
+# parser argument => <empty>
+#
+# parser option   => <empty>
+# parser argument => arg1
+# parser option   => foo
+# parser argument => <empty>
+# parser option   => foo
+# parser argument => <empty>
+# parser option   => foo
+# parser argument => <empty>
+# parser option   => <empty>
+# parser argument => arg5
+# parser option   => bar
+# parser argument => arg7
+# parser option   => bar
+# parser argument => arg9
+# parser option   => bar
+# parser argument => --arg11
+# parser option   => bar
+# parser argument => arg12
+# parser option   => bar
+# parser argument => --arg13
+# parser option   => <empty>
+# parser argument => -
+# parser option   => <empty>
+# parser argument => --foo
+# parser option   => <empty>
+# parser argument => --bar
+# parser option   => <empty>
+# parser argument => --bar
+# parser option   => <empty>
+# parser argument => --
+# parser option   => <empty>
+# parser argument => arg20
+# parser option   => <empty>
+# parser argument => <empty>

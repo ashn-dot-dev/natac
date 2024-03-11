@@ -1,0 +1,297 @@
+import "sys";
+import "std";
+
+let f32_constant = 123.456f32;
+let f64_constant = 123.456f64;
+
+let INF32 = 1.0f32 / 0.0f32;
+let INF64 = 1.0f64 / 0.0f64;
+let NAN32 = 0.0f32 / 0.0f32;
+let NAN64 = 0.0f64 / 0.0f64;
+
+let implicit_cast_real_to_f32: f32 = 123.456;
+let implicit_cast_real_to_f64: f64 = 123.456;
+
+let explicit_cast_integer_to_f32 = (:f32)123;
+let explicit_cast_integer_to_f64 = (:f32)123;
+
+let explicit_cast_f32_to_f64 = (:f64)123.456f32;
+let explicit_cast_f64_to_f32 = (:f32)123.456f64;
+
+let real_neg = (:f64)(-(123.0));
+let real_add = (:f64)(123.0 + 456.0);
+let real_sub = (:f64)(123.0 - 456.0);
+let real_mul = (:f64)(123.0 * 456.0);
+let real_div = (:f64)(123.0 / 456.0);
+
+func display[[T]](value: T) void {
+    std::print_format_line(
+        std::out(),
+        "{}",
+        (:[]std::formatter)[std::formatter::init[[T]](&value)]);
+}
+
+func main() void {
+    std::print_line(std::out(), "f32 literals");
+    display[[f32]](0.0f32);
+    display[[f32]](+0.5f32);
+    display[[f32]](-0.5f32);
+    display[[f32]](+1.0f32);
+    display[[f32]](-1.0f32);
+    display[[f32]](+123.456f32);
+    display[[f32]](-123.456f32);
+
+    std::print_line(std::out(), "f64 literals");
+    display[[f64]](0.0f64);
+    display[[f64]](+0.5f64);
+    display[[f64]](-0.5f64);
+    display[[f64]](+1.0f64);
+    display[[f64]](-1.0f64);
+    display[[f64]](+123.456f64);
+    display[[f64]](-123.456f64);
+
+    std::print_line(std::out(), "f32 compile-time arithmetic");
+    let x = 0.50f32;
+    let x = -x;
+    display[[f32]](x);
+    display[[f32]](0.50f32 + 0.25f32);
+    display[[f32]](0.50f32 - 0.25f32);
+    display[[f32]](0.50f32 * 0.25f32);
+    display[[f32]](0.50f32 / 0.25f32);
+    display[[f32]](+1.0f32 / 0.00f32);
+    display[[f32]](-1.0f32 / 0.00f32);
+
+    std::print_line(std::out(), "f32 run-time arithmetic");
+    var w = 1.00f32;
+    var x = 0.50f32;
+    var y = 0.25f32;
+    var z = 0.00f32;
+    display[[f32]](-x);
+    display[[f32]](x + y);
+    display[[f32]](x - y);
+    display[[f32]](x * y);
+    display[[f32]](x / y);
+    display[[f32]](+w / z);
+    display[[f32]](-w / z);
+
+    std::print_line(std::out(), "f64 compile-time arithmetic");
+    let x = 0.50f64;
+    let x = -x;
+    display[[f64]](x);
+    display[[f64]](0.50f64 + 0.25f64);
+    display[[f64]](0.50f64 - 0.25f64);
+    display[[f64]](0.50f64 * 0.25f64);
+    display[[f64]](0.50f64 / 0.25f64);
+    display[[f64]](+1.0f64 / 0.00f64);
+    display[[f64]](-1.0f64 / 0.00f64);
+
+    std::print_line(std::out(), "f64 run-time arithmetic");
+    var w = 1.00f64;
+    var x = 0.50f64;
+    var y = 0.25f64;
+    var z = 0.00f64;
+    display[[f64]](-x);
+    display[[f64]](x + y);
+    display[[f64]](x - y);
+    display[[f64]](x * y);
+    display[[f64]](x / y);
+    display[[f64]](+w / z);
+    display[[f64]](-w / z);
+
+    std::print_line(std::out(), "f32-to-integer casts");
+    display[[u8]]((:u8)0.0f32);
+    display[[u8]]((:u8)+123.456f32);
+    display[[s8]]((:s8)-123.456f32);
+    display[[s8]]((:s8)+123.456f32);
+    display[[usize]]((:usize)0.0f32);
+    display[[usize]]((:usize)+123.456f32);
+    display[[ssize]]((:ssize)-123.456f32);
+    display[[ssize]]((:ssize)+123.456f32);
+
+    std::print_line(std::out(), "f64-to-integer casts");
+    display[[u8]]((:u8)0.0f64);
+    display[[u8]]((:u8)+123.456f64);
+    display[[s8]]((:s8)-123.456f64);
+    display[[s8]]((:s8)+123.456f64);
+    display[[usize]]((:usize)0.0f64);
+    display[[usize]]((:usize)+123.456f64);
+    display[[ssize]]((:ssize)-123.456f64);
+    display[[ssize]]((:ssize)+123.456f64);
+
+    std::print_line(std::out(), "integer-to-f32 casts");
+    display[[f32]]((:f32)u8::MIN);
+    display[[f32]]((:f32)u8::MAX);
+    display[[f32]]((:f32)s8::MIN);
+    display[[f32]]((:f32)s8::MAX);
+    display[[f32]]((:f32)usize::MIN);
+    display[[f32]]((:f32)usize::MAX);
+    display[[f32]]((:f32)ssize::MIN);
+    display[[f32]]((:f32)ssize::MAX);
+
+    std::print_line(std::out(), "integer-to-f64 casts");
+    display[[f64]]((:f64)u8::MIN);
+    display[[f64]]((:f64)u8::MAX);
+    display[[f64]]((:f64)s8::MIN);
+    display[[f64]]((:f64)s8::MAX);
+    display[[f64]]((:f64)usize::MIN);
+    display[[f64]]((:f64)usize::MAX);
+    display[[f64]]((:f64)ssize::MIN);
+    display[[f64]]((:f64)ssize::MAX);
+
+    std::print_line(std::out(), "f32 compile-time comparisons");
+    display[[bool]](0.50f32 == 0.25f32);
+    display[[bool]](0.50f32 != 0.25f32);
+    display[[bool]](0.50f32 < 0.25f32);
+    display[[bool]](0.50f32 <= 0.25f32);
+    display[[bool]](0.50f32 > 0.25f32);
+    display[[bool]](0.50f32 >= 0.25f32);
+    display[[bool]](INF32 == INF32);
+    display[[bool]](NAN32 == NAN32);
+
+    std::print_line(std::out(), "f32 run-time comparisons");
+    var x = 0.50f32;
+    var y = 0.25f32;
+    display[[bool]](x == y);
+    display[[bool]](x != y);
+    display[[bool]](x < y);
+    display[[bool]](x <= y);
+    display[[bool]](x > y);
+    display[[bool]](x >= y);
+
+    std::print_line(std::out(), "f64 compile-time comparisons");
+    display[[bool]](0.50f64 == 0.25f64);
+    display[[bool]](0.50f64 != 0.25f64);
+    display[[bool]](0.50f64 < 0.25f64);
+    display[[bool]](0.50f64 <= 0.25f64);
+    display[[bool]](0.50f64 > 0.25f64);
+    display[[bool]](0.50f64 >= 0.25f64);
+    display[[bool]](INF64 == INF64);
+    display[[bool]](NAN64 == NAN64);
+
+    std::print_line(std::out(), "f64 run-time comparisons");
+    var x = 0.50f64;
+    var y = 0.25f64;
+    display[[bool]](x == y);
+    display[[bool]](x != y);
+    display[[bool]](x < y);
+    display[[bool]](x <= y);
+    display[[bool]](x > y);
+    display[[bool]](x >= y);
+}
+################################################################################
+# f32 literals
+# 0.0
+# 0.5
+# -0.5
+# 1.0
+# -1.0
+# 123.456001282
+# -123.456001282
+# f64 literals
+# 0.0
+# 0.5
+# -0.5
+# 1.0
+# -1.0
+# 123.45600000000000307
+# -123.45600000000000307
+# f32 compile-time arithmetic
+# -0.5
+# 0.75
+# 0.25
+# 0.125
+# 2.0
+# infinity
+# -infinity
+# f32 run-time arithmetic
+# -0.5
+# 0.75
+# 0.25
+# 0.125
+# 2.0
+# infinity
+# -infinity
+# f64 compile-time arithmetic
+# -0.5
+# 0.75
+# 0.25
+# 0.125
+# 2.0
+# infinity
+# -infinity
+# f64 run-time arithmetic
+# -0.5
+# 0.75
+# 0.25
+# 0.125
+# 2.0
+# infinity
+# -infinity
+# f32-to-integer casts
+# 0
+# 123
+# -123
+# 123
+# 0
+# 123
+# -123
+# 123
+# f64-to-integer casts
+# 0
+# 123
+# -123
+# 123
+# 0
+# 123
+# -123
+# 123
+# integer-to-f32 casts
+# 0.0
+# 255.0
+# -128.0
+# 127.0
+# 0.0
+# 18446744073709551616.0
+# -9223372036854775808.0
+# 9223372036854775808.0
+# integer-to-f64 casts
+# 0.0
+# 255.0
+# -128.0
+# 127.0
+# 0.0
+# 18446744073709551616.0
+# -9223372036854775808.0
+# 9223372036854775808.0
+# f32 compile-time comparisons
+# false
+# true
+# false
+# false
+# true
+# true
+# true
+# false
+# f32 run-time comparisons
+# false
+# true
+# false
+# false
+# true
+# true
+# f64 compile-time comparisons
+# false
+# true
+# false
+# false
+# true
+# true
+# true
+# false
+# f64 run-time comparisons
+# false
+# true
+# false
+# false
+# true
+# true
