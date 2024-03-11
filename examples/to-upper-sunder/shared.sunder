@@ -1,0 +1,39 @@
+import "c";
+import "nbnet";
+import "std";
+
+extern func usleep(usec: uint) sint;
+
+let NAME = startof("to-upper");
+let ADDR = startof("127.0.0.1");
+let PORT = 31415u16;
+let TICK_RATE = 2u; # ticks per second
+let BUSY_CODE = (:sint)42;
+
+struct message {
+    let TYPE = 0u8;
+    let LENGTH = 255u;
+
+    var length: uint;
+    var data: [LENGTH]char;
+
+    func create() *message {
+        return std::new[[message]]();
+    }
+
+    func destroy(self: *message) void {
+        std::delete[[message]](self);
+    }
+
+    func serialize(self: *message, stream: *NBN_Stream) sint {
+        # TODO: Calling custom C functions wrapping the NBN_Serialize* macros
+        # fails to properly serialize a message for some unknown reason.
+        # However, directly calling the stream->serialize_*_func functions will
+        # successfully serialize that message. Investigate why the custom C
+        # functions wrapping the serialization macros behave differently than
+        # directly calling the stream's serialization functions.
+        stream.*.serialize_uint_func(stream, &self.*.length, 0, (:uint)LENGTH);
+        stream.*.serialize_bytes_func(stream, (:*u8)&self.*.data[0], self.*.length);
+        return 0;
+    }
+}
