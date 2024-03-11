@@ -1,0 +1,5 @@
+nbnet/
+nbnet.o
+nbnet.sunder
+libnbnet.a
+*.tmp.*

@@ -1,0 +1,219 @@
+import "c";
+import "nbnet";
+import "std";
+
+import "shared.sunder";
+
+extern func usleep(usec: uint) sint;
+
+struct vec2 {
+    var x: f32;
+    var y: f32;
+}
+
+struct rect {
+    var x: f32;
+    var y: f32;
+    var w: f32;
+    var h: f32;
+
+    func center(self: rect) vec2 {
+        return (:vec2){
+            .x = self.x + self.w * 0.5,
+            .y = self.y + self.h * 0.5,
+        };
+    }
+
+    func is_collision(a: rect, b: rect) bool {
+        return (a.x < (b.x + b.w) and (a.x + a.w) > b.x) and (a.y < (b.y + b.h) and (a.y + a.h) > b.y);
+    }
+}
+
+func update(state: *server_state, client_1_message: client_message, client_2_message: client_message) void {
+    state.*.p1_paddle_y = state.*.p1_paddle_y + (:f32)client_1_message.direction * PADDLE_SPEED;
+    if state.*.p1_paddle_y < 0.0 {
+        state.*.p1_paddle_y = 0.0;
+    }
+    if state.*.p1_paddle_y > (:f32)(WINDOW_H - PADDLE_H) {
+        state.*.p1_paddle_y = (:f32)(WINDOW_H - PADDLE_H);
+    }
+
+    state.*.p2_paddle_y = state.*.p2_paddle_y + (:f32)client_2_message.direction * PADDLE_SPEED;
+    if state.*.p2_paddle_y < 0.0 {
+        state.*.p2_paddle_y = 0.0;
+    }
+    if state.*.p2_paddle_y > (:f32)(WINDOW_H - PADDLE_H) {
+        state.*.p2_paddle_y = (:f32)(WINDOW_H - PADDLE_H);
+    }
+
+    if state.*.server == 1 and client_1_message.is_served {
+        state.*.ball_vx = +BALL_SPEED;
+        state.*.server = 0;
+    }
+    if state.*.server == 2 and client_2_message.is_served {
+        state.*.ball_vx = -BALL_SPEED;
+        state.*.server = 0;
+    }
+
+    state.*.ball_x = state.*.ball_x + state.*.ball_vx;
+    state.*.ball_y = state.*.ball_y + state.*.ball_vy;
+    var ball_rect = (:rect){
+        .x = state.*.ball_x,
+        .y = state.*.ball_y,
+        .w = (:f32)BALL_SIDE,
+        .h = (:f32)BALL_SIDE,
+    };
+
+    var rebound = f32::degrees_to_radians(30.0f32);
+
+    var p1_rect = (:rect){
+        .x = state.*.p1_paddle_x,
+        .y = state.*.p1_paddle_y,
+        .w = (:f32)PADDLE_W,
+        .h = (:f32)PADDLE_H,
+    };
+    if rect::is_collision(ball_rect, p1_rect) {
+        var intersect = rect::center(p1_rect).y - rect::center(ball_rect).y;
+        var normalized = intersect / ((:f32)PADDLE_H / 2.0);
+        var angle = normalized * rebound;
+        state.*.ball_vx = BALL_SPEED * f32::cos(angle) * +1.0;
+        state.*.ball_vy = BALL_SPEED * f32::sin(angle) * -1.0;
+    }
+
+    var p2_rect = (:rect){
+        .x = state.*.p2_paddle_x,
+        .y = state.*.p2_paddle_y,
+        .w = (:f32)PADDLE_W,
+        .h = (:f32)PADDLE_H,
+    };
+    if rect::is_collision(ball_rect, p2_rect) {
+        var intersect = rect::center(p2_rect).y - rect::center(ball_rect).y;
+        var normalized = intersect / ((:f32)PADDLE_H / 2.0);
+        var angle = normalized * rebound;
+        state.*.ball_vx = BALL_SPEED * f32::cos(angle) * -1.0;
+        state.*.ball_vy = BALL_SPEED * f32::sin(angle) * -1.0;
+    }
+
+    if state.*.ball_y <= 0.0 or state.*.ball_y >= (:f32)(WINDOW_H - BALL_SIDE) {
+        state.*.ball_vy = -state.*.ball_vy;
+    }
+
+    if state.*.ball_x + (:f32)BALL_SIDE < 0.0 {
+        state.*.ball_x = (:f32)WINDOW_W / 2.0;
+        state.*.ball_y = (:f32)WINDOW_H / 2.0;
+        state.*.ball_vx = 0.0;
+        state.*.ball_vy = 0.0;
+        state.*.p2_score = state.*.p2_score + 1;
+        state.*.server = 1;
+    }
+    if state.*.ball_x >= (:f32)WINDOW_W {
+        state.*.ball_x = (:f32)WINDOW_W / 2.0;
+        state.*.ball_y = (:f32)WINDOW_H / 2.0;
+        state.*.ball_vx = 0.0;
+        state.*.ball_vy = 0.0;
+        state.*.p1_score = state.*.p1_score + 1;
+        state.*.server = 2;
+    }
+}
+
+func main() void {
+    NBN_Driver_Init();
+    if NBN_GameServer_StartEx(NAME, PORT, false) < 0 {
+        std::print_line(std::err(), "error: failed to start the server");
+        std::exit(std::EXIT_FAILURE);
+    }
+    defer NBN_GameServer_Stop();
+
+    NBN_GameServer_RegisterMessage(
+        client_message::TYPE,
+        (:NBN_MessageBuilder)client_message::create,
+        (:NBN_MessageDestructor)client_message::destroy,
+        (:NBN_MessageSerializer)client_message::serialize);
+    NBN_GameServer_RegisterMessage(
+        server_message::TYPE,
+        (:NBN_MessageBuilder)server_message::create,
+        (:NBN_MessageDestructor)server_message::destroy,
+        (:NBN_MessageSerializer)server_message::serialize);
+
+    let DT: double = 1.0 / (:double)TICK_RATE;
+    var state = server_state::INIT;
+    var client_1 = (:NBN_ConnectionHandle)0;
+    var client_2 = (:NBN_ConnectionHandle)0;
+    var client_1_message: client_message = uninit; # most recent
+    var client_2_message: client_message = uninit; # most recent
+    for true {
+        for true {
+            var ev = NBN_GameServer_Poll();
+
+            if ev < 0 {
+                std::print_line(std::err(), "error: failed to poll event");
+                break;
+            }
+
+            if ev == NBN_NO_EVENT {
+                break;
+            }
+
+            if ev == NBN_NEW_CONNECTION {
+                std::print_line(std::err(), "info: new connection");
+                if client_1 == 0 {
+                    client_1 = NBN_GameServer_GetIncomingConnection();
+                    NBN_GameServer_AcceptIncomingConnection();
+                }
+                elif client_2 == 0 {
+                    client_2 = NBN_GameServer_GetIncomingConnection();
+                    NBN_GameServer_AcceptIncomingConnection();
+                }
+                else {
+                    NBN_GameServer_RejectIncomingConnectionWithCode(BUSY_CODE);
+                }
+            }
+
+            if ev == NBN_CLIENT_DISCONNECTED {
+                std::print_line(std::err(), "info: disconnected");
+                if client_1 != 0 and NBN_GameServer_GetDisconnectedClient() == client_1 {
+                    client_1 = 0;
+                }
+                if client_2 != 0 and NBN_GameServer_GetDisconnectedClient() == client_2 {
+                    client_2 = 0;
+                }
+            }
+
+            if ev == NBN_CLIENT_MESSAGE_RECEIVED {
+                std::print_line(std::err(), "info: message received");
+
+                var info = NBN_GameServer_GetMessageInfo();
+                assert info.type == client_message::TYPE;
+                var incoming = (:*client_message)info.data;
+                if info.sender == client_1 {
+                    client_1_message = *incoming;
+                }
+                if info.sender == client_2 {
+                    client_2_message = *incoming;
+                }
+
+                client_message::destroy(incoming);
+            }
+
+        }
+
+        update(&state, client_1_message, client_2_message);
+
+        if client_1 != 0 {
+            var outgoing = server_message::create();
+            *outgoing = state.to_server_message(1);
+            NBN_GameServer_SendReliableMessageTo(client_1, server_message::TYPE, outgoing);
+        }
+        if client_2 != 0 {
+            var outgoing = server_message::create();
+            *outgoing = state.to_server_message(2);
+            NBN_GameServer_SendReliableMessageTo(client_2, server_message::TYPE, outgoing);
+        }
+        if NBN_GameServer_SendPackets() < 0 {
+            std::print_line(std::err(), "error: failed to send packets");
+            break;
+        }
+
+        usleep((:uint)(DT * 1000000.0));
+    }
+}
