@@ -1,0 +1,19 @@
+import "std";
+
+struct person {
+    var name: []byte;
+
+    func format(self: *person, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
+        if countof(fmt) != 0 {
+            return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
+        }
+        return std::write_all(writer, self.*.name);
+    }
+}
+
+func main() void {
+    var alice: person = (:person){.name = "Alice"};
+    std::write_format(std::out(), "baz}qux", (:[]std::formatter)[std::formatter::init[[person]](&alice)]);
+}
+################################################################################
+# panic: invalid format string "baz}qux"

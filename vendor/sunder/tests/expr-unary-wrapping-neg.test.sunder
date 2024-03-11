@@ -1,0 +1,61 @@
+import "std";
+import "sys";
+
+func test[[T]](value: T) void {
+    sys::dump[[T]](value);
+    sys::dump[[T]](-%value);
+}
+
+func main() void {
+    let x = -%-128s8;
+    sys::dump[[s8]](x);
+    let y = -%+127s8;
+    sys::dump[[s8]](y);
+
+    std::print(std::out(), "\n");
+
+    test[[s8]](s8::MIN);
+    std::print(std::out(), "\n");
+    test[[s8]](s8::MAX);
+    std::print(std::out(), "\n");
+    test[[s8]](+1);
+    std::print(std::out(), "\n");
+    test[[s8]](-1);
+
+    std::print(std::out(), "\n");
+
+    test[[s64]](s64::MAX);
+    std::print(std::out(), "\n");
+    test[[s64]](s64::MIN);
+    std::print(std::out(), "\n");
+    test[[s64]](+1);
+    std::print(std::out(), "\n");
+    test[[s64]](-1);
+}
+################################################################################
+# 80
+# 81
+#
+# 80
+# 80
+#
+# 7F
+# 81
+#
+# 01
+# FF
+#
+# FF
+# 01
+#
+# FF FF FF FF FF FF FF 7F
+# 01 00 00 00 00 00 00 80
+#
+# 00 00 00 00 00 00 00 80
+# 00 00 00 00 00 00 00 80
+#
+# 01 00 00 00 00 00 00 00
+# FF FF FF FF FF FF FF FF
+#
+# FF FF FF FF FF FF FF FF
+# 01 00 00 00 00 00 00 00

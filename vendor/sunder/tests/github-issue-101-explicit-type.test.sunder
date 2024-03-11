@@ -1,0 +1,16 @@
+import "std";
+
+struct foo {
+    var x: u32;
+    var y: u32;
+    let C: foo = (:foo){};
+    var z: u32;
+}
+
+func main() void {
+    sizeof(foo);
+}
+################################################################################
+# [github-issue-101-explicit-type.test.sunder:6] error: struct type `foo` is incomplete
+#     let C: foo = (:foo){};
+#                  ^

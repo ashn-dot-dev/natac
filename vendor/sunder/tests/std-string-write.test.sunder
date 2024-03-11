@@ -1,0 +1,38 @@
+import "std";
+
+func main() void {
+    var string = std::string::init();
+    var writer = std::writer::init[[std::string]](&string);
+
+    std::print_line(std::out(), string.data());
+
+    std::print(writer, "foo");
+    std::print_line(std::out(), string.data());
+
+    std::print(writer, "bar");
+    std::print_line(std::out(), string.data());
+
+    var x = 123u16;
+    var y = "some str";
+    std::print_format(
+        writer,
+        " - {} {}",
+        (:[]std::formatter)[
+            std::formatter::init[[u16]](&x),
+            std::formatter::init[[[]byte]](&y)]);
+    std::print_line(std::out(), string.data());
+
+    var count = string.count();
+    std::print_format_line(
+        std::out(),
+        "count = {}",
+        (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
+
+    string.fini();
+}
+################################################################################
+#
+# foo
+# foobar
+# foobar - 123 some str
+# count = 21

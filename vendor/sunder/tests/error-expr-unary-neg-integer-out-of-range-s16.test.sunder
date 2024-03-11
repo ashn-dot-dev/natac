@@ -1,0 +1,6 @@
+func main() void {
+    var x: s16 = -32768s16;
+    -x;
+}
+################################################################################
+# fatal: operation produces out-of-range result

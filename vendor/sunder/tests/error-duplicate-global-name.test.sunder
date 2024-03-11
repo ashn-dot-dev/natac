@@ -1,0 +1,7 @@
+let foo: ssize = bar;
+let bar: ssize = 1s;
+let foo: ssize = 0u;
+################################################################################
+# [error-duplicate-global-name.test.sunder:3] error: redeclaration of `foo` previously declared at [error-duplicate-global-name.test.sunder:1]
+# let foo: ssize = 0u;
+# ^

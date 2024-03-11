@@ -1,0 +1,22 @@
+import "std";
+import "util";
+
+func main() void {
+    var parser = std::argument_parser::init_from_argv(
+        (:[][]byte)[
+            "a",
+            "b",
+            "c:"
+        ],
+        util::argv::new((:[][]byte)[
+            "arg0",
+            "-a",
+            "-b",
+            "-c"
+        ])
+    );
+
+    for parser.advance() { }
+}
+################################################################################
+# error: missing required argument for option `c`

@@ -1,0 +1,171 @@
+# Brainfuck interpreter written in Sunder.
+#
+# See https://esolangs.org/wiki/Brainfuck for an overview of the brainfuck
+# language. This implementation uses a 30,000 cell tape with 8-bit wrapping
+# cells. No cell update is performed upon reading EOF with the , operation.
+import "std";
+
+var cells = (:[30000]u8)[0...];
+var cells_index = 0u;
+
+func main() void {
+    var path = std::optional[[[]byte]]::EMPTY;
+
+    var parser = std::argument_parser::init((:[][]byte)[]);
+    for parser.advance() {
+        var program = parser.program();
+        if path.is_value() {
+            std::print_format_line(
+                std::err(),
+                "{}: multiple files specified",
+                (:[]std::formatter)[
+                    std::formatter::init[[[]byte]](&program)]);
+            std::exit(std::EXIT_FAILURE);
+        }
+        path = std::optional[[[]byte]]::init_value(parser.argument_value());
+    }
+
+    var source = read_source(path);
+    var source_size = countof(source);
+    defer std::slice[[byte]]::delete(source);
+
+    var success = true;
+    var lines = std::slice[[usize]]::new(source_size);
+    var jumps = std::slice[[usize]]::new(source_size);
+    var stack = std::vector[[usize]]::init();
+    defer {
+        std::slice[[usize]]::delete(lines);
+        std::slice[[usize]]::delete(jumps);
+        stack.fini();
+    }
+
+    var line = 1u;
+    for i in source_size {
+        lines[i] = line;
+        if source[i] == '\n' {
+            line += 1;
+            continue;
+        }
+        if source[i] == '[' {
+            stack.push(i);
+        }
+        if source[i] == ']' {
+            if stack.count() == 0 {
+                std::print_format_line(
+                    std::err(),
+                    "[line {}] Unbalanced ']'",
+                    (:[]std::formatter)[std::formatter::init[[usize]](&line)]);
+                success = false;
+                continue;
+            }
+            jumps[stack.data()[stack.count() - 1]] = i; # Jump from [ to ]
+            jumps[i] = stack.pop();                     # Jump from ] to [
+        }
+    }
+    for i in stack.count() {
+        std::print_format_line(
+            std::err(),
+            "[line {}] Unbalanced '['",
+            (:[]std::formatter)[std::formatter::init[[usize]](&lines[stack.data()[i]])]);
+        success = false;
+    }
+    if not success {
+        std::exit(std::EXIT_FAILURE);
+    }
+
+    var source_index = 0u;
+    for source_index < source_size {
+        var cur: byte = source[source_index];
+
+        if cur == '>' {
+            cells_index += 1;
+            source_index += 1;
+            continue;
+        }
+        if cur == '<' {
+            cells_index -= 1;
+            source_index += 1;
+            continue;
+        }
+        if cur == '+' {
+            cells[cells_index] +%= 1;
+            source_index += 1;
+            continue;
+        }
+        if cur == '-' {
+            cells[cells_index] -%= 1;
+            source_index += 1;
+            continue;
+        }
+        if cur == '.' {
+            std::print(std::out(), (:[]byte){(:*byte)&cells[cells_index], 1});
+            source_index += 1;
+            continue;
+        }
+        if cur == ',' {
+            var b = 0y;
+            var input = std::input();
+            var result = input.read((:[]byte){&b, 1});
+            if result.value() != 0 { # Only update on non-EOF.
+               cells[cells_index] = (:u8)b;
+            }
+            source_index += 1;
+            continue;
+        }
+        if cur == '[' {
+            if cells[cells_index] == 0 {
+                source_index = jumps[source_index];
+            }
+            source_index += 1;
+            continue;
+        }
+        if cur == ']' {
+            source_index = jumps[source_index];
+            continue;
+        }
+        source_index += 1;
+    }
+}
+
+func read_source(path: std::optional[[[]byte]]) []byte {
+    if path.is_empty() {
+        var result = std::read_all(std::input());
+        if result.is_error() {
+            std::print_format_line(
+                std::err(),
+                "{}: {}",
+                (:[]std::formatter)[
+                    std::formatter::init[[[]byte]](&"<stdin>"),
+                    std::formatter::init[[[]byte]](&result.error().*.data)]);
+            std::exit(std::EXIT_FAILURE);
+        }
+        return result.value();
+    }
+
+    var path = path.value();
+    var result = std::file::open(path, std::file::OPEN_READ);
+    if result.is_error() {
+        std::print_format_line(
+            std::err(),
+            "{}: {}",
+            (:[]std::formatter)[
+                std::formatter::init[[[]byte]](&path),
+                std::formatter::init[[[]byte]](&result.error().*.data)]);
+        std::exit(std::EXIT_FAILURE);
+    }
+
+    var file = result.value();
+    defer file.close();
+
+    var result = std::read_all(std::reader::init[[std::file]](&file));
+    if result.is_error() {
+        std::print_format_line(
+            std::err(),
+            "{}: {}",
+            (:[]std::formatter)[
+                std::formatter::init[[[]byte]](&path),
+                std::formatter::init[[[]byte]](&result.error().*.data)]);
+        std::exit(std::EXIT_FAILURE);
+    }
+    return result.value();
+}

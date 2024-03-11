@@ -1,0 +1,44 @@
+#!/bin/sh
+set -u
+
+PROGNAME=$(basename "$0")
+usage() {
+    cat <<EOF
+Usage: ${PROGNAME} FILE [ARGS...]
+
+Options:
+  -h        Display usage information and exit.
+EOF
+}
+
+if [ "$#" -eq 0 ]; then
+    usage
+    exit 0
+fi
+
+for arg in "$@"; do
+case "${arg}" in
+    -h)
+        usage
+        exit 0
+        ;;
+    *)
+        ;;
+esac
+done
+
+FILE="${1}"
+
+if [ -z "${SUNDER_HOME}" ]; then
+    SUNDER_HOME=$(pwd)
+fi
+
+if ! "${SUNDER_HOME}/bin/sunder-compile" "${FILE}"; then
+    exit 1
+fi
+
+shift
+./a.out "$@"
+STATUS=$?
+rm a.out
+exit $STATUS

@@ -1,0 +1,9 @@
+import "std";
+
+func main() void {
+    var file = (:std::file){._fd = -1};
+    var result = file.write("nope");
+    std::print_line(std::out(), result.error().*.data);
+}
+################################################################################
+# [system error EBADF] Bad file descriptor

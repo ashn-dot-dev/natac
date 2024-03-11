@@ -1,0 +1,162 @@
+import "std";
+
+func format_test0() void {
+    var a: u32 = 0xDEADBEEF;
+    var a_fmtr: std::formatter = std::formatter::init[[u32]](&a);
+
+    var args: [1]std::formatter = (:[1]std::formatter)[a_fmtr];
+    std::print_format_line(std::out(), "{}", args[0:countof(args)]);
+    std::print_format_line(std::out(), "{#}", args[0:countof(args)]);
+}
+
+func format_test1() void {
+    var a: s32 = -123;
+    var a_fmtr: std::formatter = std::formatter::init[[s32]](&a);
+
+    var args: [1]std::formatter = (:[1]std::formatter)[a_fmtr];
+    std::print_format_line(std::out(), "{}", args[0:countof(args)]);
+    std::print_format_line(std::out(), "{#}", args[0:countof(args)]);
+}
+
+func format_test2() void {
+    var a: u32 = 0xDEADBEEF;
+    var a_fmtr: std::formatter = std::formatter::init[[u32]](&a);
+
+    var args: [1]std::formatter = (:[1]std::formatter)[a_fmtr];
+    std::print_format_line(std::out(), "{d}", args[0:countof(args)]);
+    std::print_format_line(std::out(), "{#d}", args[0:countof(args)]);
+}
+
+func format_test3() void {
+    var a: u32 = 0xDEADBEEF;
+    var a_fmtr: std::formatter = std::formatter::init[[u32]](&a);
+
+    var args: [1]std::formatter = (:[1]std::formatter)[a_fmtr];
+    std::print_format_line(std::out(), "{b}", args[0:countof(args)]);
+    std::print_format_line(std::out(), "{#b}", args[0:countof(args)]);
+}
+
+func format_test4() void {
+    var a: u32 = 0xDEADBEEF;
+    var a_fmtr: std::formatter = std::formatter::init[[u32]](&a);
+
+    var args: [1]std::formatter = (:[1]std::formatter)[a_fmtr];
+    std::print_format_line(std::out(), "{o}", args[0:countof(args)]);
+    std::print_format_line(std::out(), "{#o}", args[0:countof(args)]);
+}
+
+func format_test5() void {
+    var a: u32 = 0xDEADBEEF;
+    var a_fmtr: std::formatter = std::formatter::init[[u32]](&a);
+
+    var args: [1]std::formatter = (:[1]std::formatter)[a_fmtr];
+    std::print_format_line(std::out(), "{x}", args[0:countof(args)]);
+    std::print_format_line(std::out(), "{#x}", args[0:countof(args)]);
+}
+
+func format_test6() void {
+    var a: u32 = 0xDEADBEEF;
+    var a_fmtr: std::formatter = std::formatter::init[[u32]](&a);
+
+    var args: [1]std::formatter = (:[1]std::formatter)[a_fmtr];
+    std::print_format_line(std::out(), "{X}", args[0:countof(args)]);
+    std::print_format_line(std::out(), "{#X}", args[0:countof(args)]);
+}
+
+func format_test7() void {
+    var a: s32 = -0xBEEF;
+    var a_fmtr: std::formatter = std::formatter::init[[s32]](&a);
+
+    var args: [1]std::formatter = (:[1]std::formatter)[a_fmtr];
+    std::print_format_line(std::out(), "{X}", args[0:countof(args)]);
+    std::print_format_line(std::out(), "{#X}", args[0:countof(args)]);
+}
+
+# Test that zero is properly printed in all formats.
+func format_test8() void {
+    var a: s32 = 0;
+    var a_fmtr: std::formatter = std::formatter::init[[s32]](&a);
+
+    std::print_format_line(
+        std::out(),
+        "{} {#d} {#b} {#o} {#x}",
+        (:[]std::formatter)[a_fmtr, a_fmtr, a_fmtr, a_fmtr, a_fmtr]);
+}
+
+# Test for minimum negative numbers (subject to integer out-of-range if negated).
+func format_test9() void {
+    var a: s8 = -128;
+    var a_fmtr: std::formatter = std::formatter::init[[s8]](&a);
+
+    var args: [1]std::formatter = (:[1]std::formatter)[a_fmtr];
+    std::print_format_line(std::out(), "{}", args[0:countof(args)]);
+
+    var a: std::smax = std::smax::MIN;
+    var a_fmtr: std::formatter = std::formatter::init[[std::smax]](&a);
+
+    var args: [1]std::formatter = (:[1]std::formatter)[a_fmtr];
+    std::print_format_line(std::out(), "{}", args[0:countof(args)]);
+}
+
+func format_test10() void {
+    var a: u32 = 0xDEADBEEF;
+    var a_fmtr: std::formatter = std::formatter::init[[u32]](&a);
+
+    var args: [1]std::formatter = (:[1]std::formatter)[a_fmtr];
+    std::print_format(std::out(), "{#l}", args[0:countof(args)]);
+}
+
+func main() void {
+    format_test0();
+    std::print(std::out(), "\n");
+    format_test1();
+    std::print(std::out(), "\n");
+    format_test2();
+    std::print(std::out(), "\n");
+    format_test3();
+    std::print(std::out(), "\n");
+    format_test4();
+    std::print(std::out(), "\n");
+    format_test5();
+    std::print(std::out(), "\n");
+    format_test6();
+    std::print(std::out(), "\n");
+    format_test7();
+    std::print(std::out(), "\n");
+    format_test8();
+    std::print(std::out(), "\n");
+    format_test9();
+    std::print(std::out(), "\n");
+    format_test10();
+}
+################################################################################
+# 3735928559
+# 3735928559
+#
+# -123
+# -123
+#
+# 3735928559
+# 3735928559
+#
+# 11011110101011011011111011101111
+# 0b11011110101011011011111011101111
+#
+# 33653337357
+# 0o33653337357
+#
+# deadbeef
+# 0xdeadbeef
+#
+# DEADBEEF
+# 0xDEADBEEF
+#
+# -BEEF
+# -0xBEEF
+#
+# 0 0 0b0 0o0 0x0
+#
+# -128
+# -9223372036854775808
+#
+# panic: invalid format specifier "#l"

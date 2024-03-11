@@ -1,0 +1,55 @@
+import "std";
+
+func test_split(allocator: std::allocator, input: []byte, delimiter: []byte) void {
+    std::print_format_line(
+        std::out(),
+        "input: \"{}\", delimiter: \"{}\"",
+        (:[]std::formatter)[
+            std::formatter::init[[[]byte]](&input),
+            std::formatter::init[[[]byte]](&delimiter)]);
+
+    var split = std::str::split_with_allocator(allocator, input, delimiter);
+    defer std::slice[[[]byte]]::delete_with_allocator(allocator, split);
+
+    std::print(std::out(), "split: ");
+    for i in countof(split) {
+        if i != 0 {
+            std::print(std::out(), ", ");
+        }
+        std::print_format(
+            std::out(),
+            "\"{}\"",
+            (:[]std::formatter)[std::formatter::init[[[]byte]](&split[i])]);
+    }
+    std::print_line(std::out(), "");
+}
+
+func main() void {
+    var allocator = std::general_allocator::init();
+    defer allocator.fini();
+    var allocator = std::allocator::init[[typeof(allocator)]](&allocator);
+
+    test_split(allocator, "ABC", " ");
+    test_split(allocator, "A B C", " ");
+    test_split(allocator, "A  B  C", " ");
+    test_split(allocator, "foo bar baz", "a");
+
+    test_split(allocator, "<>A<>B<>C", "<>");
+    test_split(allocator, "A<>B<>C<>", "<>");
+    test_split(allocator, "<>A<>B<>C<>", "<>");
+}
+################################################################################
+# input: "ABC", delimiter: " "
+# split: "ABC"
+# input: "A B C", delimiter: " "
+# split: "A", "B", "C"
+# input: "A  B  C", delimiter: " "
+# split: "A", "", "B", "", "C"
+# input: "foo bar baz", delimiter: "a"
+# split: "foo b", "r b", "z"
+# input: "<>A<>B<>C", delimiter: "<>"
+# split: "", "A", "B", "C"
+# input: "A<>B<>C<>", delimiter: "<>"
+# split: "A", "B", "C", ""
+# input: "<>A<>B<>C<>", delimiter: "<>"
+# split: "", "A", "B", "C", ""

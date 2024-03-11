@@ -1,0 +1,7 @@
+import "std";
+
+func main() void {
+    var ptr: *u16 = std::new[[u16]]();
+    *ptr = 0xBEEF; # Touch the memory to make sure we were allocated a valid chunk.
+    std::delete[[u16]](ptr);
+}

@@ -1,0 +1,7 @@
+func main() void {
+    var a: s32 = 0x7FFFFFFFs32;
+    var b: s32 = 2s32;
+    a * b;
+}
+################################################################################
+# fatal: operation produces out-of-range result

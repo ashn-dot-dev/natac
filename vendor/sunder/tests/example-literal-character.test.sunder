@@ -1,0 +1,33 @@
+import "std";
+
+let nul: byte = '\0';
+let ht: byte = '\t';
+let nl: byte = '\n';
+let squote: byte = '\'';
+let dquote: byte = '\"';
+let bslash: byte = '\\';
+let hexamp: byte = '\x40';
+
+func printch(ch: byte) void {
+    std::print_line(std::out(), (:[]byte)['>', ch, '<']);
+}
+
+func main() void {
+    # A NUL byte \0 embedded in this source file as part of the expected output
+    # would create an invalid source encoding. Skip testing the NUL byte and
+    # assume that the global `nul` constant produced the correct bytes literal.
+    printch(ht);
+    printch(nl);
+    printch(squote);
+    printch(dquote);
+    printch(bslash);
+    printch(hexamp);
+}
+################################################################################
+# >	<
+# >
+# <
+# >'<
+# >"<
+# >\<
+# >@<

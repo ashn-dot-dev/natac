@@ -1,0 +1,10 @@
+import "std";
+
+func main() void {
+    var a: std::optional[[u16]] = std::optional[[u16]]::EMPTY;
+    assert not a.is_value();
+    assert a.is_empty();
+    a.value(); # boom
+}
+################################################################################
+# panic: attempted to retrieve value from empty std::optional

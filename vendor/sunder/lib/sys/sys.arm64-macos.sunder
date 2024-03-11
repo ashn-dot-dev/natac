@@ -1,0 +1,158 @@
+# MacOS ARM64 System Interface
+namespace sys;
+
+type smax = s64;
+type umax = u64;
+
+type char      = byte;
+type schar     = s8;
+type uchar     = u8;
+type sshort    = s16;
+type ushort    = u16;
+type sint      = s32;
+type uint      = u32;
+type slong     = ssize;
+type ulong     = usize;
+type slonglong = s64;
+type ulonglong = u64;
+
+type mode_t  = u16;
+type off_t   = s64;
+type size_t  = ulong;
+type ssize_t = slong;
+
+let MAX_ALIGN: usize = 8;
+
+let O_RDONLY: sint = 0x00000000;
+let O_WRONLY: sint = 0x00000001;
+let O_RDWR:   sint = 0x00000002;
+let O_CREAT:  sint = 0x00000200;
+let O_TRUNC:  sint = 0x00000400;
+let O_APPEND: sint = 0x00000008;
+
+let SEEK_SET: sint = 0x0;
+let SEEK_CUR: sint = 0x1;
+let SEEK_END: sint = 0x2;
+
+let PATH_MAX: usize = 1024;
+
+struct dirent {
+    var d_ino: u64;
+    var d_seekoff: u64;
+    var d_reclen: u16;
+    var d_namlen: u16;
+    var d_type: u8;
+    var d_name: [PATH_MAX]char;
+}
+
+extern type DIR;
+
+let ERRORS = (:[][]byte)[
+    "[system error 0] Undefined errno value",
+    "[system error EPERM] Operation not permitted",
+    "[system error ENOENT] No such file or directory",
+    "[system error ESRCH] No such process",
+    "[system error EINTR] Interrupted system call",
+    "[system error EIO] Input/output error",
+    "[system error ENXIO] Device not configured",
+    "[system error E2BIG] Argument list too long",
+    "[system error ENOEXEC] Exec format error",
+    "[system error EBADF] Bad file descriptor",
+    "[system error ECHILD] No child processes",
+    "[system error EDEADLK] Resource deadlock avoided",
+    "[system error ENOMEM] Cannot allocate memory",
+    "[system error EACCES] Permission denied",
+    "[system error EFAULT] Bad address",
+    "[system error ENOTBLK] Block device required",
+    "[system error EBUSY] Resource busy",
+    "[system error EEXIST] File exists",
+    "[system error EXDEV] Cross-device link",
+    "[system error ENODEV] Operation not supported by device",
+    "[system error ENOTDIR] Not a directory",
+    "[system error EISDIR] Is a directory",
+    "[system error EINVAL] Invalid argument",
+    "[system error ENFILE] Too many open files in system",
+    "[system error EMFILE] Too many open files",
+    "[system error ENOTTY] Inappropriate ioctl for device",
+    "[system error ETXTBSY] Text file busy",
+    "[system error EFBIG] File too large",
+    "[system error ENOSPC] No space left on device",
+    "[system error ESPIPE] Illegal seek",
+    "[system error EROFS] Read-only file system",
+    "[system error EMLINK] Too many links",
+    "[system error EPIPE] Broken pipe",
+    "[system error EDOM] Numerical argument out of domain",
+    "[system error ERANGE] Result too large",
+    "[system error EAGAIN] Resource temporarily unavailable",
+    "[system error EINPROGRESS] Operation now in progress",
+    "[system error EALREADY] Operation already in progress",
+    "[system error ENOTSOCK] Socket operation on non-socket",
+    "[system error EDESTADDRREQ] Destination address required",
+    "[system error EMSGSIZE] Message too long",
+    "[system error EPROTOTYPE] Protocol wrong type for socket",
+    "[system error ENOPROTOOPT] Protocol not available",
+    "[system error EPROTONOSUPPORT] Protocol not supported",
+    "[system error ESOCKTNOSUPPORT] Socket type not supported",
+    "[system error ENOTSUP] Operation not supported",
+    "[system error EPFNOSUPPORT] Protocol family not supported",
+    "[system error EAFNOSUPPORT] Address family not supported by protocol family",
+    "[system error EADDRINUSE] Address already in use",
+    "[system error EADDRNOTAVAIL] Can't assign requested address",
+    "[system error ENETDOWN] Network is down",
+    "[system error ENETUNREACH] Network is unreachable",
+    "[system error ENETRESET] Network dropped connection on reset",
+    "[system error ECONNABORTED] Software caused connection abort",
+    "[system error ECONNRESET] Connection reset by peer",
+    "[system error ENOBUFS] No buffer space available",
+    "[system error EISCONN] Socket is already connected",
+    "[system error ENOTCONN] Socket is not connected",
+    "[system error ESHUTDOWN] Can't send after socket shutdown",
+    "[system error ETOOMANYREFS] Too many references: can't splice",
+    "[system error ETIMEDOUT] Operation timed out",
+    "[system error ECONNREFUSED] Connection refused",
+    "[system error ELOOP] Too many levels of symbolic links",
+    "[system error ENAMETOOLONG] File name too long",
+    "[system error EHOSTDOWN] Host is down",
+    "[system error EHOSTUNREACH] No route to host",
+    "[system error ENOTEMPTY] Directory not empty",
+    "[system error EPROCLIM] Too many processes",
+    "[system error EUSERS] Too many users",
+    "[system error EDQUOT] Disc quota exceeded",
+    "[system error ESTALE] Stale NFS file handle",
+    "[system error EREMOTE] Too many levels of remote in path",
+    "[system error EBADRPC] RPC struct is bad",
+    "[system error ERPCMISMATCH] RPC version wrong",
+    "[system error EPROGUNAVAIL] RPC prog. not avail",
+    "[system error EPROGMISMATCH] Program version wrong",
+    "[system error EPROCUNAVAIL] Bad procedure for program",
+    "[system error ENOLCK] No locks available",
+    "[system error ENOSYS] Function not implemented",
+    "[system error EFTYPE] Inappropriate file type or format",
+    "[system error EAUTH] Authentication error",
+    "[system error ENEEDAUTH] Need authenticator",
+    "[system error EPWROFF] Device power is off",
+    "[system error EDEVERR] Device error",
+    "[system error EOVERFLOW] Value too large to be stored in data type",
+    "[system error EBADEXEC] Bad executable (or shared library)",
+    "[system error EBADARCH] Bad CPU type in executable",
+    "[system error ESHLIBVERS] Shared library version mismatch",
+    "[system error EBADMACHO] Malformed Mach-o file",
+    "[system error ECANCELED] Operation canceled",
+    "[system error EIDRM] Identifier removed",
+    "[system error ENOMSG] No message of desired type",
+    "[system error EILSEQ] Illegal byte sequence",
+    "[system error ENOATTR] Attribute not found",
+    "[system error EBADMSG] Bad message",
+    "[system error EMULTIHOP] EMULTIHOP (Reserved)",
+    "[system error ENODATA] No message available on STREAM",
+    "[system error ENOLINK] ENOLINK (Reserved)",
+    "[system error ENOSR] No STREAM resources",
+    "[system error ENOSTR] Not a STREAM",
+    "[system error EPROTO] Protocol error",
+    "[system error ETIME] STREAM ioctl timeout",
+    "[system error EOPNOTSUPP] Operation not supported on socket",
+    "[system error ENOPOLICY] Policy not found",
+    "[system error ENOTRECOVERABLE] State not recoverable",
+    "[system error EOWNERDEAD] Previous owner died",
+    "[system error EQFULL] Interface output queue is full"
+];

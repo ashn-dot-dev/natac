@@ -1,0 +1,41 @@
+import "sys";
+
+let a: usize = alignof(void);
+let b: usize = alignof(u8);
+let c: usize = alignof(u16);
+let d: usize = alignof(u32);
+let e: usize = alignof(u64);
+let f: usize = alignof(usize);
+
+let g: usize = alignof([5u]u8);
+let h: usize = alignof([2u]u64);
+
+let i: u16 = 0xABCDu16;
+let j: usize = alignof(typeof(i));
+
+func main() void {
+    sys::dump[[usize]](a);
+    sys::dump[[usize]](b);
+    sys::dump[[usize]](c);
+    sys::dump[[usize]](d);
+    sys::dump[[usize]](e);
+    sys::dump[[usize]](f);
+    sys::dump[[usize]](g);
+    sys::dump[[usize]](h);
+    sys::dump[[usize]](j);
+
+    sys::dump[[usize]](alignof(u16));
+    sys::dump[[usize]](alignof(typeof(i)));
+}
+################################################################################
+# 00 00 00 00 00 00 00 00
+# 01 00 00 00 00 00 00 00
+# 02 00 00 00 00 00 00 00
+# 04 00 00 00 00 00 00 00
+# 08 00 00 00 00 00 00 00
+# 08 00 00 00 00 00 00 00
+# 01 00 00 00 00 00 00 00
+# 08 00 00 00 00 00 00 00
+# 02 00 00 00 00 00 00 00
+# 02 00 00 00 00 00 00 00
+# 02 00 00 00 00 00 00 00

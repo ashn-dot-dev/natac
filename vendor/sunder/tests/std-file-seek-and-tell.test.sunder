@@ -1,0 +1,56 @@
+import "std";
+import "sys";
+
+func main() void {
+    var result = std::file::open("data.tmp", std::file::OPEN_READ | std::file::OPEN_WRITE);
+    var file = result.value();
+
+    file.write("ABCD");
+    var result = file.tell();
+    sys::dump[[usize]](result.value());
+
+    file.write("EFGH");
+    var result = file.tell();
+    sys::dump[[usize]](result.value());
+
+    file.seek(0, std::file::SEEK_START);
+    var result = file.tell();
+    sys::dump[[usize]](result.value());
+
+    file.seek(1, std::file::SEEK_START);
+    var result = file.tell();
+    sys::dump[[usize]](result.value());
+
+    file.seek(0, std::file::SEEK_END);
+    var result = file.tell();
+    sys::dump[[usize]](result.value());
+
+    file.seek(-1, std::file::SEEK_END);
+    var result = file.tell();
+    sys::dump[[usize]](result.value());
+
+    file.seek(-3, std::file::SEEK_CURRENT);
+    var result = file.tell();
+    sys::dump[[usize]](result.value());
+
+    file.write("1234");
+    var result = file.tell();
+    sys::dump[[usize]](result.value());
+
+    file.seek(0, std::file::SEEK_START);
+    var buf = (:[512]byte)[0...];
+    var result = file.read(buf[0:countof(buf)]);
+    std::print_line(std::out(), buf[0:result.value()]);
+
+    file.close();
+}
+################################################################################
+# 04 00 00 00 00 00 00 00
+# 08 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# 01 00 00 00 00 00 00 00
+# 08 00 00 00 00 00 00 00
+# 07 00 00 00 00 00 00 00
+# 04 00 00 00 00 00 00 00
+# 08 00 00 00 00 00 00 00
+# ABCD1234

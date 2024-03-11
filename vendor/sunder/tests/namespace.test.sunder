@@ -1,0 +1,11 @@
+import "namespace/import1.sunder";
+import "namespace/import2.sunder";
+import "namespace/import3.sunder";
+
+func main() void {
+    foo::bar::a;
+    foo::bar::b;
+    foo::bar::c();
+    foo::bar::d;
+    foo::baz;
+}

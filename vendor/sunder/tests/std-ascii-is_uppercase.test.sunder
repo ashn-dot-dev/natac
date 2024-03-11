@@ -1,0 +1,21 @@
+import "std";
+
+func main() void {
+    assert std::ascii::is_uppercase('A');
+    assert std::ascii::is_uppercase('B');
+    assert std::ascii::is_uppercase('C');
+    assert std::ascii::is_uppercase('Z');
+
+    assert not std::ascii::is_uppercase('a');
+    assert not std::ascii::is_uppercase('b');
+    assert not std::ascii::is_uppercase('c');
+    assert not std::ascii::is_uppercase('z');
+
+    assert not std::ascii::is_uppercase('1');
+    assert not std::ascii::is_uppercase('~');
+    assert not std::ascii::is_uppercase('\n');
+    assert not std::ascii::is_uppercase('\t');
+    assert not std::ascii::is_uppercase(' ');
+    assert not std::ascii::is_uppercase('@');
+    assert not std::ascii::is_uppercase('[');
+}

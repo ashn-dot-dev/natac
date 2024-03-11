@@ -1,0 +1,185 @@
+import "std";
+
+func main() void {
+    var map = std::hash_map[[[]byte, ssize]]::init();
+    defer map.fini();
+
+    var count = map.count();
+    std::print_format_line(std::out(), "Count {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
+    var lookup_foo = map.lookup("foo");
+    var lookup_bar = map.lookup("bar");
+    assert map.count() == 0;
+    assert not lookup_foo.is_value();
+    assert not lookup_bar.is_value();
+
+    std::print(std::out(), "\n");
+
+    map.insert("foo", 123);
+    var count = map.count();
+    std::print_format_line(std::out(), "Count {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
+    var lookup_foo = map.lookup("foo");
+    var lookup_bar = map.lookup("bar");
+    assert lookup_foo.is_value();
+    assert not lookup_bar.is_value();
+    var value = lookup_foo.value();
+    std::print_format_line(
+        std::out(),
+        "{}",
+        (:[]std::formatter)[std::formatter::init[[ssize]](value)]);
+
+    std::print(std::out(), "\n");
+
+    map.insert("foo", 456);
+    var count = map.count();
+    std::print_format_line(std::out(), "Count {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
+    var lookup_foo = map.lookup("foo");
+    var lookup_bar = map.lookup("bar");
+    assert lookup_foo.is_value();
+    assert not lookup_bar.is_value();
+    var value_foo = lookup_foo.value();
+    std::print_format_line(
+        std::out(),
+        "{}",
+        (:[]std::formatter)[std::formatter::init[[ssize]](value_foo)]);
+
+    std::print(std::out(), "\n");
+
+    map.insert("bar", 789);
+    var count = map.count();
+    std::print_format_line(std::out(), "Count {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
+    var lookup_foo = map.lookup("foo");
+    var lookup_bar = map.lookup("bar");
+    assert lookup_foo.is_value();
+    assert lookup_bar.is_value();
+    var value_foo = lookup_foo.value();
+    var value_bar = lookup_bar.value();
+    std::print_format_line(
+        std::out(),
+        "{} {}",
+        (:[]std::formatter)[
+            std::formatter::init[[ssize]](value_foo),
+            std::formatter::init[[ssize]](value_bar)]);
+
+    std::print(std::out(), "\n");
+
+    var removed = map.remove("foo");
+    var count = map.count();
+    std::print_format_line(std::out(), "Count {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
+    var lookup_foo = map.lookup("foo");
+    var lookup_bar = map.lookup("bar");
+    assert not lookup_foo.is_value();
+    assert lookup_bar.is_value();
+    var value_bar = lookup_bar.value();
+    std::print_format_line(
+        std::out(),
+        "{}",
+        (:[]std::formatter)[
+            std::formatter::init[[ssize]](value_bar)]);
+    var removed = removed.value();
+    std::print_format_line(
+        std::out(),
+        "Removed {}",
+        (:[]std::formatter)[
+            std::formatter::init[[ssize]](&removed.value)]);
+
+    std::print(std::out(), "\n");
+
+    var lookup_bar = map.lookup_view("bar");
+    var view = lookup_bar.value();
+    std::print_format_line(
+        std::out(),
+        "Lookup view with key \"{}\" and value {}",
+        (:[]std::formatter)[
+            std::formatter::init[[[]byte]](view.key),
+            std::formatter::init[[ssize]](view.value)]);
+
+    std::print(std::out(), "\n");
+
+    # Test map inserts. Also test std::map::init_with_allocator.
+    var map = std::hash_map[[ssize, usize]]::init_with_allocator(std::global_allocator());
+    defer map.fini();
+
+    for x in 0x123456:0x123456+100000 {
+        map.insert((:ssize)x, x);
+    }
+    for x in 0x123456:0x123456+100000 {
+        if not map.contains((:ssize)x) {
+            std::panic("unreachable");
+        }
+    }
+    var count = map.count();
+    std::print_format_line(std::out(), "Count {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
+    for x in 0x123456:0x123456+100000 {
+        map.remove((:ssize)x);
+    }
+    var count = map.count();
+    std::print_format_line(std::out(), "Count {}", (:[]std::formatter)[std::formatter::init[[usize]](&count)]);
+
+    var map_a = std::hash_map[[ssize, usize]]::init();
+    var map_b = std::hash_map[[ssize, usize]]::init();
+    defer map_a.fini();
+    defer map_b.fini();
+    map_a.insert(123, 0xAAA);
+    map_a.insert(456, 0xAAA);
+    map_a.insert(789, 0xAAA);
+    assert map_a.count() == 3;
+    assert map_b.count() == 0;
+    map_b.assign(&map_a);
+    assert map_a.count() == 3;
+    assert map_b.count() == 3;
+    assert map_a.contains(123);
+    assert map_b.contains(123);
+    assert map_a.contains(456);
+    assert map_b.contains(456);
+    assert map_a.contains(789);
+    assert map_b.contains(789);
+
+    var map_c = std::hash_map[[ssize, usize]]::init_assign(&map_a);
+    defer map_c.fini();
+    assert map_a.count() == 3;
+    assert map_c.count() == 3;
+    assert map_a.contains(123);
+    assert map_c.contains(123);
+    assert map_a.contains(456);
+    assert map_c.contains(456);
+    assert map_a.contains(789);
+    assert map_c.contains(789);
+
+    # Test inserting and removing the same element a bunch of times to ensure
+    # that insertion order indices and tombstones are properly managed.
+    var map = std::hash_map[[ssize, usize]]::init();
+    defer map.fini();
+    map.insert(123, 666);
+    for i in 1000000 {
+        map.remove(123);
+        map.insert(123, i);
+    }
+
+    # Test inserting different elements a bunch of times to ensure that
+    # insertion order indices and tombstones are properly managed.
+    var map = std::hash_map[[ssize, usize]]::init();
+    defer map.fini();
+    for i in 1000000 {
+        map.insert((:ssize)~i & 0xFF, i);
+    }
+}
+################################################################################
+# Count 0
+#
+# Count 1
+# 123
+#
+# Count 1
+# 456
+#
+# Count 2
+# 456 789
+#
+# Count 1
+# 789
+# Removed 456
+#
+# Lookup view with key "bar" and value 789
+#
+# Count 100000
+# Count 0

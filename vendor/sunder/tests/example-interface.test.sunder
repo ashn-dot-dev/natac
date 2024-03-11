@@ -1,0 +1,91 @@
+import "sys";
+
+struct foo_itable {
+    var aa: func(*any) void;
+    var bb: func(*any) void;
+}
+
+struct foo {
+    var itable: *foo_itable;
+    var object: *any;
+
+    func init[[T]](object: *T) foo {
+        let itable = (:foo_itable){
+            .aa = T::aa,
+            .bb = T::bb
+        };
+        return (:foo){
+            .itable = &itable,
+            .object = object
+        };
+    }
+}
+
+struct bar {
+    var x: u32;
+    var y: u32;
+
+    func aa(self_: *bar) void {
+        sys::dump[[u8]](0xAAu8);
+    }
+
+    func bb(self: *bar) void {
+        sys::dump[[u8]](0xBBu8);
+        sys::dump[[bar]](*self);
+        sys::dump[[u32]]((*self).x);
+        sys::dump[[u32]]((*self).y);
+    }
+}
+
+struct baz {
+    var x: u16;
+    var y: u16;
+
+    func aa(self_: *baz) void {
+        sys::dump[[u8]](0xAAu8);
+    }
+
+    func bb(self: *baz) void {
+        sys::dump[[u8]](0xBBu8);
+        sys::dump[[baz]](*self);
+        sys::dump[[u16]]((*self).x);
+        sys::dump[[u16]]((*self).y);
+    }
+}
+
+func main() void {
+    var mybar: bar = (:bar){.x = 0xDEADBEEF, .y = 0xCAFEF00D};
+    mybar.aa();
+    mybar.bb();
+    var impl: foo = foo::init[[bar]](&mybar);
+    (*impl.itable).aa(impl.object);
+    (*impl.itable).bb(impl.object);
+
+    let mybaz: baz = (:baz){.x = 0xFBAD, .y = 0xDECA};
+    mybaz.aa();
+    mybaz.bb();
+    var impl: foo = foo::init[[baz]](&mybaz);
+    (*impl.itable).aa(impl.object);
+    (*impl.itable).bb(impl.object);
+}
+################################################################################
+# AA
+# BB
+# EF BE AD DE 0D F0 FE CA
+# EF BE AD DE
+# 0D F0 FE CA
+# AA
+# BB
+# EF BE AD DE 0D F0 FE CA
+# EF BE AD DE
+# 0D F0 FE CA
+# AA
+# BB
+# AD FB CA DE
+# AD FB
+# CA DE
+# AA
+# BB
+# AD FB CA DE
+# AD FB
+# CA DE

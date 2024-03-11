@@ -1,0 +1,32 @@
+# NOTE: This test will break when a new file is added to `sunder/tests/util`.
+import "std";
+
+func main() void {
+    var result = std::directory::open("util");
+    if result.is_error() {
+        std::print_line(std::err(), result.error().*.data);
+        std::exit(std::EXIT_FAILURE);
+    }
+    var dir = result.value();
+    defer dir.close();
+
+    var vec = std::vector[[[]byte]]::init();
+
+    for dir.advance() {
+        var name = dir.current().*.value();
+        var str = std::slice[[byte]]::new(countof(name));
+        std::slice[[byte]]::copy(str, name);
+        vec.push(str);
+    }
+
+    # Sort so file ordering is deterministic on all filesystems.
+    std::sort[[[]byte]](vec.data());
+
+    for i in vec.count() {
+        std::print_line(std::out(), vec.data()[i]);
+    }
+}
+################################################################################
+# .
+# ..
+# argv.sunder

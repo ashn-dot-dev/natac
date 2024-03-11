@@ -1,0 +1,11 @@
+import "std";
+import "sys";
+
+func main() void {
+    var a: std::optional[[u16]] = std::optional[[u16]]::init_value(0xBEEF);
+    assert a.is_value();
+    assert not a.is_empty();
+    sys::dump[[u16]](a.value());
+}
+################################################################################
+# EF BE

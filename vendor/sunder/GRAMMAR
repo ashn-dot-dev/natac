@@ -1,0 +1,303 @@
+<module> ::= <namespace>? <import>* <module-level-decl>* <decl-extend>*
+
+<namespace> := "namespace" <identifier> ("::" <identifier>)* ";"
+
+<import> ::= "import" <literal-bytes> ";"
+
+<decl-variable> ::= "var" <identifier> (":" <type>)? "=" <expr> ";"
+                  | "var" <identifier> ":" <type> "=" "uninit" ";"
+
+<decl-constant> ::= "let" <identifier> (":" <type>)? "=" <expr> ";"
+                  | "let" <identifier> ":" <type> "=" "uninit" ";"
+
+<decl-function> ::= "func" <identifier> <template-parameter-list>? "(" <parameter-list> ")" <type> <block>
+
+<decl-struct> ::= "struct" <identifier> <template-parameter-list>? "{" <member-list> "}"
+
+<decl-union> ::= "union" <identifier> <template-parameter-list>? "{" <member-list> "}"
+
+<decl-enum> ::= "enum" <identifier> "{" (<identifier> ("=" <expr>)? ";")* <member-function>* "}"
+
+<decl-extend> ::= "extend" <type> <decl>
+
+<decl-type-alias> ::= "type" <identifier> "=" <type> ";"
+
+<decl-extern-variable> ::= "extern" "var" <identifier> ":" <type> ";"
+
+<decl-extern-function> ::= "extern" "func" <identifier> "(" <parameter-list> ")" <type> ";"
+
+<decl-extern-type> ::= "extern" "type" <identifier> ";"
+
+<module-level-decl> := <decl-variable>
+                     | <decl-constant>
+                     | <decl-function>
+                     | <decl-struct>
+                     | <decl-union>
+                     | <decl-enum>
+                     | <decl-type-alias>
+                     | <decl-extern-variable>
+                     | <decl-extern-function>
+                     | <decl-extern-type>
+
+<stmt> ::= <stmt-decl>
+         | <stmt-defer>
+         | <stmt-if>
+         | <stmt-when>
+         | <stmt-for-range>
+         | <stmt-for-expr>
+         | <stmt-break>
+         | <stmt-continue>
+         | <stmt-switch>
+         | <stmt-return>
+         | <stmt-assert>
+         | <stmt-assign>
+         | <stmt-expr>
+
+<stmt-decl> ::= <decl-variable>
+              | <decl-constant>
+              | <decl-type-alias>
+
+<stmt-defer> ::= "defer" <block>
+               | "defer" <expr>
+
+<stmt-if> ::= "if" <expr> <block> ("elif" <expr> <block>)* ("else" <block>)?
+
+<stmt-if> ::= "when" <expr> <block> ("elwhen" <expr> <block>)* ("else" <block>)?
+
+<stmt-for-range> ::= "for" <identifier> (":" <type>)? "in" (<expr> ":")? <expr> <block>
+
+<stmt-for-expr> ::= "for" <expr> <block>
+
+<stmt-break> ::= "break" ";"
+
+<stmt-continue> ::= "continue" ";"
+
+<stmt-switch> ::= "switch" <expr> "{" <switch-case>* ("else" <block>)? "}"
+
+<stmt-return> ::= "return" <expr>? ";"
+
+<stmt-assert> ::= "assert" <expr> ";"
+
+<stmt-assign> ::= <expr> "=" <expr> ";"
+                | <expr> "+=" <expr> ";"
+                | <expr> "-=" <expr> ";"
+                | <expr> "*=" <expr> ";"
+                | <expr> "/=" <expr> ";"
+                | <expr> "%=" <expr> ";"
+                | <expr> "+%=" <expr> ";"
+                | <expr> "-%=" <expr> ";"
+                | <expr> "*%=" <expr> ";"
+                | <expr> "<<=" <expr> ";"
+                | <expr> ">>=" <expr> ";"
+                | <expr> "|=" <expr> ";"
+                | <expr> "^=" <expr> ";"
+                | <expr> "&=" <expr> ";"
+
+<stmt-expr> ::= <expr> ";"
+
+<expr> ::= <symbol>
+         | <boolean>
+         | <integer>
+         | <ieee754>
+         | <expr-character>
+         | <expr-bytes>
+         | <expr-list>
+         | <expr-slice>
+         | <expr-init>
+         | <expr-cast>
+         | <expr-grouped>
+         | <expr-call>
+         | <expr-access-index>
+         | <expr-access-slice>
+         | <expr-access-member>
+         | <expr-access-dereference>
+         | <expr-defined>
+         | <expr-sizeof>
+         | <expr-alignof>
+         | <expr-fileof>
+         | <expr-lineof>
+         | <expr-embed>
+         | <expr-unary>
+         | <expr-binary>
+
+<expr-character> ::= <literal-character>
+
+<expr-bytes> ::= <literal-bytes>
+
+<expr-list> ::= "(" ":" <type> ")" "[" "]"
+              | "(" ":" <type> ")" "[" <expr> "..." "]"
+              | "(" ":" <type> ")" "[" <expr> ("," <expr>)* ("," | ("," <expr> "...")?)? "]"
+
+<expr-slice> ::= "(" ":" <type-slice> ")" "{" <expr> "," <expr> "}"
+
+<expr-init> ::= "(" ":" <type> ")" "{" <member-initializer-list> "}"
+
+<expr-cast> ::= "(" ":" <type> ")" <expr>
+
+<expr-grouped> ::= "(" <expr> ")"
+
+<expr-call> ::= <expr> "(" (<expr> ("," <expr>)* ","?)? ")"
+
+<expr-access-index> ::= <expr> "[" <expr> "]"
+
+<expr-access-slice> ::= <expr> "[" <expr> ":" <expr> "]"
+
+<expr-access-member> ::= <expr> "." <symbol-element>
+
+<expr-access-dereference> ::= <expr> ".*"
+
+<expr-defined> ::= "defined" "(" <symbol> ")"
+
+<expr-sizeof> ::= "sizeof" "(" <type> ")"
+
+<expr-alignof> ::= "alignof" "(" <type> ")"
+
+<expr-fileof> ::= "fileof" "(" ")"
+
+<expr-lineof> ::= "lineof" "(" ")"
+
+<expr-embed> ::= "embed" "(" <literal-bytes> ")"
+
+<expr-unary> ::= "not" <expr>
+               | "+" <expr>
+               | "-" <expr>
+               | "-%" <expr>
+               | "~" <expr>
+               | "*" <expr>
+               | "&" <expr>
+               | "startof" "(" <expr> ")"
+               | "countof" "(" <expr> ")"
+
+<expr-binary> ::= <expr> "or" <expr>
+                | <expr> "and" <expr>
+                | <expr> "==" <expr>
+                | <expr> "!=" <expr>
+                | <expr> "<=" <expr>
+                | <expr> "<" <expr>
+                | <expr> ">=" <expr>
+                | <expr> ">" <expr>
+                | <expr> "+" <expr>
+                | <expr> "-" <expr>
+                | <expr> "*" <expr>
+                | <expr> "/" <expr>
+                | <expr> "%" <expr>
+                | <expr> "+%" <expr>
+                | <expr> "-%" <expr>
+                | <expr> "*%" <expr>
+                | <expr> "<<" <expr>
+                | <expr> ">>" <expr>
+                | <expr> "|" <expr>
+                | <expr> "^" <expr>
+                | <expr> "&" <expr>
+
+<block> ::= "{" <stmt>* "}"
+
+<switch-case> ::= <symbol> ("or" <symbol>)* <block>
+
+<literal-character> ::= "'" <character> "'"
+
+<literal-bytes> ::= '"' <character>* '"'
+
+<symbol> ::= <symbol-element> ("::" <symbol-element>)*
+           | "::" <symbol-element> ("::" <symbol-element>)*
+           | <type-typeof> "::" <symbol-element> ("::" <symbol-element>)*
+
+<symbol-element> ::= <identifier> <template-argument-list>?
+
+<template-parameter-list> ::= "[" "[" <identifier> ("," <identifier>)* "]" "]"
+
+<template-argument-list> ::= <type>+
+
+<function-parameter-list> ::= ( <function-parameter> ("," <function-parameter>)* )?
+
+<function-parameter> ::= <identifier> ":" <type>
+
+<member-list> ::= <member>*
+
+<member> ::= <member-variable>
+           | <member-constant>
+           | <member-function>
+
+<member-variable> ::= "var" <identifier> ":" <type> ";"
+
+<member-constant> ::= <decl-constant>
+
+<member-function> ::=  <decl-function>
+
+<member-initializer-list> ::= (<member-initializer> ("," <member-initializer>)* ","?)?
+
+<member-initializer> ::= "." <identifier> "=" (<expr> | "uninit")
+
+<type> ::= <symbol>
+         | <type-function>
+         | <type-pointer>
+         | <type-array>
+         | <type-slice>
+         | <type-struct>
+         | <type-union>
+         | <type-enum>
+         | <type-typeof>
+
+<type-struct> ::= "struct" "{" <member-variable>* "}"
+
+<type-union> ::= "union" "{" <member-variable>* "}"
+
+<type-enum> ::= "enum" "{" (<identifier> ("=" <expr>)? ";")* "}"
+
+<type-function> ::= func "(" ( <type> ("," <type> )* )? ")" <type>
+
+<type-pointer> ::= "*" <type>
+
+<type-array> ::= "[" <expr> "]" <type>
+
+<type-slice> ::= "[" "]" <type>
+
+<type-typeof> ::= "typeof" "(" <expr> ")"
+
+<identifier> ::= <letter> (<letter> | <digit-dec>)*
+
+<character> ::= "\0"
+              | "\t"
+              | "\n"
+              | '\''
+              | '\"'
+              | "\\"
+              | ? printable ASCII character ?
+
+<letter> ::= "A" .. "Z" | "a" .. "z" | "_"
+
+<ieee754> ::= ("+" | "-")? <integer-number-dec> "." <integer-number-dec> <ieee-754-suffix>?
+
+<ieee754-suffix> ::= "f32"
+                   | "f64"
+
+<integer> ::= ("+" | "-")? <integer-number> <integer-suffix>?
+
+<integer-number> ::= <integer-number-bin>
+                   | <integer-number-oct>
+                   | <integer-number-dec>
+                   | <integer-number-hex>
+
+<integer-suffix> ::= "y"
+                   | "u8"
+                   | "s8"
+                   | "u16"
+                   | "s16"
+                   | "u32"
+                   | "s32"
+                   | "u64"
+                   | "s64"
+                   | "u"
+                   | "s"
+
+<integer-number-bin> ::= "0b" <digit-bin>+
+<integer-number-oct> ::= "0o" <digit-oct>+
+<integer-number-dec> ::=      <digit-dec>+
+<integer-number-hex> ::= "0x" <digit-hex>+
+
+<digit-bin> ::= "0" | "1"
+<digit-oct> ::= "0" .. "7"
+<digit-dec> ::= "0" .. "9"
+<digit-hex> ::= "0" .. "9" | "A" .. "F" | "a" .. "f"
+
+<boolean> ::= "true" | "false"

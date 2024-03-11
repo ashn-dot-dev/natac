@@ -1,0 +1,20 @@
+import "std";
+
+func main() void {
+    var slice: []u16 = std::slice[[u16]]::new(2048);
+    for i in 0:countof(slice) {
+        slice[i] = 0xBEEF;
+    }
+
+    slice = std::slice[[u16]]::resize(slice, 4096);
+    for i in 0:countof(slice) {
+        slice[i] = 0xF00D;
+    }
+
+    slice = std::slice[[u16]]::resize(slice, 1000);
+    for i in 0:countof(slice) {
+        slice[i] = 0xCAFE;
+    }
+
+    std::slice[[u16]]::delete(slice);
+}

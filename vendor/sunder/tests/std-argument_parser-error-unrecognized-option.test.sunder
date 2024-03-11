@@ -1,0 +1,21 @@
+import "std";
+import "util";
+
+func main() void {
+    var parser = std::argument_parser::init_from_argv(
+        (:[][]byte)[
+            "a",
+            "b"
+        ],
+        util::argv::new((:[][]byte)[
+            "arg0",
+            "-a",
+            "-b",
+            "-c"
+        ])
+    );
+
+    for parser.advance() { }
+}
+################################################################################
+# error: unrecognized option `c`

@@ -1,0 +1,40 @@
+import "sys";
+
+struct s {
+    var foo: u32;
+    var bar: u32;
+}
+
+let a: u8 = uninit;
+let b: u16 = uninit;
+let c: u32 = uninit;
+let d: u64 = uninit;
+let e: *byte = uninit;
+let f: []byte = uninit;
+let g: s = uninit;
+
+func main() void {
+    let y: u32 = uninit;
+    let z: s = uninit;
+
+    sys::dump[[u8]](a);
+    sys::dump[[u16]](b);
+    sys::dump[[u32]](c);
+    sys::dump[[u64]](d);
+    sys::dump[[*byte]](e);
+    sys::dump[[[]byte]](f);
+    sys::dump[[s]](g);
+
+    sys::dump[[u32]](y);
+    sys::dump[[s]](z);
+}
+################################################################################
+# 00
+# 00 00
+# 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# 00 00 00 00
+# 00 00 00 00 00 00 00 00

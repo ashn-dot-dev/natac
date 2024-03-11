@@ -1,0 +1,62 @@
+import "sys";
+
+let a: usize = countof((:[3u]u16)[0xAAAAu16, 0xBBBBu16, 0xCCCCu16]);
+
+let b: [3u]u16 = (:[3u]u16)[0xAAAAu16, 0xBBBBu16, 0xCCCCu16];
+let c: usize = countof(b);
+let d: usize = countof(b[1u:3u]);
+
+let e: []u16 = b[1u:3u];
+let f: usize = countof(e);
+
+func ident(val: u16) u16 {
+    sys::dump[[u16]](val);
+    return val;
+}
+
+var tmp: [3u]u16 = (:[3u]u16)[0u16, 0u16, 0u16];
+func foo() *[3u]u16 {
+    tmp = (:[3u]u16)[
+        ident(0xAAAAu16),
+        ident(0xBBBBu16),
+        ident(0xCCCCu16)
+    ];
+    return &tmp;
+}
+
+func main() void {
+    sys::dump[[usize]](a);
+    sys::dump[[usize]](c);
+    sys::dump[[usize]](d);
+    sys::dump[[usize]](f);
+
+    sys::dump[[usize]](countof((:[3u]u16)[0xAAAAu16, 0xBBBBu16, 0xCCCCu16]));
+
+    var g: usize = countof((:[3u]u16)[0xAAAAu16, 0xBBBBu16, 0xCCCCu16]);
+    var h: usize = countof(b[1u:3u]);
+    sys::dump[[usize]](g);
+    sys::dump[[usize]](h);
+
+    sys::dump[[usize]](countof((:[3u]u16)[
+        ident(0xAAAAu16),
+        ident(0xBBBBu16),
+        ident(0xCCCCu16)
+    ]));
+    sys::dump[[usize]](countof(*foo()));
+}
+################################################################################
+# 03 00 00 00 00 00 00 00
+# 03 00 00 00 00 00 00 00
+# 02 00 00 00 00 00 00 00
+# 02 00 00 00 00 00 00 00
+# 03 00 00 00 00 00 00 00
+# 03 00 00 00 00 00 00 00
+# 02 00 00 00 00 00 00 00
+# AA AA
+# BB BB
+# CC CC
+# 03 00 00 00 00 00 00 00
+# AA AA
+# BB BB
+# CC CC
+# 03 00 00 00 00 00 00 00

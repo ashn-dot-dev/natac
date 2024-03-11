@@ -1,0 +1,66 @@
+import "std";
+import "sys";
+
+func func_t() bool {
+    std::print_line(std::err(), "func_t");
+    return true;
+}
+
+func func_f() bool {
+    std::print_line(std::err(), "func_f");
+    return false;
+}
+
+func main() void {
+    let t_or_t: bool = true or true;
+    let f_or_f: bool = false or false;
+    let t_or_f: bool = true or false;
+    let f_or_t: bool = false or true;
+    sys::dump[[bool]](t_or_t);
+    sys::dump[[bool]](f_or_f);
+    sys::dump[[bool]](t_or_f);
+    sys::dump[[bool]](f_or_t);
+    sys::dump[[bool]](true or true);
+    sys::dump[[bool]](false or false);
+    sys::dump[[bool]](true or false);
+    sys::dump[[bool]](false or true);
+
+    std::print(std::err(), "\n");
+
+    sys::dump[[bool]](func_t() or func_t());
+
+    std::print(std::err(), "\n");
+
+    sys::dump[[bool]](func_f() or func_f());
+
+    std::print(std::err(), "\n");
+
+    sys::dump[[bool]](func_t() or func_f());
+
+    std::print(std::err(), "\n");
+
+    sys::dump[[bool]](func_f() or func_t());
+}
+################################################################################
+# 01
+# 00
+# 01
+# 01
+# 01
+# 00
+# 01
+# 01
+#
+# func_t
+# 01
+#
+# func_f
+# func_f
+# 00
+#
+# func_t
+# 01
+#
+# func_f
+# func_t
+# 01

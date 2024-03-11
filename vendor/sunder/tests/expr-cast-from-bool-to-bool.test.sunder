@@ -1,0 +1,21 @@
+import "sys";
+
+func main() void {
+    sys::dump[[bool]]((:bool)true);
+    sys::dump[[bool]]((:bool)false);
+
+    var x = true;
+    sys::dump[[bool]]((:bool)x);
+    sys::dump[[bool]]((:bool)(:bool)x);
+
+    let y = true;
+    sys::dump[[bool]]((:bool)y);
+    sys::dump[[bool]]((:bool)(:bool)y);
+}
+################################################################################
+# 01
+# 00
+# 01
+# 01
+# 01
+# 01

@@ -1,0 +1,80 @@
+#!/bin/sh
+set -e
+export LC_ALL=C
+
+PROGNAME=$(basename "$0")
+usage() {
+    cat <<EOF
+Usage: ${PROGNAME} [FILE...]
+
+Options:
+  -h        Display usage information and exit.
+EOF
+}
+
+for arg in "$@"; do
+case "${arg}" in
+    -h)
+        usage
+        exit 0
+        ;;
+    *)
+        ;;
+esac
+done
+
+TESTSRUN=0
+FAILURES=0
+
+test() {
+    TEST="$1"
+
+    echo "[= TEST ${TEST} =]"
+
+    set +e
+    RECEIVED=$(\
+        cd "$(dirname "${TEST}")" 2>&1 && \
+        "${SUNDER_HOME}/bin/sunder-run" "$(basename "${TEST}")" 2>&1)
+    set -e
+
+    EXPECTED=$(\
+        sed -n '/^########\(#\)*/,$p' "${TEST}" |\
+        sed '1d' |\
+        sed -E 's/^#[[:space:]]?//g')
+
+    if [ "${EXPECTED}" = "${RECEIVED}" ]; then
+        echo '[= PASS =]'
+    else
+        TMPDIR=$(mktemp -d)
+        trap '{ rm -rf -- "${TMPDIR}"; }' EXIT
+        printf '%s\n' "${EXPECTED}" >"${TMPDIR}/expected"
+        printf '%s\n' "${RECEIVED}" >"${TMPDIR}/received"
+        diff "${TMPDIR}/expected" "${TMPDIR}/received" || true
+        echo '[= FAIL =]'
+        FAILURES=$((FAILURES + 1))
+    fi
+    TESTSRUN=$((TESTSRUN + 1))
+}
+
+TESTS= # empty
+if [ "$#" -ne 0 ]; then
+    for arg in "$@"; do
+        if [ -d "$(realpath ${arg})" ]; then
+            FILES=$(find "$(realpath ${arg})" -name '*.test.sunder' | sort)
+            TESTS=$(echo "${TESTS}" "${FILES}")
+        else
+            TESTS=$(echo "${TESTS}" "${arg}")
+        fi
+    done
+else
+    TESTS=$(find . -name '*.test.sunder' | sort)
+fi
+
+for t in ${TESTS}; do
+    test "${t}"
+done
+
+echo "TESTS RUN => ${TESTSRUN}"
+echo "FAILURES  => ${FAILURES}"
+
+[ "${FAILURES}" -eq 0 ] || exit 1

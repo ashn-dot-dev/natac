@@ -1,0 +1,70 @@
+import "sys";
+
+var empty_variable: []u16 = (:[]u16)[];
+let empty_constant: []u16 = (:[]u16)[];
+
+var d: []u16 = (:[]u16)[];
+let a: []u16 = (:[]u16)[0xAAAA, 0xBBBB, 0xCCCC];
+var b: []u16 = (:[]u16)[0xAAAA, 0xBBBB, 0xCCCC];
+
+func main() void {
+    sys::dump[[[]u16]](empty_variable);
+    sys::dump[[[]u16]](empty_constant);
+
+    sys::dump[[usize]](countof(a));
+    sys::dump[[u16]](a[0]);
+    sys::dump[[u16]](a[1]);
+    sys::dump[[u16]](a[2]);
+
+    b[2] = 0xDDDD;
+    sys::dump[[usize]](countof(b));
+    sys::dump[[u16]](b[0]);
+    sys::dump[[u16]](b[1]);
+    sys::dump[[u16]](b[2]);
+
+    let c: []u16 = (:[]u16)[0x1111, 0x2222, 0x3333];
+    sys::dump[[usize]](countof(c));
+    sys::dump[[u16]](c[0]);
+    sys::dump[[u16]](c[1]);
+    sys::dump[[u16]](c[2]);
+
+    var d: []u16 = (:[]u16)[0x1111, 0x2222, 0x3333];
+    sys::dump[[usize]](countof(d));
+    d[0] = 0xBEEF;
+    d[2] = 0xCAFE;
+    sys::dump[[u16]](d[0]);
+    sys::dump[[u16]](d[1]);
+    sys::dump[[u16]](d[2]);
+
+    sys::dump[[usize]](countof((:[]u16)[0xDEAD, 0xBEEF]));
+    sys::dump[[u16]]((:[]u16)[0xDEAD, 0xBEEF][1]);
+
+    # Check that slice lists can contain a final comma before the closing
+    # brace.
+    (:[]u16)[
+        0xAAAA,
+        0xBBBB,
+        0xCCCC,
+    ];
+}
+################################################################################
+# 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+# 03 00 00 00 00 00 00 00
+# AA AA
+# BB BB
+# CC CC
+# 03 00 00 00 00 00 00 00
+# AA AA
+# BB BB
+# DD DD
+# 03 00 00 00 00 00 00 00
+# 11 11
+# 22 22
+# 33 33
+# 03 00 00 00 00 00 00 00
+# EF BE
+# 22 22
+# FE CA
+# 02 00 00 00 00 00 00 00
+# EF BE

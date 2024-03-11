@@ -1,0 +1,108 @@
+import "sys";
+
+func main() void {
+    let a = 0xFFFFFFFFFFFFFFFFu >> 0;
+    let b = 0xFFFFFFFFFFFFFFFFu >> 1;
+    let c = 0xFFFFFFFFFFFFFFFFu >> 2;
+    let d = 0xFFFFFFFFFFFFFFFFu >> 8;
+    let e = 0xFFFFFFFFFFFFFFFFu >> 63;
+    let f = 0xFFFFFFFFFFFFFFFFu >> 64;
+
+    sys::dump[[usize]](a);
+    sys::dump[[usize]](b);
+    sys::dump[[usize]](c);
+    sys::dump[[usize]](d);
+    sys::dump[[usize]](e);
+    sys::dump[[usize]](f);
+
+    var x = 0xFF00000000000000u;
+    sys::dump[[usize]](x >> 0);
+    sys::dump[[usize]](x >> 1);
+    sys::dump[[usize]](x >> 2);
+    sys::dump[[usize]](x >> 8);
+    sys::dump[[usize]](x >> 63);
+    sys::dump[[usize]](x >> 64);
+
+    var y = 0x7FFFFFFFFFFFFFFFs;
+    sys::dump[[ssize]](y >> 0);
+    sys::dump[[ssize]](y >> 1);
+    sys::dump[[ssize]](y >> 2);
+    sys::dump[[ssize]](y >> 8);
+    sys::dump[[ssize]](y >> 48);
+    sys::dump[[ssize]](y >> 63);
+    sys::dump[[ssize]](y >> 64);
+
+    var z = (:ssize)(0xF100000000000000u);
+    sys::dump[[ssize]](z >> 0);
+    sys::dump[[ssize]](z >> 1);
+    sys::dump[[ssize]](z >> 2);
+    sys::dump[[ssize]](z >> 8);
+    sys::dump[[ssize]](z >> 48);
+    sys::dump[[ssize]](z >> 63);
+    sys::dump[[ssize]](z >> 64);
+
+    var some_u8 = 1u8;
+    var some_u16 = 1u16;
+    var some_u32 = 1u32;
+    var some_u64 = 1u64;
+    var some_s8_pos = 1s8;
+    var some_s16_pos = 1s16;
+    var some_s32_pos = 1s32;
+    var some_s64_pos = 1s64;
+    var some_s8_neg = -1s8;
+    var some_s16_neg = -1s16;
+    var some_s32_neg = -1s32;
+    var some_s64_neg = -1s64;
+
+    sys::dump[[u8]](some_u8 >> 1);
+    sys::dump[[u16]](some_u16 >> 1);
+    sys::dump[[u32]](some_u32 >> 1);
+    sys::dump[[u64]](some_u64 >> 1);
+    sys::dump[[s8]](some_s8_pos >> 1);
+    sys::dump[[s16]](some_s16_pos >> 1);
+    sys::dump[[s32]](some_s32_pos >> 1);
+    sys::dump[[s64]](some_s64_pos >> 1);
+    sys::dump[[s8]](some_s8_neg >> 1);
+    sys::dump[[s16]](some_s16_neg >> 1);
+    sys::dump[[s32]](some_s32_neg >> 1);
+    sys::dump[[s64]](some_s64_neg >> 1);
+}
+################################################################################
+# FF FF FF FF FF FF FF FF
+# FF FF FF FF FF FF FF 7F
+# FF FF FF FF FF FF FF 3F
+# FF FF FF FF FF FF FF 00
+# 01 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 FF
+# 00 00 00 00 00 00 80 7F
+# 00 00 00 00 00 00 C0 3F
+# 00 00 00 00 00 00 FF 00
+# 01 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# FF FF FF FF FF FF FF 7F
+# FF FF FF FF FF FF FF 3F
+# FF FF FF FF FF FF FF 1F
+# FF FF FF FF FF FF 7F 00
+# FF 7F 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 F1
+# 00 00 00 00 00 00 80 F8
+# 00 00 00 00 00 00 40 FC
+# 00 00 00 00 00 00 F1 FF
+# 00 F1 FF FF FF FF FF FF
+# FF FF FF FF FF FF FF FF
+# FF FF FF FF FF FF FF FF
+# 00
+# 00 00
+# 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# 00
+# 00 00
+# 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# FF
+# FF FF
+# FF FF FF FF
+# FF FF FF FF FF FF FF FF

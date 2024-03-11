@@ -1,0 +1,94 @@
+import "std";
+
+func test[[T]](lhs: T, rhs: T) void {
+    var result: T = lhs -% rhs;
+    std::print_format_line(std::out(), "{#X}", (:[]std::formatter)[std::formatter::init[[T]](&result)]);
+}
+
+func main() void {
+    let x = u8::MIN -% 0x01;
+    std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[typeof(x)]](&x)]);
+    let y = s8::MIN -% 0x01;
+    std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[typeof(y)]](&y)]);
+
+    std::print(std::out(), "\n");
+
+    let x = u16::MIN -% 0x01;
+    std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[typeof(x)]](&x)]);
+    let y = s16::MIN -% 0x01;
+    std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[typeof(y)]](&y)]);
+
+    std::print(std::out(), "\n");
+
+    let x = u32::MIN -% 0x01;
+    std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[typeof(x)]](&x)]);
+    let y = s32::MIN -% 0x01;
+    std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[typeof(y)]](&y)]);
+
+    std::print(std::out(), "\n");
+
+    let x = u64::MIN -% 0x01;
+    std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[typeof(x)]](&x)]);
+    let y = s64::MIN -% 0x01;
+    std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[typeof(y)]](&y)]);
+
+    std::print(std::out(), "\n");
+
+    test[[u8]](u8::MIN, 0x01);
+    test[[u8]](u8::MIN, 0x11);
+    test[[u8]](0x01, u8::MAX);
+    test[[u8]](0x11, u8::MAX);
+
+    std::print(std::out(), "\n");
+
+    test[[s8]](s8::MIN, 0x01);
+    test[[s8]](s8::MIN, 0x11);
+    test[[s8]](-0x02, s8::MAX);
+    test[[s8]](-0x12, s8::MAX);
+
+    std::print(std::out(), "\n");
+
+    test[[u64]](u64::MIN, 0x01);
+    test[[u64]](u64::MIN, 0x11);
+    test[[u64]](0x01, u64::MAX);
+    test[[u64]](0x11, u64::MAX);
+
+    std::print(std::out(), "\n");
+
+    test[[s64]](s64::MIN, 0x01);
+    test[[s64]](s64::MIN, 0x11);
+    test[[s64]](-0x02, s64::MAX);
+    test[[s64]](-0x12, s64::MAX);
+}
+################################################################################
+# 255
+# 127
+#
+# 65535
+# 32767
+#
+# 4294967295
+# 2147483647
+#
+# 18446744073709551615
+# 9223372036854775807
+#
+# 0xFF
+# 0xEF
+# 0x2
+# 0x12
+#
+# 0x7F
+# 0x6F
+# 0x7F
+# 0x6F
+#
+# 0xFFFFFFFFFFFFFFFF
+# 0xFFFFFFFFFFFFFFEF
+# 0x2
+# 0x12
+#
+# 0x7FFFFFFFFFFFFFFF
+# 0x7FFFFFFFFFFFFFEF
+# 0x7FFFFFFFFFFFFFFF
+# 0x7FFFFFFFFFFFFFEF

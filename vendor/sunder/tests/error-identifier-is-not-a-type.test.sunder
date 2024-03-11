@@ -1,0 +1,6 @@
+let foo: ssize = 1s;
+let bar: foo = 2s;
+################################################################################
+# [error-identifier-is-not-a-type.test.sunder:2] error: identifier `foo` is not a type
+# let bar: foo = 2s;
+#          ^

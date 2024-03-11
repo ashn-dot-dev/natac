@@ -1,0 +1,17 @@
+struct foo {
+    var x: usize;
+
+    func fn[[T]](self: *foo) usize {
+        return (:T)self.*.x;
+    }
+}
+
+func main() void {
+    var f: foo = (:foo){.x = 123};
+    f.x;
+    f.fn;
+}
+################################################################################
+# [error-expr-access-dot-member-template-as-value.test.sunder:12] error: attempted to take the value of member template `fn` on type `foo`
+#     f.fn;
+#      ^

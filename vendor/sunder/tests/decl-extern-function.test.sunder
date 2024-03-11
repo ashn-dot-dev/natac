@@ -1,0 +1,4 @@
+extern func foo() void;
+extern func foo() void; # duplicate extern declaration should be allowed
+
+func main() void { }

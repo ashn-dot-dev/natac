@@ -1,0 +1,41 @@
+import "std";
+
+struct point {
+    var x: u16;
+    var y: u16;
+
+    func init(x: u16, y: u16) point {
+        return (:point){.x = x, .y = y};
+    }
+}
+
+func main() void {
+    var num = s32::square(12);
+    assert num.is_even();
+
+    var p = point::init(0xAAAA, 0xBBBB);
+    assert p.x == 0xAAAA;
+    assert p.y == 0xBBBB;
+    p.zero();
+    assert p.x == 0;
+    assert p.y == 0;
+
+    assert u32::MIN == +0;
+    assert u32::MAX == +4294967295;
+    assert s32::MIN == -2147483648;
+    assert s32::MAX == +2147483647;
+}
+
+extend s32 func square(value: s32) s32 {
+    return value * value;
+}
+
+extend s32 func is_even(self: *s32) bool {
+    return *self & 1 == 0;
+}
+
+extend point func zero(self: *point) void {
+    *self = point::ZEROED;
+}
+
+extend point let ZEROED: point = (:point){.x = 0, .y = 0};

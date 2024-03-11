@@ -1,0 +1,49 @@
+import "std";
+
+func test(f: f32, fmt: []byte) void {
+    std::print_format_line(
+        std::out(),
+        fmt,
+        (:[]std::formatter)[std::formatter::init[[typeof(f)]](&f)]);
+}
+
+func main() void {
+    test(0.0, "{}");
+    test(+0.5, "{}");
+    test(-0.5, "{}");
+    test(+123.5, "{}");
+    test(-123.5, "{}");
+    test(f32::INFINITY, "{}");
+    test(+f32::INFINITY, "{}");
+    test(-f32::INFINITY, "{}");
+    test(f32::NAN, "{}");
+
+    test(0.0, "{.3}");
+    test(+0.5, "{.3}");
+    test(-0.5, "{.3}");
+    test(+123.5, "{.3}");
+    test(-123.5, "{.3}");
+    test(f32::INFINITY, "{.3}");
+    test(+f32::INFINITY, "{.3}");
+    test(-f32::INFINITY, "{.3}");
+    test(f32::NAN, "{.3}");
+}
+################################################################################
+# 0.0
+# 0.5
+# -0.5
+# 123.5
+# -123.5
+# infinity
+# infinity
+# -infinity
+# NaN
+# 0.000
+# 0.500
+# -0.500
+# 123.500
+# -123.500
+# infinity
+# infinity
+# -infinity
+# NaN

@@ -1,0 +1,45 @@
+import "std";
+
+let hello: []byte = "Hello, world!\n";
+let nul: []byte = ">\0<\n";
+let ht: []byte = ">\t<\n";
+let nl: []byte = ">\n<\n";
+let squote: []byte = ">\'<\n";
+let dquote: []byte = ">\"<\n";
+let bslash: []byte = ">\\<\n";
+
+func main() void {
+    std::print(std::out(), hello);
+
+    # A NUL byte \0 embedded in this source file as part of the expected output
+    # would create an invalid source encoding. Skip testing the NUL byte and
+    # assume that the global `nul` constant produced the correct bytes literal.
+    std::print(std::out(), ht);
+    std::print(std::out(), nl);
+    std::print(std::out(), squote);
+    std::print(std::out(), dquote);
+    std::print(std::out(), bslash);
+
+    std::print(std::out(), "foobar\n"[3u:7u]);
+
+    var b: []byte = "lorem ipsum dolor sit amet";
+    var c: []byte = "consectetur adipiscing elit";
+    assert b[1u] == c[1u]; # o
+
+    # Bytes literals can have their address taken.
+    var d: *[]byte = &"foobar";
+    std::print_line(std::out(), *d);
+    var e: *[]byte = &"foobar";
+    std::print_line(std::out(), *e);
+}
+################################################################################
+# Hello, world!
+# >	<
+# >
+# <
+# >'<
+# >"<
+# >\<
+# bar
+# foobar
+# foobar

@@ -1,0 +1,19 @@
+import "sys";
+
+func main() void {
+    sys::dump[[byte]]((:byte)1y);
+
+    var x = 1y;
+    sys::dump[[byte]]((:byte)x);
+    sys::dump[[byte]]((:byte)(:byte)x);
+
+    let y = true;
+    sys::dump[[byte]]((:byte)y);
+    sys::dump[[byte]]((:byte)(:byte)y);
+}
+################################################################################
+# 01
+# 01
+# 01
+# 01
+# 01

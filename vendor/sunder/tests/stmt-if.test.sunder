@@ -1,0 +1,110 @@
+import "sys";
+
+func main() void {
+    if true {
+        sys::dump[[usize]](0xAAu);
+    }
+
+    if false {
+        sys::dump[[usize]](0xBBu);
+    }
+
+    if true {
+        sys::dump[[usize]](0xAAu);
+    }
+    else {
+        sys::dump[[usize]](0xBBu);
+    }
+
+    if false {
+        sys::dump[[usize]](0xAAu);
+    }
+    else {
+        sys::dump[[usize]](0xBBu);
+    }
+
+    if true {
+        sys::dump[[usize]](0xAAu);
+    }
+    elif false {
+        sys::dump[[usize]](0xBBu);
+    }
+    elif false {
+        sys::dump[[usize]](0xCCu);
+    }
+    else {
+        sys::dump[[usize]](0xDDu);
+    }
+
+    if false {
+        sys::dump[[usize]](0xAAu);
+    }
+    elif true {
+        sys::dump[[usize]](0xBBu);
+    }
+    elif false {
+        sys::dump[[usize]](0xCCu);
+    }
+    else {
+        sys::dump[[usize]](0xDDu);
+    }
+
+    if false {
+        sys::dump[[usize]](0xAAu);
+    }
+    elif false {
+        sys::dump[[usize]](0xBBu);
+    }
+    elif true {
+        sys::dump[[usize]](0xCCu);
+    }
+    else {
+        sys::dump[[usize]](0xDDu);
+    }
+
+    if false {
+        sys::dump[[usize]](0xAAu);
+    }
+    elif false {
+        sys::dump[[usize]](0xBBu);
+    }
+    elif false {
+        sys::dump[[usize]](0xCCu);
+    }
+    else {
+        sys::dump[[usize]](0xDDu);
+    }
+
+    var b: bool = true;
+    if b {
+        sys::dump[[usize]](0xABu);
+    }
+
+    var x: usize = 123u;
+    if x == x {
+        sys::dump[[usize]](0xCDu);
+    }
+    if x != x {
+        sys::dump[[usize]](0xEFu);
+    }
+
+    if true {
+        if false {
+            sys::dump[[usize]](0x11u);
+        }
+        else {
+            sys::dump[[usize]](0x22u);
+        }
+    }
+}
+################################################################################
+# AA 00 00 00 00 00 00 00
+# AA 00 00 00 00 00 00 00
+# BB 00 00 00 00 00 00 00
+# AA 00 00 00 00 00 00 00
+# BB 00 00 00 00 00 00 00
+# CC 00 00 00 00 00 00 00
+# DD 00 00 00 00 00 00 00
+# AB 00 00 00 00 00 00 00
+# CD 00 00 00 00 00 00 00
+# 22 00 00 00 00 00 00 00

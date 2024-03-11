@@ -1,0 +1,55 @@
+import "std";
+import "sys";
+
+func main() void {
+    var vec = std::vector[[u32]]::init();
+    defer vec.fini();
+
+    sys::dump[[usize]](vec.count());
+    sys::dump[[usize]](vec.capacity());
+
+    vec.resize(0);
+    sys::dump[[usize]](vec.count());
+    sys::dump[[usize]](vec.capacity());
+
+    vec.resize(1);
+    sys::dump[[usize]](vec.count());
+    sys::dump[[usize]](vec.capacity());
+
+    vec.resize(0);
+    sys::dump[[usize]](vec.count());
+    sys::dump[[usize]](vec.capacity());
+
+    vec.resize(1);
+    sys::dump[[usize]](vec.count());
+    sys::dump[[usize]](vec.capacity());
+
+    vec.resize(2);
+    sys::dump[[usize]](vec.count());
+    sys::dump[[usize]](vec.capacity());
+
+    vec.resize(0xBEEF);
+    sys::dump[[usize]](vec.count());
+    sys::dump[[usize]](vec.capacity());
+
+    vec.resize(0);
+    sys::dump[[usize]](vec.count());
+    sys::dump[[usize]](vec.capacity());
+}
+################################################################################
+# 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# 01 00 00 00 00 00 00 00
+# 01 00 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# 01 00 00 00 00 00 00 00
+# 01 00 00 00 00 00 00 00
+# 01 00 00 00 00 00 00 00
+# 02 00 00 00 00 00 00 00
+# 02 00 00 00 00 00 00 00
+# EF BE 00 00 00 00 00 00
+# EF BE 00 00 00 00 00 00
+# 00 00 00 00 00 00 00 00
+# EF BE 00 00 00 00 00 00

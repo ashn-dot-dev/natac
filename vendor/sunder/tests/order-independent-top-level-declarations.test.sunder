@@ -1,0 +1,22 @@
+import "sys";
+
+let baz: ssize = bar + 1s;
+let foo: ssize = 1s;
+let bar: ssize = foo + 1s;
+
+func fn_a() void {
+    fn_b();
+}
+func fn_b() void {
+    fn_a();
+}
+
+func main() void {
+    sys::dump[[ssize]](foo);
+    sys::dump[[ssize]](bar);
+    sys::dump[[ssize]](baz);
+}
+################################################################################
+# 01 00 00 00 00 00 00 00
+# 02 00 00 00 00 00 00 00
+# 03 00 00 00 00 00 00 00
