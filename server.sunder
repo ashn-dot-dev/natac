@@ -1,6 +1,7 @@
 import "c";
 import "std";
 
+import "util.sunder";
 import "shared.sunder";
 
 struct connection {
@@ -1948,58 +1949,55 @@ func server_update(sstate: *server_state) void {
         sstate.*.change_turn(player::RED);
     }
 
-    # The state of the board changes relatively infrequently, so it is not
-    # necessary to serialize and send the entire board state every game tick.
-    if sstate.*.ticks % 4 == 0 {
-        var r = (:public_player_info){
-            .live = sstate.*.r_live,
-            .victory_points = sstate.*.public_victory_points(player::RED),
-            .resources = sstate.*.r_info.resource_count(),
-            .dev_cards = (:sint)sstate.*.r_info.dev_card_count,
-            .discarded = sstate.*.r_discarded,
-            .trade_submitted = sstate.*.r_trade_submitted,
-        };
-        var b = (:public_player_info){
-            .live = sstate.*.b_live,
-            .victory_points = sstate.*.public_victory_points(player::BLUE),
-            .resources = sstate.*.b_info.resource_count(),
-            .dev_cards = (:sint)sstate.*.b_info.dev_card_count,
-            .discarded = sstate.*.b_discarded,
-            .trade_submitted = sstate.*.b_trade_submitted,
-        };
-        var w = (:public_player_info){
-            .live = sstate.*.w_live,
-            .victory_points = sstate.*.public_victory_points(player::WHITE),
-            .resources = sstate.*.w_info.resource_count(),
-            .dev_cards = (:sint)sstate.*.w_info.dev_card_count,
-            .discarded = sstate.*.w_discarded,
-            .trade_submitted = sstate.*.w_trade_submitted,
-        };
-        var o = (:public_player_info){
-            .live = sstate.*.o_live,
-            .victory_points = sstate.*.public_victory_points(player::ORANGE),
-            .resources = sstate.*.o_info.resource_count(),
-            .dev_cards = (:sint)sstate.*.o_info.dev_card_count,
-            .discarded = sstate.*.o_discarded,
-            .trade_submitted = sstate.*.o_trade_submitted,
-        };
-        sstate.*.sendc_all(server_message::init_state(
-            &sstate.*.board,
-            sstate.*.turn,
-            sstate.*.trade,
-            r,
-            b,
-            w,
-            o));
+    var r = (:public_player_info){
+        .live = sstate.*.r_live,
+        .victory_points = sstate.*.public_victory_points(player::RED),
+        .resources = sstate.*.r_info.resource_count(),
+        .dev_cards = (:sint)sstate.*.r_info.dev_card_count,
+        .discarded = sstate.*.r_discarded,
+        .trade_submitted = sstate.*.r_trade_submitted,
+    };
+    var b = (:public_player_info){
+        .live = sstate.*.b_live,
+        .victory_points = sstate.*.public_victory_points(player::BLUE),
+        .resources = sstate.*.b_info.resource_count(),
+        .dev_cards = (:sint)sstate.*.b_info.dev_card_count,
+        .discarded = sstate.*.b_discarded,
+        .trade_submitted = sstate.*.b_trade_submitted,
+    };
+    var w = (:public_player_info){
+        .live = sstate.*.w_live,
+        .victory_points = sstate.*.public_victory_points(player::WHITE),
+        .resources = sstate.*.w_info.resource_count(),
+        .dev_cards = (:sint)sstate.*.w_info.dev_card_count,
+        .discarded = sstate.*.w_discarded,
+        .trade_submitted = sstate.*.w_trade_submitted,
+    };
+    var o = (:public_player_info){
+        .live = sstate.*.o_live,
+        .victory_points = sstate.*.public_victory_points(player::ORANGE),
+        .resources = sstate.*.o_info.resource_count(),
+        .dev_cards = (:sint)sstate.*.o_info.dev_card_count,
+        .discarded = sstate.*.o_discarded,
+        .trade_submitted = sstate.*.o_trade_submitted,
+    };
+    sstate.*.sendc_all(server_message::init_state(
+        &sstate.*.board,
+        sstate.*.turn,
+        sstate.*.trade,
+        r,
+        b,
+        w,
+        o));
 
-        for i in sstate.*.connections.count() {
-            if sstate.*.connections.data()[i].player == player::NIL {
-                continue;
-            }
-            var info = sstate.*.p_info(sstate.*.connections.data()[i].player);
-            sstate.*.connections.data()[i].sendc(server_message::init_info(*info));
+    for i in sstate.*.connections.count() {
+        if sstate.*.connections.data()[i].player == player::NIL {
+            continue;
         }
+        var info = sstate.*.p_info(sstate.*.connections.data()[i].player);
+        sstate.*.connections.data()[i].sendc(server_message::init_info(*info));
     }
 
     sstate.*.ticks +%= 1;
+    sleep_sec(1.0);
 }
