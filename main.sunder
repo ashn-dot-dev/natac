@@ -168,6 +168,7 @@ func run_local(debug: bool, fullscreen: bool) void {
     var cstate = client_state::init();
     defer cstate.fini();
     cstate.debug = debug;
+    cstate.connected = true;
 
     var smessage_sender = (:local_server_message_sender){
         .client = &cstate,
@@ -232,11 +233,13 @@ func run_client(debug: bool, fullscreen: bool, address: *byte) void {
 
             if ev == NBN_CONNECTED {
                 std::print_line(std::err(), "info: connected to server");
+                cstate.connected = true;
                 client_message_sender.connected = true;
             }
 
             if ev == NBN_DISCONNECTED {
                 std::print_line(std::err(), "info: disconnected from server");
+                cstate.connected = false;
                 client_message_sender.connected = false;
                 if NBN_GameClient_GetServerCloseCode() == BUSY_CODE {
                     std::print_line(std::err(), "error: server sent busy code");

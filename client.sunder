@@ -552,6 +552,7 @@ func camera(radius: f32) Camera2D {
 
 struct client_state {
     var debug: bool;
+    var connected: bool;
 
     var font: Font;
     var font_size: f32;
@@ -623,6 +624,7 @@ struct client_state {
 
         return (:client_state){
             .debug = false,
+            .connected = false,
 
             .font = font,
             .font_size = font_size,
@@ -955,6 +957,10 @@ func ui_window_play_dev_card_monopoly(cstate: *client_state, sender: *message_se
 }
 
 func client_update(cstate: *client_state, sender: *message_sender[[client_message]]) void {
+    if not cstate.*.connected {
+        return;
+    }
+
     # Collect basic information about the state of the window/camera, position
     # of the mouse in screen space & world space, and objects that the mouse is
     # currently hovering over.
@@ -1797,6 +1803,19 @@ func client_render(cstate: *client_state) void {
     var screen_w = screen_w();
     var screen_h = screen_h();
     var camera = camera(HEX_RADIUS);
+
+    if not cstate.*.connected {
+        var text = "Connecting...";
+        var size = measure_text(cstate.*.font, cstate.*.font_size, text);
+        var position = (:Vector2){
+            .x = screen_w / 2.0 - size.x / 2.0,
+            .y = screen_h / 2.0 - size.y / 2.0,
+        };
+        draw_text(cstate.*.font, cstate.*.font_size, BLACK, position, text);
+
+        EndDrawing();
+        return;
+    }
 
     BeginMode2D(camera);
 
