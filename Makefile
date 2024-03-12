@@ -61,5 +61,5 @@ build: .sunder .sunder/lib/bubby .sunder/lib/nbnet .sunder/lib/raylib .sunder/li
 	$(MAKE) -e -C vendor/smolui install
 
 clean:
-	rm -f $(TARGET) *.o *.c
+	rm -f $(TARGET) *.tmp.o *.tmp.c
 	rm -rf $(SUNDER_HOME)
