@@ -8,14 +8,27 @@ struct connection {
     var player: player;
     var sender: message_sender[[server_message]];
 
-    # Send a server message to the connection.
+    # Send a reliable server message to the connection.
     func send(self: *connection, message: *server_message) void {
         self.*.sender.send(message);
     }
 
-    # Send a server message to the connection, then consume the message.
+    # Send an unreliable server message to the connection.
+    func send_unreliable(self: *connection, message: *server_message) void {
+        self.*.sender.send_unreliable(message);
+    }
+
+    # Send a reliable server message to the connection, then consume the
+    # message.
     func sendc(self: *connection, message: server_message) void {
         self.*.sender.send(&message);
+        message.fini();
+    }
+
+    # Send an unreliable server message to the connection, then consume the
+    # message.
+    func sendc_unreliable(self: *connection, message: server_message) void {
+        self.*.sender.send_unreliable(&message);
         message.fini();
     }
 }
@@ -52,7 +65,6 @@ struct server_state {
     var winner: player;
 
     func init() server_state {
-        # TODO: Perform Fisher–Yates shuffle on the dev card stack.
         var dev_cards = std::vector[[dev_card]]::init();
         # x14 Knight
         for _ in 14 {
@@ -74,6 +86,7 @@ struct server_state {
         for _ in 2 {
             dev_cards.push(dev_card::VICTORY_POINT);
         }
+        shuffle[[dev_card]](dev_cards.data());
 
         return (:server_state){
             .connections = std::vector[[connection]]::init(),
@@ -111,16 +124,31 @@ struct server_state {
         self.*.dev_cards.fini();
     }
 
-    # Send a server message to all connections.
+    # Send a reliable server message to all connections.
     func send_all(self: *server_state, message: *server_message) void {
         for i in self.*.connections.count() {
             self.*.connections.data()[i].send(message);
         }
     }
 
-    # Send a server message to all connections, then consume the message.
+    # Send an unreliable server message to all connections.
+    func send_all_unreliable(self: *server_state, message: *server_message) void {
+        for i in self.*.connections.count() {
+            self.*.connections.data()[i].send_unreliable(message);
+        }
+    }
+
+    # Send a reliable server message to all connections, then consume the
+    # message.
     func sendc_all(self: *server_state, message: server_message) void {
         self.*.send_all(&message);
+        message.fini();
+    }
+
+    # Send an unreliable server message to all connections, then consume the
+    # message.
+    func sendc_all_unreliable(self: *server_state, message: server_message) void {
+        self.*.send_all_unreliable(&message);
         message.fini();
     }
 
@@ -346,11 +374,11 @@ struct server_state {
 
     func process_roll(self: *server_state, connection: *connection) void {
         if self.*.turn.player != connection.*.player {
-            connection.*.sendc(server_message::init_rejected("cannot roll dice (it is not your turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot roll dice (it is not your turn)."));
             return;
         }
         if self.*.turn.phase != phase::RESOURCE_PRODUCTION {
-            connection.*.sendc(server_message::init_rejected("cannot roll dice (it is not the resource production phase)"));
+            connection.*.sendc(server_message::init_rejected("Cannot roll dice (it is not the resource production phase)."));
             return;
         }
 
@@ -360,12 +388,6 @@ struct server_state {
         self.*.board.d6_a = roll_a;
         self.*.board.d6_b = roll_b;
 
-        connection.*.sendc(server_message::init_accepted_format(
-            "rolled {} + {} = {}",
-            (:[]std::formatter)[
-                std::formatter::init[[typeof(roll_a)]](&roll_a),
-                std::formatter::init[[typeof(roll_b)]](&roll_b),
-                std::formatter::init[[typeof(roll)]](&roll)]));
         var name = player_to_name(connection.*.player);
         self.*.sendc_all(server_message::init_log_format(
             "{} rolled {} + {} = {}.",
@@ -431,15 +453,14 @@ struct server_state {
 
     func process_end_turn(self: *server_state, connection: *connection) void {
         if self.*.turn.player != connection.*.player {
-            connection.*.sendc(server_message::init_rejected("cannot end turn (it is not your turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot end turn (it is not your turn)."));
             return;
         }
         if self.*.turn.phase != phase::MAIN {
-            connection.*.sendc(server_message::init_rejected("cannot end turn (it is not the main phase)"));
+            connection.*.sendc(server_message::init_rejected("Cannot end turn (it is not the main phase)."));
             return;
         }
 
-        connection.*.sendc(server_message::init_accepted("ended turn"));
         var name = player_to_name(connection.*.player);
         self.*.sendc_all(server_message::init_log_format(
             "{} ended their turn.",
@@ -478,15 +499,15 @@ struct server_state {
 
     func process_build_road(self: *server_state, connection: *connection, road: road) void {
         if self.*.turn.player != connection.*.player {
-            connection.*.sendc(server_message::init_rejected("cannot build road (it is not your turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot build road (it is not your turn)."));
             return;
         }
         if self.*.turn.player != road.player {
-            connection.*.sendc(server_message::init_rejected("cannot build road (it is not your road)"));
+            connection.*.sendc(server_message::init_rejected("Cannot build road (it is not your road)."));
             return;
         }
         if self.*.turn.phase != phase::MAIN and self.*.turn.phase != phase::ROAD_BUILDING_1 and self.*.turn.phase != phase::ROAD_BUILDING_2 {
-            connection.*.sendc(server_message::init_rejected("cannot build road (invalid phase)"));
+            connection.*.sendc(server_message::init_rejected("Cannot build road (invalid phase)."));
             return;
         }
 
@@ -496,13 +517,13 @@ struct server_state {
             tile_a.value().*.kind == tile::OCEAN and
             tile_b.value().*.kind == tile::OCEAN;
         if is_road_across_water {
-            connection.*.sendc(server_message::init_rejected("cannot build road (cannot build on water)"));
+            connection.*.sendc(server_message::init_rejected("Cannot build road (cannot build on water)."));
             return;
         }
 
         var existing = self.*.board.roads.lookup(road.edge);
         if existing.is_value() {
-            connection.*.sendc(server_message::init_rejected("cannot build road (road exists at location)"));
+            connection.*.sendc(server_message::init_rejected("Cannot build road (road exists at location)."));
             return;
         }
 
@@ -539,7 +560,7 @@ struct server_state {
             adjacent_towns.insert(*adjacent);
         }
         if adjacent_roads.count() == 0 and adjacent_towns.count() == 0 {
-            connection.*.sendc(server_message::init_rejected("cannot build road (no adjacent road or town)"));
+            connection.*.sendc(server_message::init_rejected("Cannot build road (no adjacent road or town)."));
             return;
         }
 
@@ -570,7 +591,7 @@ struct server_state {
             }
         }
         if adjacent_towns.count() == 0 and unobstructed_road_count == 0 {
-            connection.*.sendc(server_message::init_rejected("cannot build road (road is obstructed by town)"));
+            connection.*.sendc(server_message::init_rejected("Cannot build road (road is obstructed by town)."));
             return;
         }
 
@@ -582,14 +603,14 @@ struct server_state {
             }
         }
         if player_road_count >= 15 {
-            connection.*.sendc(server_message::init_rejected("cannot build road (all roads placed)"));
+            connection.*.sendc(server_message::init_rejected("Cannot build road (all roads placed)."));
             return;
         }
 
         var info = self.*.p_info(self.*.turn.player);
         if self.*.turn.phase == phase::MAIN {
             if not (info.*.brick >= 1 and info.*.wood >= 1) {
-                connection.*.sendc(server_message::init_rejected("cannot build road (insufficient resources)"));
+                connection.*.sendc(server_message::init_rejected("Cannot build road (insufficient resources)."));
                 return;
             }
 
@@ -598,7 +619,6 @@ struct server_state {
         }
         insert_road(&self.*.board.roads, road);
 
-        connection.*.sendc(server_message::init_accepted("built road"));
         var name = player_to_name(self.*.turn.player);
         self.*.sendc_all(server_message::init_log_format(
             "{} built a road.",
@@ -616,15 +636,15 @@ struct server_state {
 
     func process_build_town(self: *server_state, connection: *connection, town: town) void {
         if self.*.turn.player != connection.*.player {
-            connection.*.sendc(server_message::init_rejected("cannot build town (it is not your turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot build town (it is not your turn)."));
             return;
         }
         if self.*.turn.player != town.player {
-            connection.*.sendc(server_message::init_rejected("cannot build town (it is not your town)"));
+            connection.*.sendc(server_message::init_rejected("Cannot build town (it is not your town)."));
             return;
         }
         if self.*.turn.phase != phase::MAIN {
-            connection.*.sendc(server_message::init_rejected("cannot build town (it is not the main phase)"));
+            connection.*.sendc(server_message::init_rejected("Cannot build town (it is not the main phase)."));
             return;
         }
 
@@ -633,7 +653,7 @@ struct server_state {
             var existing = existing.value();
             # Special case for upgrading a settlement to a city.
             if not (existing.*.player == town.player and existing.*.kind == ::town::SETTLEMENT and town.kind == ::town::CITY) {
-                connection.*.sendc(server_message::init_rejected("cannot build town (town exists at location)"));
+                connection.*.sendc(server_message::init_rejected("Cannot build town (town exists at location)."));
                 return;
             }
         }
@@ -648,7 +668,7 @@ struct server_state {
             }
         }
         if adjacent_town_count != 0 {
-            connection.*.sendc(server_message::init_rejected("cannot build town (adjacent town)"));
+            connection.*.sendc(server_message::init_rejected("Cannot build town (adjacent town)."));
             return;
         }
 
@@ -669,7 +689,7 @@ struct server_state {
             is_road_adjacent = true;
         }
         if not is_road_adjacent {
-            connection.*.sendc(server_message::init_rejected("cannot build town (no adjacent road)"));
+            connection.*.sendc(server_message::init_rejected("Cannot build town (no adjacent road)."));
             return;
         }
 
@@ -681,11 +701,11 @@ struct server_state {
             }
         }
         if town.kind == ::town::SETTLEMENT and player_town_count >= 5 {
-            connection.*.sendc(server_message::init_rejected("cannot build town (all settlements placed)"));
+            connection.*.sendc(server_message::init_rejected("Cannot build town (all settlements placed)."));
             return;
         }
         if town.kind == ::town::CITY and player_town_count >= 4 {
-            connection.*.sendc(server_message::init_rejected("cannot build town (all cities placed)"));
+            connection.*.sendc(server_message::init_rejected("Cannot build town (all cities placed)."));
             return;
         }
 
@@ -693,7 +713,7 @@ struct server_state {
         switch town.kind {
         ::town::SETTLEMENT {
             if not (info.*.brick >= 1 and info.*.sheep >= 1 and info.*.wheat >= 1 and info.*.wood >= 1) {
-                connection.*.sendc(server_message::init_rejected("cannot build settlement (insufficient resources)"));
+                connection.*.sendc(server_message::init_rejected("Cannot build settlement (insufficient resources)."));
                 return;
             }
             info.*.brick -= 1;
@@ -703,7 +723,7 @@ struct server_state {
         }
         ::town::CITY {
             if not (info.*.ore >= 3 and info.*.wheat >= 2) {
-                connection.*.sendc(server_message::init_rejected("cannot build city (insufficient resources)"));
+                connection.*.sendc(server_message::init_rejected("Cannot build city (insufficient resources)."));
                 return;
             }
             info.*.ore -= 3;
@@ -712,7 +732,6 @@ struct server_state {
         }
         insert_town(&self.*.board.towns, town);
 
-        connection.*.sendc(server_message::init_accepted("built town"));
         var name = player_to_name(self.*.turn.player);
         var kind = "settlement";
         if town.kind == ::town::CITY {
@@ -727,22 +746,22 @@ struct server_state {
 
     func process_buy_dev_card(self: *server_state, connection: *connection) void {
         if self.*.turn.player != connection.*.player {
-            connection.*.sendc(server_message::init_rejected("cannot buy development card (it is not your turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot buy development card (it is not your turn)."));
             return;
         }
         if self.*.turn.phase != phase::MAIN {
-            connection.*.sendc(server_message::init_rejected("cannot buy development card (it is not the main phase)"));
+            connection.*.sendc(server_message::init_rejected("Cannot buy development card (it is not the main phase)."));
             return;
         }
 
         if self.*.dev_cards.count() == 0 {
-            connection.*.sendc(server_message::init_rejected("cannot buy development card (no development cards remaining)"));
+            connection.*.sendc(server_message::init_rejected("Cannot buy development card (no development cards remaining)."));
             return;
         }
 
         var info = self.*.p_info(self.*.turn.player);
         if not (info.*.ore >= 1 and info.*.sheep >= 1 and info.*.wheat >= 1) {
-            connection.*.sendc(server_message::init_rejected("cannot buy development card (insufficient resources)"));
+            connection.*.sendc(server_message::init_rejected("Cannot buy development card (insufficient resources)."));
             return;
         }
         info.*.ore -= 1;
@@ -756,7 +775,6 @@ struct server_state {
         };
         info.*.dev_card_count += 1;
 
-        connection.*.sendc(server_message::init_accepted("bought development card"));
         var name = player_to_name(self.*.turn.player);
         self.*.sendc_all(server_message::init_log_format(
             "{} bought a development card.",
@@ -766,15 +784,15 @@ struct server_state {
 
     func process_use_dev_card_knight(self: *server_state, connection: *connection) void {
         if self.*.turn.player != connection.*.player {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (it is not your turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (it is not your turn)."));
             return;
         }
         if self.*.turn.phase != phase::RESOURCE_PRODUCTION and self.*.turn.phase != phase::MAIN {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (invalid phase)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (invalid phase)."));
             return;
         }
         if self.*.prev_phase.is_value() {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (development card has already been played this turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (development card has already been played this turn)."));
             return;
         }
 
@@ -793,7 +811,7 @@ struct server_state {
             card = &info.*.dev_card_array[i];
         }
         if card == std::ptr[[purchased_dev_card]]::NULL {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (no valid knight)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (no valid knight)."));
             return;
         }
 
@@ -871,15 +889,15 @@ struct server_state {
 
     func process_use_dev_card_road_building(self: *server_state, connection: *connection) void {
         if self.*.turn.player != connection.*.player {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (it is not your turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (it is not your turn)."));
             return;
         }
         if self.*.turn.phase != phase::RESOURCE_PRODUCTION and self.*.turn.phase != phase::MAIN {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (invalid phase)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (invalid phase)."));
             return;
         }
         if self.*.prev_phase.is_value() {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (development card has already been played this turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (development card has already been played this turn)."));
             return;
         }
 
@@ -898,7 +916,7 @@ struct server_state {
             card = &info.*.dev_card_array[i];
         }
         if card == std::ptr[[purchased_dev_card]]::NULL {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (no valid road building)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (no valid road building)."));
             return;
         }
 
@@ -915,15 +933,15 @@ struct server_state {
 
     func process_use_dev_card_year_of_plenty(self: *server_state, connection: *connection, resources: resources) void {
         if self.*.turn.player != connection.*.player {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (it is not your turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (it is not your turn)."));
             return;
         }
         if self.*.turn.phase != phase::RESOURCE_PRODUCTION and self.*.turn.phase != phase::MAIN {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (invalid phase)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (invalid phase)."));
             return;
         }
         if self.*.prev_phase.is_value() {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (development card has already been played this turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (development card has already been played this turn)."));
             return;
         }
 
@@ -942,12 +960,12 @@ struct server_state {
             card = &info.*.dev_card_array[i];
         }
         if card == std::ptr[[purchased_dev_card]]::NULL {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (no valid year of plenty)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (no valid year of plenty)."));
             return;
         }
 
         if resources.count() != 2 {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (invalid resources)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (invalid resources)."));
             return;
         }
         info.*.brick += resources.brick;
@@ -1004,15 +1022,15 @@ struct server_state {
 
     func process_use_dev_card_monopoly(self: *server_state, connection: *connection, resource: resource) void {
         if self.*.turn.player != connection.*.player {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (it is not your turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (it is not your turn)."));
             return;
         }
         if self.*.turn.phase != phase::RESOURCE_PRODUCTION and self.*.turn.phase != phase::MAIN {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (invalid phase)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (invalid phase)."));
             return;
         }
         if self.*.prev_phase.is_value() {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (development card has already been played this turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (development card has already been played this turn)."));
             return;
         }
 
@@ -1031,7 +1049,7 @@ struct server_state {
             card = &info.*.dev_card_array[i];
         }
         if card == std::ptr[[purchased_dev_card]]::NULL {
-            connection.*.sendc(server_message::init_rejected("cannot use development card (no valid monopoly)"));
+            connection.*.sendc(server_message::init_rejected("Cannot use development card (no valid monopoly)."));
             return;
         }
 
@@ -1112,7 +1130,7 @@ struct server_state {
         }
 
         var ref = self.*.p_info(self.*.turn.player).*.resource_ref(resource);
-        var name = player_to_name(player::ORANGE);
+        var name = player_to_name(self.*.turn.player);
         self.*.sendc_all(server_message::init_log_format(
             "{} gained {} {}.",
             (:[]std::formatter)[
@@ -1128,33 +1146,32 @@ struct server_state {
 
     func process_move_robber(self: *server_state, connection: *connection, hex: hex) void {
         if self.*.turn.player != connection.*.player {
-            connection.*.sendc(server_message::init_rejected("cannot move robber (it is not your turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot move robber (it is not your turn)."));
             return;
         }
         if self.*.turn.phase != phase::ROBBER {
-            connection.*.sendc(server_message::init_rejected("cannot move robber (it is not the robber phase)"));
+            connection.*.sendc(server_message::init_rejected("Cannot move robber (it is not the robber phase)."));
             return;
         }
 
         if std::eq[[::hex]](&hex, &self.*.board.robber) {
-            connection.*.sendc(server_message::init_rejected("cannot move robber (robber already at location)"));
+            connection.*.sendc(server_message::init_rejected("Cannot move robber (robber already at location)."));
             return;
         }
 
         var tile = self.*.board.tiles.lookup(hex);
         if tile.is_empty() {
-            connection.*.sendc(server_message::init_rejected("cannot move robber (invalid location)"));
+            connection.*.sendc(server_message::init_rejected("Cannot move robber (invalid location)."));
             return;
         }
 
         var tile = tile.value();
         if tile.*.kind == ::tile::OCEAN {
-            connection.*.sendc(server_message::init_rejected("cannot move robber (tile is ocean)"));
+            connection.*.sendc(server_message::init_rejected("Cannot move robber (tile is ocean)."));
             return;
         }
 
         self.*.board.robber = hex;
-        connection.*.sendc(server_message::init_accepted("moved robber"));
         var name = player_to_name(self.*.turn.player);
         self.*.sendc_all(server_message::init_log_format(
             "{} moved the robber.",
@@ -1189,7 +1206,7 @@ struct server_state {
 
     func process_select_player(self: *server_state, connection: *connection, selected: player) void {
         if connection.*.player == selected {
-            connection.*.sendc(server_message::init_rejected("cannot select player (you are already that player)"));
+            connection.*.sendc(server_message::init_rejected("Cannot select player (you are already that player)."));
             return;
         }
 
@@ -1200,7 +1217,7 @@ struct server_state {
             if self.*.connections.data()[i].player != selected {
                 continue;
             }
-            connection.*.sendc(server_message::init_rejected("cannot select player (someone else is already that player)"));
+            connection.*.sendc(server_message::init_rejected("Cannot select player (someone else is already that player)."));
             return;
         }
 
@@ -1209,7 +1226,7 @@ struct server_state {
                 self.*.turn.number == 1 and
                 self.*.turn.phase == phase::RESOURCE_PRODUCTION;
             if not start_of_game {
-                connection.*.sendc(server_message::init_rejected("cannot select player (player is not part of the game)"));
+                connection.*.sendc(server_message::init_rejected("Cannot select player (player is not part of the game)."));
                 return;
             }
 
@@ -1388,10 +1405,6 @@ struct server_state {
         }
 
         var name = player_to_name(selected);
-        connection.*.sendc(server_message::init_accepted_format(
-            "selected player {}",
-            (:[]std::formatter)[
-                std::formatter::init[[typeof(name)]](&name)]));
         connection.*.sendc(server_message::init_player(selected));
 
         self.*.sendc_all(server_message::init_log_format(
@@ -1403,15 +1416,15 @@ struct server_state {
 
     func process_submit_player(self: *server_state, connection: *connection, player: player) void {
         if self.*.turn.player != connection.*.player {
-            connection.*.sendc(server_message::init_rejected("cannot submit player (it is not your turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot submit player (it is not your turn)."));
             return;
         }
         if self.*.turn.phase != phase::STEAL {
-            connection.*.sendc(server_message::init_rejected("cannot submit player (it is not the steal phase)"));
+            connection.*.sendc(server_message::init_rejected("Cannot submit player (it is not the steal phase)."));
             return;
         }
         if self.*.turn.player == player {
-            connection.*.sendc(server_message::init_rejected("cannot submit player (you cannot steal from yourself)"));
+            connection.*.sendc(server_message::init_rejected("Cannot submit player (you cannot steal from yourself)."));
             return;
         }
 
@@ -1492,12 +1505,6 @@ struct server_state {
         }
         }
 
-        var r = r.data();
-        connection.*.sendc(server_message::init_accepted_format(
-            "stole {} from {}",
-            (:[]std::formatter)[
-                std::formatter::init[[typeof(r)]](&r),
-                std::formatter::init[[typeof(f_name)]](&f_name)]));
         self.*.sendc_all(server_message::init_log_format(
             "{} stole from {}.",
             (:[]std::formatter)[
@@ -1514,21 +1521,21 @@ struct server_state {
 
     func process_submit_resources(self: *server_state, connection: *connection, resources: resources) void {
         if self.*.turn.phase != phase::DISCARD {
-            connection.*.sendc(server_message::init_rejected("cannot discard resources (it is not the discard phase)"));
+            connection.*.sendc(server_message::init_rejected("Cannot discard resources (it is not the discard phase)."));
             return;
         }
         var discarded = self.*.p_discarded(connection.*.player);
         if *discarded {
-            connection.*.sendc(server_message::init_rejected("cannot discard resources (player has already discarded)"));
+            connection.*.sendc(server_message::init_rejected("Cannot discard resources (player has already discarded)."));
             return;
         }
         var info = self.*.p_info(connection.*.player);
         if info.*.resource_count() <= 7 {
-            connection.*.sendc(server_message::init_rejected("cannot discard resources (player has seven or fewer resources)"));
+            connection.*.sendc(server_message::init_rejected("Cannot discard resources (player has seven or fewer resources)."));
             return;
         }
         if info.*.resource_count() / 2 != resources.count() {
-            connection.*.sendc(server_message::init_rejected("cannot discard resources (player must discard exactly half of their resources rounded down)"));
+            connection.*.sendc(server_message::init_rejected("Cannot discard resources (player must discard exactly half of their resources rounded down)."));
             return;
         }
         if info.*.brick < resources.brick
@@ -1536,7 +1543,7 @@ struct server_state {
         or info.*.sheep < resources.sheep
         or info.*.wheat < resources.wheat
         or info.*.wood < resources.wood {
-            connection.*.sendc(server_message::init_rejected("cannot discard resources (invalid resource selection)"));
+            connection.*.sendc(server_message::init_rejected("Cannot discard resources (invalid resource selection)."));
             return;
         }
         info.*.brick -= resources.brick;
@@ -1546,12 +1553,10 @@ struct server_state {
         info.*.wood -= resources.wood;
         *discarded = true;
 
-        connection.*.sendc(server_message::init_accepted("discarded resources"));
-
-        if (self.*.r_live and self.*.r_discarded)
-        and (self.*.b_live and self.*.b_discarded)
-        and (self.*.w_live and self.*.w_discarded)
-        and (self.*.o_live and self.*.o_discarded) {
+        if (not self.*.r_live or self.*.r_discarded)
+        and (not self.*.b_live or self.*.b_discarded)
+        and (not self.*.w_live or self.*.w_discarded)
+        and (not self.*.o_live or self.*.o_discarded) {
             var name = player_to_name(self.*.turn.player);
             self.*.sendc_all(server_message::init_log_format(
                 "Waiting for {} to move the robber.",
@@ -1567,28 +1572,28 @@ struct server_state {
 
     func process_trade_n_for_1(self: *server_state, connection: *connection, trade_n_for_1: typeof(client_message::SELF.data.trade_n_for_1)) void {
         if self.*.turn.player != connection.*.player {
-            connection.*.sendc(server_message::init_rejected("cannot trade with the bank (it is not your turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot trade with the bank (it is not your turn)."));
             return;
         }
         if self.*.turn.phase != phase::MAIN {
-            connection.*.sendc(server_message::init_rejected("cannot trade with the bank (it is not the main phase)"));
+            connection.*.sendc(server_message::init_rejected("Cannot trade with the bank (it is not the main phase)."));
             return;
         }
 
         var n_to_1 = n_to_1(&self.*.board, self.*.turn.player, trade_n_for_1.recv);
         if trade_n_for_1.n != n_to_1 {
-            connection.*.sendc(server_message::init_rejected("cannot trade with the bank (invalid n:1 trade)"));
+            connection.*.sendc(server_message::init_rejected("Cannot trade with the bank (invalid n:1 trade)."));
             return;
         }
 
         if trade_n_for_1.n != n_to_1 {
-            connection.*.sendc(server_message::init_rejected("cannot trade with the bank (invalid n:1 trade)"));
+            connection.*.sendc(server_message::init_rejected("Cannot trade with the bank (invalid n:1 trade)."));
             return;
         }
 
         var ref = self.*.p_info(self.*.turn.player).*.resource_ref(trade_n_for_1.give);
         if *ref < trade_n_for_1.n {
-            connection.*.sendc(server_message::init_rejected("cannot trade with the bank (insufficient resources)"));
+            connection.*.sendc(server_message::init_rejected("Cannot trade with the bank (insufficient resources)."));
             return;
         }
 
@@ -1596,7 +1601,6 @@ struct server_state {
         var ref = self.*.p_info(self.*.turn.player).*.resource_ref(trade_n_for_1.recv);
         *ref += 1;
 
-        connection.*.sendc(server_message::init_accepted("trade complete"));
         var name = player_to_name(connection.*.player);
         var give = trade_n_for_1.give.data();
         var recv = trade_n_for_1.recv.data();
@@ -1612,20 +1616,20 @@ struct server_state {
 
     func process_trade_players(self: *server_state, connection: *connection, trade: trade) void {
         if self.*.turn.player != connection.*.player {
-            connection.*.sendc(server_message::init_rejected("cannot trade with players (it is not your turn)"));
+            connection.*.sendc(server_message::init_rejected("Cannot trade with players (it is not your turn)."));
             return;
         }
         if self.*.turn.phase != phase::MAIN {
-            connection.*.sendc(server_message::init_rejected("cannot trade with players (it is not the main phase)"));
+            connection.*.sendc(server_message::init_rejected("Cannot trade with players (it is not the main phase)."));
             return;
         }
 
         if trade.give.count() == 0 {
-            connection.*.sendc(server_message::init_rejected("cannot trade with players (cannot give zero resources)"));
+            connection.*.sendc(server_message::init_rejected("Cannot trade with players (cannot give zero resources)."));
             return;
         }
         if trade.recv.count() == 0 {
-            connection.*.sendc(server_message::init_rejected("cannot trade with players (cannot receive zero resources)"));
+            connection.*.sendc(server_message::init_rejected("Cannot trade with players (cannot receive zero resources)."));
             return;
         }
 
@@ -1635,7 +1639,7 @@ struct server_state {
         or giver.*.sheep < trade.give.sheep
         or giver.*.wheat < trade.give.wheat
         or giver.*.wood < trade.give.wood {
-            connection.*.sendc(server_message::init_rejected("cannot trade with players (insufficient resources)"));
+            connection.*.sendc(server_message::init_rejected("Cannot trade with players (insufficient resources)."));
             return;
         }
 
@@ -1651,23 +1655,22 @@ struct server_state {
         self.*.p_trade_submitted(connection.*.player).* = true;
         self.*.trade = trade;
         self.*.turn.phase = phase::TRADE;
-        connection.*.sendc(server_message::init_accepted("trade proposed"));
     }
 
     func process_trade_accept(self: *server_state, connection: *connection, trade: trade) void {
         if self.*.turn.phase != phase::TRADE {
-            connection.*.sendc(server_message::init_rejected("cannot accept trade (it is not the trade phase)"));
+            connection.*.sendc(server_message::init_rejected("Cannot accept trade (it is not the trade phase)."));
             return;
         }
 
         if std::ne[[::trade]](&self.*.trade, &trade) {
-            connection.*.sendc(server_message::init_rejected("cannot accept trade (mismatched trade)"));
+            connection.*.sendc(server_message::init_rejected("Cannot accept trade (mismatched trade)."));
             return;
         }
 
         var submitted = self.*.p_trade_submitted(connection.*.player);
         if *submitted {
-            connection.*.sendc(server_message::init_rejected("cannot accept trade (already submitted)"));
+            connection.*.sendc(server_message::init_rejected("Cannot accept trade (already submitted)."));
             return;
         }
 
@@ -1678,7 +1681,7 @@ struct server_state {
         or recvr.*.sheep < trade.recv.sheep
         or recvr.*.wheat < trade.recv.wheat
         or recvr.*.wood < trade.recv.wood {
-            connection.*.sendc(server_message::init_rejected("cannot accept trade (insufficient resources)"));
+            connection.*.sendc(server_message::init_rejected("Cannot accept trade (insufficient resources)."));
             return;
         }
 
@@ -1709,29 +1712,27 @@ struct server_state {
         self.*.w_trade_submitted = false;
         self.*.o_trade_submitted = false;
         self.*.turn.phase = phase::MAIN;
-        connection.*.sendc(server_message::init_accepted("trade accepted"));
     }
 
     func process_trade_reject(self: *server_state, connection: *connection, trade: trade) void {
         if self.*.turn.phase != phase::TRADE {
-            connection.*.sendc(server_message::init_rejected("cannot reject trade (it is not the trade phase)"));
+            connection.*.sendc(server_message::init_rejected("Cannot reject trade (it is not the trade phase)."));
             return;
         }
 
         if std::ne[[::trade]](&self.*.trade, &trade) {
-            connection.*.sendc(server_message::init_rejected("cannot reject trade (mismatched trade)"));
+            connection.*.sendc(server_message::init_rejected("Cannot reject trade (mismatched trade)."));
             return;
         }
 
         var submitted = self.*.p_trade_submitted(connection.*.player);
         if *submitted {
-            connection.*.sendc(server_message::init_rejected("cannot reject trade (already submitted)"));
+            connection.*.sendc(server_message::init_rejected("Cannot reject trade (already submitted)."));
             return;
         }
 
         *submitted = true;
 
-        connection.*.sendc(server_message::init_accepted("trade rejected"));
         if (not self.*.r_live or self.*.r_trade_submitted)
         and (not self.*.b_live or self.*.b_trade_submitted)
         and (not self.*.w_live or self.*.w_trade_submitted)
@@ -1997,7 +1998,7 @@ func server_update(sstate: *server_state) void {
         .discarded = sstate.*.o_discarded,
         .trade_submitted = sstate.*.o_trade_submitted,
     };
-    sstate.*.sendc_all(server_message::init_state(
+    sstate.*.sendc_all_unreliable(server_message::init_state(
         &sstate.*.board,
         sstate.*.turn,
         sstate.*.trade,
@@ -2011,7 +2012,7 @@ func server_update(sstate: *server_state) void {
             continue;
         }
         var info = sstate.*.p_info(sstate.*.connections.data()[i].player);
-        sstate.*.connections.data()[i].sendc(server_message::init_info(*info));
+        sstate.*.connections.data()[i].sendc_unreliable(server_message::init_info(*info));
     }
 
     sstate.*.ticks +%= 1;

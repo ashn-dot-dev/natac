@@ -763,21 +763,10 @@ struct client_state {
         server_message::PLAYER {
             self.*.player = message.*.data.player;
         }
-        server_message::ACCEPTED {
-            std::print_format_line(std::err(), "[ACTION ACCEPTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.accepted)]);
-            if self.*.debug {
-                var log_writer = std::writer::init[[std::string]](&self.*.ui_log);
-                std::print_format_line(log_writer, "[ACTION ACCEPTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.accepted)]);
-                self.*.ui_log_updated = true;
-            }
-        }
         server_message::REJECTED {
-            std::print_format_line(std::err(), "[ACTION REJECTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.rejected)]);
-            if self.*.debug {
-                var log_writer = std::writer::init[[std::string]](&self.*.ui_log);
-                std::print_format_line(log_writer, "[ACTION REJECTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.rejected)]);
-                self.*.ui_log_updated = true;
-            }
+            var log_writer = std::writer::init[[std::string]](&self.*.ui_log);
+            std::print_format_line(log_writer, "[ACTION REJECTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.rejected)]);
+            self.*.ui_log_updated = true;
         }
         }
     }

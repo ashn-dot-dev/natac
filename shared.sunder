@@ -42,6 +42,19 @@ func random64() u64 {
     return spcg64(&spcg64_state);
 }
 
+func shuffle[[T]](slice: []T) void {
+    if countof(slice) <= 1 {
+        return;
+    }
+
+    var i = countof(slice) - 1;
+    for i >= 1 {
+        defer { i -= 1; }
+        var j = (:usize)random64() % (i + 1);
+        std::swap[[T]](&slice[i], &slice[j]);
+    }
+}
+
 func d6() sint {
     return (:sint)(random32() % 6 + 1);
 }
@@ -1400,9 +1413,6 @@ func n_to_1(board: *board, player: player, resource: resource) sint {
             elif port.kind == ::port::WOOD and resource == ::resource::WOOD {
                 n = typeof(n)::min(n, 2);
             }
-            else {
-                std::unreachable(fileof(), lineof());
-            }
         }
     }
 
@@ -2061,7 +2071,6 @@ struct server_message {
         INFO;
         STATE;
         PLAYER;
-        ACCEPTED;
         REJECTED;
     };
     var data: union {
@@ -2135,20 +2144,6 @@ struct server_message {
         };
     }
 
-    func init_accepted(text: []byte) server_message {
-        return (:server_message){
-            .kind = server_message::ACCEPTED,
-            .data = (:typeof(SELF.data)){.accepted = std::string::init_from_str(text)},
-        };
-    }
-
-    func init_accepted_format(format: []byte, args: []std::formatter) server_message {
-        return (:server_message){
-            .kind = server_message::ACCEPTED,
-            .data = (:typeof(SELF.data)){.accepted = std::string::init_from_format(format, args)},
-        };
-    }
-
     func init_rejected(text: []byte) server_message {
         return (:server_message){
             .kind = server_message::REJECTED,
@@ -2176,9 +2171,6 @@ struct server_message {
         }
         server_message::PLAYER {
             # nothing
-        }
-        server_message::ACCEPTED {
-            self.*.data.accepted.fini();
         }
         server_message::REJECTED {
             self.*.data.rejected.fini();
@@ -2218,9 +2210,6 @@ struct server_message {
             var player = bubby_to_player(value.*.map_xlookup_str("data"));
             return server_message::init_player(player);
         }
-        if std::str::eq(kind, "accepted") {
-            return server_message::init_accepted(value.*.map_xlookup_str("data").*.str());
-        }
         if std::str::eq(kind, "rejected") {
             return server_message::init_rejected(value.*.map_xlookup_str("data").*.str());
         }
@@ -2256,10 +2245,6 @@ struct server_message {
             out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("player"));
             out.map().*.insert(bubby::value::init_str("data"), player_to_bubby(self.*.data.player));
         }
-        server_message::ACCEPTED {
-            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("accepted"));
-            out.map().*.insert(bubby::value::init_str("data"), bubby::value::init_str(self.*.data.accepted.data()));
-        }
         server_message::REJECTED {
             out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("rejected"));
             out.map().*.insert(bubby::value::init_str("data"), bubby::value::init_str(self.*.data.rejected.data()));
@@ -2269,8 +2254,13 @@ struct server_message {
     }
 }
 
+enum reliability {
+    RELIABILE;
+    UNRELIABILE;
+}
+
 struct message_sender_itable[[MESSAGE]] {
-    var send: func(*any, *MESSAGE) void;
+    var send: func(*any, *MESSAGE, reliability) void;
 }
 
 struct message_sender[[MESSAGE]] {
@@ -2287,14 +2277,29 @@ struct message_sender[[MESSAGE]] {
         };
     }
 
-    # Send a message with this sender.
+    # Send a reliable message with this sender.
     func send(self: *message_sender[[MESSAGE]], message: *MESSAGE) void {
-        self.*.itable.*.send(self.*.object, message);
+        self.*.itable.*.send(self.*.object, message, reliability::RELIABILE);
     }
 
-    # Send a message, then consume the message with MESSAGE::fini (if defined).
+    # Send a reliable message with this sender, then consume the message with
+    # MESSAGE::fini (if defined).
     func sendc(self: *message_sender[[MESSAGE]], message: MESSAGE) void {
         self.*.send(&message);
+        when defined(MESSAGE::fini) {
+            message.fini();
+        }
+    }
+
+    # Send an unreliable message with this sender.
+    func send_unreliable(self: *message_sender[[MESSAGE]], message: *MESSAGE) void {
+        self.*.itable.*.send(self.*.object, message, reliability::UNRELIABILE);
+    }
+
+    # Send an unreliable message with this sender, then consume the message
+    # with MESSAGE::fini (if defined).
+    func sendc_unreliable(self: *message_sender[[MESSAGE]], message: MESSAGE) void {
+        self.*.send_unreliable(&message, );
         when defined(MESSAGE::fini) {
             message.fini();
         }

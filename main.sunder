@@ -16,7 +16,9 @@ struct local_client_message_sender {
     # client messages. Required for the server to send responses.
     var connection: *connection;
 
-    func send(self: *local_client_message_sender, message: *client_message) void {
+    func send(self: *local_client_message_sender, message: *client_message, reliability: reliability) void {
+        # Reliability of the message delivery is ignored.
+        reliability;
         # Serialize and deserialize the message as if it were being sent over a
         # non-local connection. Ensures to/from bubby routines work correctly.
         var message = message.*.to_bubby();
@@ -31,7 +33,9 @@ struct local_server_message_sender {
     # Client state immediately updated from server messages.
     var client: *client_state;
 
-    func send(self: *local_server_message_sender, message: *server_message) void {
+    func send(self: *local_server_message_sender, message: *server_message, reliability: reliability) void {
+        # Reliability of the message delivery is ignored.
+        reliability;
         # Serialize and deserialize the message as if it were being sent over a
         # non-local connection. Ensures to/from bubby routines work correctly.
         var message = message.*.to_bubby();
@@ -52,7 +56,7 @@ struct nbnet_client_message_sender {
         };
     }
 
-    func send(self: *nbnet_client_message_sender, message: *client_message) void {
+    func send(self: *nbnet_client_message_sender, message: *client_message, reliability: reliability) void {
         if not self.*.connected {
             std::print_line(std::err(), "error: failed to send client message (not connected to server)");
             return;
@@ -74,7 +78,16 @@ struct nbnet_client_message_sender {
         outgoing.*.len = (:uint)count;
         std::slice[[byte]]::copy(outgoing.*.buf[0:count], data);
 
-        if NBN_GameClient_SendReliableMessage(::message::TYPE, (:*any)outgoing) < 0 {
+        var err: sint = uninit;
+        switch reliability {
+        ::reliability::RELIABILE {
+            err = NBN_GameClient_SendReliableMessage(::message::TYPE, (:*any)outgoing);
+        }
+        ::reliability::UNRELIABILE {
+            err = NBN_GameClient_SendUnreliableMessage(::message::TYPE, (:*any)outgoing);
+        }
+        }
+        if err < 0 {
             std::print_line(std::err(), "error: failed to send client message");
         }
     }
@@ -89,7 +102,7 @@ struct nbnet_server_message_sender {
         };
     }
 
-    func send(self: *nbnet_server_message_sender, message: *server_message) void {
+    func send(self: *nbnet_server_message_sender, message: *server_message, reliability: reliability) void {
         if self.*.handle == 0 {
             return;
         }
@@ -110,7 +123,16 @@ struct nbnet_server_message_sender {
         outgoing.*.len = (:uint)count;
         std::slice[[byte]]::copy(outgoing.*.buf[0:count], data);
 
-        if NBN_GameServer_SendUnreliableMessageTo(self.*.handle, ::message::TYPE, outgoing) < 0 {
+        var err: sint = uninit;
+        switch reliability {
+        ::reliability::RELIABILE {
+            err = NBN_GameServer_SendReliableMessageTo(self.*.handle, ::message::TYPE, outgoing);
+        }
+        ::reliability::UNRELIABILE {
+            err = NBN_GameServer_SendUnreliableMessageTo(self.*.handle, ::message::TYPE, outgoing);
+        }
+        }
+        if err < 0 {
             std::print_line(std::err(), "error: failed to send server message");
         }
     }

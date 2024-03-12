@@ -3,7 +3,8 @@
 .PHONY: \
 	all \
 	build \
-	clean
+	clean \
+	fresh
 
 TARGET=natac
 
@@ -64,3 +65,6 @@ build: .sunder .sunder/lib/bubby .sunder/lib/nbnet .sunder/lib/raylib .sunder/li
 clean:
 	rm -f $(TARGET) *.tmp.o *.tmp.c
 	rm -rf $(SUNDER_HOME)
+
+fresh:
+	git clean -dfx
