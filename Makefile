@@ -23,16 +23,12 @@ CFLAGS_REL=-Os
 CFLAGS=$(CFLAGS_REL)
 
 SUNDER_HOME := $$(pwd)/.sunder
-SUNDER_SEARCH_PATH := $$(pwd)/.sunder/lib
-
-NBNET_REPODIR := $$(realpath vendor/nbnet)
-RAYLIB_REPODIR := $$(realpath vendor/raylib)
 
 all: build
 
 build: .sunder .sunder/lib/bubby .sunder/lib/nbnet .sunder/lib/raylib .sunder/lib/smolui
 	SUNDER_HOME=$(SUNDER_HOME) \
-	SUNDER_SEARCH_PATH=$(SUNDER_SEARCH_PATH) \
+	SUNDER_SEARCH_PATH=$(SUNDER_HOME)/lib \
 	SUNDER_CC=clang \
 	SUNDER_CFLAGS="$(CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --cflags)" \
 	.sunder/bin/sunder-compile \
@@ -44,29 +40,24 @@ build: .sunder .sunder/lib/bubby .sunder/lib/nbnet .sunder/lib/raylib .sunder/li
 
 .sunder:
 	SUNDER_HOME=$(SUNDER_HOME) \
-	SUNDER_SEARCH_PATH=$(SUNDER_SEARCH_PATH) \
 	$(MAKE) -e -C vendor/sunder install
 
 .sunder/lib/bubby: .sunder
 	SUNDER_HOME=$(SUNDER_HOME) \
-	SUNDER_SEARCH_PATH=$(SUNDER_SEARCH_PATH) \
 	$(MAKE) -e -C vendor/bubby install
 
 .sunder/lib/nbnet: .sunder
 	SUNDER_HOME=$(SUNDER_HOME) \
-	SUNDER_SEARCH_PATH=$(SUNDER_SEARCH_PATH) \
-	NBNET_REPODIR=$(NBNET_REPODIR) \
+	NBNET_REPODIR=$$(realpath vendor/nbnet) \
 	$(MAKE) -e -C vendor/nbnet-sunder install
 
 .sunder/lib/raylib: .sunder
 	SUNDER_HOME=$(SUNDER_HOME) \
-	SUNDER_SEARCH_PATH=$(SUNDER_SEARCH_PATH) \
-	RAYLIB_REPODIR=$(RAYLIB_REPODIR) \
+	RAYLIB_REPODIR=$$(realpath vendor/raylib) \
 	$(MAKE) -e -C vendor/raylib-sunder install
 
 .sunder/lib/smolui: .sunder
 	SUNDER_HOME=$(SUNDER_HOME) \
-	SUNDER_SEARCH_PATH=$(SUNDER_SEARCH_PATH) \
 	$(MAKE) -e -C vendor/smolui install
 
 clean:
