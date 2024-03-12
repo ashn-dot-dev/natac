@@ -15,7 +15,7 @@ sleep_sec(double sec)
         .tv_nsec = n,
     };
 
-    if (nanosleep(&ts, NULL) < 1) {
+    if (nanosleep(&ts, NULL) != 0) {
         perror("nanosleep");
     }
 }
