@@ -36,6 +36,7 @@ build: .sunder .sunder/lib/bubby .sunder/lib/nbnet .sunder/lib/raylib .sunder/li
 		$$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --libs) \
 		-L$(SUNDER_HOME)/lib/nbnet -lnbnet \
 		-L$(SUNDER_HOME)/lib/smolui -lsmolui \
+		util.c \
 		main.sunder
 
 .sunder:

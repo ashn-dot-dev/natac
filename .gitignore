@@ -3,5 +3,5 @@ natac
 .sunder/
 vendor/raylib/parser/raylib_api.json
 
-*.o
-*.c
+*.tmp.o
+*.tmp.c
