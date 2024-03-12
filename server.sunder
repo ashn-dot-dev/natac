@@ -1999,5 +1999,5 @@ func server_update(sstate: *server_state) void {
     }
 
     sstate.*.ticks +%= 1;
-    sleep_sec(1.0 / 10.0);
+    sleep_sec(1.0 / 60.0);
 }
