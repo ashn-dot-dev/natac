@@ -35,7 +35,7 @@ build: .sunder .sunder/lib/bubby .sunder/lib/nbnet .sunder/lib/raylib .sunder/li
 	SUNDER_SEARCH_PATH=$(SUNDER_SEARCH_PATH) \
 	SUNDER_CC=clang \
 	SUNDER_CFLAGS="$(CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --cflags)" \
-	sunder-compile \
+	.sunder/bin/sunder-compile \
 		-o $(TARGET) \
 		$$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --libs) \
 		-L$(SUNDER_HOME)/lib/nbnet -lnbnet \
