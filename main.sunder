@@ -110,7 +110,7 @@ struct nbnet_server_message_sender {
         outgoing.*.len = (:uint)count;
         std::slice[[byte]]::copy(outgoing.*.buf[0:count], data);
 
-        if NBN_GameServer_SendReliableMessageTo(self.*.handle, ::message::TYPE, outgoing) < 0 {
+        if NBN_GameServer_SendUnreliableMessageTo(self.*.handle, ::message::TYPE, outgoing) < 0 {
             std::print_line(std::err(), "error: failed to send server message");
         }
     }
