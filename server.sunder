@@ -1244,6 +1244,10 @@ struct server_state {
                         hex::init(+0, -1, +1),
                         hex::init(+1, -2, +1))));
 
+                self.*.r_info.wheat += 1;
+                self.*.r_info.wood += 1;
+                self.*.r_info.wood += 1;
+
                 # vvv ROADS FOR LONGEST ROAD TEST vvvv
                 #insert_road(&self.*.board.roads, road::init(
                 #    player::RED,
@@ -1307,6 +1311,10 @@ struct server_state {
                     edge::init(
                         hex::init(+0, +1, -1),
                         hex::init(+1, +1, -2))));
+
+                self.*.b_info.brick += 1;
+                self.*.b_info.ore += 1;
+                self.*.b_info.wood += 1;
             }
             player::WHITE {
                 insert_town(&self.*.board.towns, town::init(
@@ -1333,6 +1341,10 @@ struct server_state {
                     edge::init(
                         hex::init(+1, +0, -1),
                         hex::init(+2, +0, -2))));
+
+                self.*.w_info.brick += 1;
+                self.*.w_info.wheat += 1;
+                self.*.w_info.wood += 1;
             }
             player::ORANGE {
                 insert_town(&self.*.board.towns, town::init(
@@ -1359,6 +1371,10 @@ struct server_state {
                     edge::init(
                         hex::init(+1, -1, +0),
                         hex::init(+2, -2, +0))));
+
+                self.*.o_info.ore += 1;
+                self.*.o_info.wheat += 1;
+                self.*.o_info.wheat += 1;
             }
             }
         }
