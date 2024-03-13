@@ -1798,13 +1798,14 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
 func client_render(cstate: *client_state) void {
     BeginDrawing();
+    defer EndDrawing();
     ClearBackground((:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF});
 
     var screen_w = screen_w();
     var screen_h = screen_h();
     var camera = camera(HEX_RADIUS);
 
-    if not cstate.*.connected {
+    if not cstate.*.connected or cstate.*.board.tiles.count() == 0 {
         var text = "Connecting...";
         var size = measure_text(cstate.*.font, cstate.*.font_size, text);
         var position = (:Vector2){
@@ -1812,8 +1813,6 @@ func client_render(cstate: *client_state) void {
             .y = screen_h / 2.0 - size.y / 2.0,
         };
         draw_text(cstate.*.font, cstate.*.font_size, BLACK, position, text);
-
-        EndDrawing();
         return;
     }
 
@@ -2093,6 +2092,4 @@ func client_render(cstate: *client_state) void {
             (:[]std::formatter)[
                 std::formatter::init[[[]byte]](&phase_text)]);
     }
-
-    EndDrawing();
 }
