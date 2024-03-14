@@ -1605,12 +1605,11 @@ struct server_state {
         var give = trade_n_for_1.give.data();
         var recv = trade_n_for_1.recv.data();
         self.*.sendc_all(server_message::init_log_format(
-            "{} traded {} {} for {} {}.",
+            "{} traded {} {} for 1 {}.",
             (:[]std::formatter)[
                 std::formatter::init[[typeof(name)]](&name),
                 std::formatter::init[[typeof(give)]](&give),
                 std::formatter::init[[typeof(n_to_1)]](&n_to_1),
-                std::formatter::init[[typeof(trade_n_for_1.n)]](&trade_n_for_1.n),
                 std::formatter::init[[typeof(recv)]](&recv)]));
     }
 
