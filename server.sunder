@@ -1580,7 +1580,7 @@ struct server_state {
             return;
         }
 
-        var n_to_1 = n_to_1(&self.*.board, self.*.turn.player, trade_n_for_1.recv);
+        var n_to_1 = n_to_1(&self.*.board, self.*.turn.player, trade_n_for_1.give);
         if trade_n_for_1.n != n_to_1 {
             connection.*.sendc(server_message::init_rejected("Cannot trade with the bank (invalid n:1 trade)."));
             return;

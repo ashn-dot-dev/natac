@@ -1457,7 +1457,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                 var id = mu_get_id(cstate.*.ui.context, s.start(), (:sint)s.count());
                 var r = mu_layout_next(cstate.*.ui.context);
                 if mu_button_raw(cstate.*.ui.context, s.start(), (:sint)s.count(), 0, id, r, MU_OPT_ALIGNCENTER) != 0 {
-                    var n_to_1 = n_to_1(&cstate.*.board, cstate.*.player, RESOURCES[i]);
+                    var n_to_1 = n_to_1(&cstate.*.board, cstate.*.player, cstate.*.ui_main_trade_with_bank_resource.value());
                     var cmessage = client_message::init_trade_n_for_1(cstate.*.ui_main_trade_with_bank_resource.value(), RESOURCES[i], n_to_1);
                     sender.*.sendc(cmessage);
                     cstate.*.ui_main_trade_with_bank_selected = false;

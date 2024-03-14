@@ -23,6 +23,7 @@ struct local_client_message_sender {
         # non-local connection. Ensures to/from bubby routines work correctly.
         var message = message.*.to_bubby();
         defer message.fini();
+        #std::print_format_line(std::err(), "INCOMING LOCAL CLIENT MESSAGE STRING: {}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&message)]);
         var message = client_message::init_from_bubby(&message);
         # Update the local server based on the deserialized client message.
         self.*.server.*.update_from_client_message(&message, self.*.connection);
@@ -40,6 +41,7 @@ struct local_server_message_sender {
         # non-local connection. Ensures to/from bubby routines work correctly.
         var message = message.*.to_bubby();
         defer message.fini();
+        #std::print_format_line(std::err(), "INCOMING LOCAL SERVER MESSAGE STRING: {}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&message)]);
         var message = server_message::init_from_bubby(&message);
         defer message.fini();
         # Update the local client based on the deserialized server message.
