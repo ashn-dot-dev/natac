@@ -1,7 +1,12 @@
 natac
+natac.app/
+macos/Natac.png
+macos/Natac.iconset
+macos/Natac.icns
 
 .sunder/
 vendor/raylib/parser/raylib_api.json
 
+*.out
 *.tmp.o
 *.tmp.c

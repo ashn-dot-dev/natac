@@ -4,7 +4,8 @@
 	all \
 	build \
 	clean \
-	fresh
+	fresh \
+	package-macos
 
 TARGET=natac
 
@@ -25,9 +26,10 @@ CFLAGS=$(CFLAGS_REL)
 
 SUNDER_HOME := $$(pwd)/.sunder
 
-all: build
+all: $(TARGET)
+build: $(TARGET)
 
-build: .sunder .sunder/lib/bubby .sunder/lib/nbnet .sunder/lib/raylib .sunder/lib/smolui
+$(TARGET): .sunder .sunder/lib/bubby .sunder/lib/nbnet .sunder/lib/raylib .sunder/lib/smolui
 	SUNDER_HOME=$(SUNDER_HOME) \
 	SUNDER_SEARCH_PATH=$(SUNDER_HOME)/lib \
 	SUNDER_CC=clang \
@@ -62,9 +64,47 @@ build: .sunder .sunder/lib/bubby .sunder/lib/nbnet .sunder/lib/raylib .sunder/li
 	SUNDER_HOME=$(SUNDER_HOME) \
 	$(MAKE) -e -C vendor/smolui install
 
+package-macos: $(TARGET) macos/Natac.icns
+	mkdir -p $(TARGET).app/Contents
+	mkdir -p $(TARGET).app/Contents/MacOS
+	mkdir -p $(TARGET).app/Contents/Resources
+	cp macos/Info.plist natac.app/Contents/Info.plist
+	mv $(TARGET) $(TARGET).app/Contents/MacOS/$(TARGET)
+	cp macos/Natac.icns natac.app/Contents/Resources/Natac.icns
+
+macos/Natac.icns: macos/Natac.png
+	mkdir macos/Natac.iconset
+	sips -z 16 16   macos/Natac.png --out macos/Natac.iconset/icon_16x16.png
+	sips -z 32 32   macos/Natac.png --out macos/Natac.iconset/icon_16x16@2x.png
+	sips -z 32 32   macos/Natac.png --out macos/Natac.iconset/icon_32x32.png
+	sips -z 64 64   macos/Natac.png --out macos/Natac.iconset/icon_32x32@2x.png
+	sips -z 128 128 macos/Natac.png --out macos/Natac.iconset/icon_128x128.png
+	sips -z 256 256 macos/Natac.png --out macos/Natac.iconset/icon_128x128@2x.png
+	sips -z 256 256 macos/Natac.png --out macos/Natac.iconset/icon_256x256.png
+	sips -z 512 512 macos/Natac.png --out macos/Natac.iconset/icon_256x256@2x.png
+	sips -z 512 512 macos/Natac.png --out macos/Natac.iconset/icon_512x512.png
+	cp macos/Natac.png macos/Natac.iconset/icon_512
+	iconutil --convert icns macos/Natac.iconset -o macos/Natac.icns
+
+macos/Natac.png: macos/icon.sunder .sunder/lib/raylib
+	SUNDER_HOME=$(SUNDER_HOME) \
+	SUNDER_SEARCH_PATH=$(SUNDER_HOME)/lib \
+	SUNDER_CC=clang \
+	SUNDER_CFLAGS="$(CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --cflags)" \
+	.sunder/bin/sunder-compile \
+		-o macos/icon.out \
+		$$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --libs) \
+		macos/icon.sunder
+	(cd macos && ./icon.out)
+
 clean:
-	rm -f $(TARGET) *.tmp.o *.tmp.c
-	rm -rf $(SUNDER_HOME)
+	rm -rf \
+		$(TARGET) \
+		$(TARGET).app \
+		macos/Natac.* \
+		$(SUNDER_HOME) \
+		$$(find . -name '*.out') \
+		$$(find . -name '*.tmp.*')
 
 fresh:
 	git clean -dfx
