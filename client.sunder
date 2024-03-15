@@ -1642,24 +1642,31 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
             # Window Content
             cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
+            var resources: resources = uninit;
+            if cstate.*.player == cstate.*.turn.player {
+                resources = cstate.*.trade.give;
+            }
+            else {
+                resources = cstate.*.trade.recv;
+            }
             cstate.*.ui.label("Brick:");
-            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.recv.brick)]);
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&resources.brick)]);
             defer s.fini();
             cstate.*.ui.text(s.data());
             cstate.*.ui.label("Ore:");
-            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.recv.ore)]);
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&resources.ore)]);
             defer s.fini();
             cstate.*.ui.text(s.data());
             cstate.*.ui.label("Sheep:");
-            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.recv.sheep)]);
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&resources.sheep)]);
             defer s.fini();
             cstate.*.ui.text(s.data());
             cstate.*.ui.label("Wheat:");
-            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.recv.wheat)]);
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&resources.wheat)]);
             defer s.fini();
             cstate.*.ui.text(s.data());
             cstate.*.ui.label("Wood:");
-            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.recv.wood)]);
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&resources.wood)]);
             defer s.fini();
             cstate.*.ui.text(s.data());
 
@@ -1677,24 +1684,31 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
             # Window Content
             cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
+            var resources: resources = uninit;
+            if cstate.*.player == cstate.*.turn.player {
+                resources = cstate.*.trade.recv;
+            }
+            else {
+                resources = cstate.*.trade.give;
+            }
             cstate.*.ui.label("Brick:");
-            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.give.brick)]);
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&resources.brick)]);
             defer s.fini();
             cstate.*.ui.text(s.data());
             cstate.*.ui.label("Ore:");
-            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.give.ore)]);
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&resources.ore)]);
             defer s.fini();
             cstate.*.ui.text(s.data());
             cstate.*.ui.label("Sheep:");
-            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.give.sheep)]);
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&resources.sheep)]);
             defer s.fini();
             cstate.*.ui.text(s.data());
             cstate.*.ui.label("Wheat:");
-            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.give.wheat)]);
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&resources.wheat)]);
             defer s.fini();
             cstate.*.ui.text(s.data());
             cstate.*.ui.label("Wood:");
-            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&cstate.*.trade.give.wood)]);
+            var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&resources.wood)]);
             defer s.fini();
             cstate.*.ui.text(s.data());
 
