@@ -31,11 +31,10 @@ build: $(TARGET)
 package-macos: $(TARGET).app
 
 $(TARGET): .sunder .sunder/lib/bubby .sunder/lib/nbnet .sunder/lib/raylib .sunder/lib/smolui
-	SUNDER_HOME=$(SUNDER_HOME) \
-	SUNDER_SEARCH_PATH=$(SUNDER_HOME)/lib \
+	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
 	SUNDER_CC=clang \
 	SUNDER_CFLAGS="$(CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --cflags)" \
-	.sunder/bin/sunder-compile \
+	sunder-compile \
 		-o $(TARGET) \
 		$$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --libs) \
 		-L$(SUNDER_HOME)/lib/nbnet -lnbnet \
@@ -44,25 +43,25 @@ $(TARGET): .sunder .sunder/lib/bubby .sunder/lib/nbnet .sunder/lib/raylib .sunde
 		main.sunder
 
 .sunder:
-	SUNDER_HOME=$(SUNDER_HOME) \
+	SUNDER_HOME=$(SUNDER_HOME); \
 	$(MAKE) -e -C vendor/sunder install
 
 .sunder/lib/bubby: .sunder
-	SUNDER_HOME=$(SUNDER_HOME) \
+	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
 	$(MAKE) -e -C vendor/bubby install
 
 .sunder/lib/nbnet: .sunder
-	SUNDER_HOME=$(SUNDER_HOME) \
+	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
 	NBNET_REPODIR=$$(realpath vendor/nbnet) \
 	$(MAKE) -e -C vendor/nbnet-sunder install
 
 .sunder/lib/raylib: .sunder
-	SUNDER_HOME=$(SUNDER_HOME) \
+	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
 	RAYLIB_REPODIR=$$(realpath vendor/raylib) \
 	$(MAKE) -e -C vendor/raylib-sunder install
 
 .sunder/lib/smolui: .sunder
-	SUNDER_HOME=$(SUNDER_HOME) \
+	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
 	$(MAKE) -e -C vendor/smolui install
 
 $(TARGET).app: $(TARGET) macos/Natac.icns
@@ -88,15 +87,14 @@ macos/Natac.icns: macos/Natac.png
 	iconutil --convert icns macos/Natac.iconset -o macos/Natac.icns
 
 macos/Natac.png: macos/icon.sunder .sunder/lib/raylib
-	SUNDER_HOME=$(SUNDER_HOME) \
-	SUNDER_SEARCH_PATH=$(SUNDER_HOME)/lib \
+	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
 	SUNDER_CC=clang \
 	SUNDER_CFLAGS="$(CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --cflags)" \
-	.sunder/bin/sunder-compile \
+	sunder-compile \
 		-o macos/icon.out \
 		$$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --libs) \
 		macos/icon.sunder
-	(cd macos && ./icon.out)
+	cd macos && ./icon.out
 
 clean:
 	rm -rf \
