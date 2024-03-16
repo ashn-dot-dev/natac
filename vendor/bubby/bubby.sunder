@@ -13,8 +13,8 @@ struct value {
     var _data: union {
         var str: []byte;
         var vec: std::vector[[value]];
-        var map: *any; # *std::hash_map[[value, value]];
-        var set: *any; # *std::hash_set[[value]];
+        var map: std::hash_map[[void, void]]; # std::hash_map[[value, value]];
+        var set: std::hash_set[[void]];       # std::hash_set[[value]];
     };
 
     let _SELF: value = uninit;
@@ -46,8 +46,8 @@ struct value {
     }
 
     func init_map() value {
-        var new = std::new[[std::hash_map[[value, value]]]]();
-        *new = std::hash_map[[value, value]]::init();
+        var new = std::hash_map[[value, value]]::init();
+        var new = *(:*std::hash_map[[void, void]])&new;
         return (:value){
             ._kind = bubby::kind::MAP,
             ._data = (:typeof(value::_SELF._data)){.map = new},
@@ -55,8 +55,8 @@ struct value {
     }
 
     func init_set() value {
-        var new = std::new[[std::hash_set[[value]]]]();
-        *new = std::hash_set[[value]]::init();
+        var new = std::hash_set[[value]]::init();
+        var new = *(:*std::hash_set[[void]])&new;
         return (:value){
             ._kind = bubby::kind::SET,
             ._data = (:typeof(value::_SELF._data)){.set = new},
@@ -81,19 +81,15 @@ struct value {
             return;
         }
         bubby::kind::VEC {
-            std::vector[[value]]::fini(&self.*._data.vec);
+            std::vector[[value]]::fini(self.*.vec());
             return;
         }
         bubby::kind::MAP {
-            var map = self.*.map();
-            std::hash_map[[value, value]]::fini(map);
-            std::delete[[std::hash_map[[value, value]]]](map);
+            std::hash_map[[value, value]]::fini(self.*.map());
             return;
         }
         bubby::kind::SET {
-            var set = self.*.set();
-            std::hash_set[[value]]::fini(set);
-            std::delete[[std::hash_set[[value]]]](set);
+            std::hash_set[[value]]::fini(self.*.set());
             return;
         }
         }
@@ -348,7 +344,7 @@ struct value {
 
     func map(self: *value) *std::hash_map[[value, value]] {
         assert self.*._kind == bubby::kind::MAP;
-        return (:*std::hash_map[[value, value]])self.*._data.map;
+        return (:*std::hash_map[[value, value]])&self.*._data.map;
     }
 
     func map_insert_str(self: *value, str: []byte, val: bubby::value) void {
@@ -383,7 +379,7 @@ struct value {
 
     func set(self: *value) *std::hash_set[[value]] {
         assert self.*._kind == bubby::kind::SET;
-        return (:*std::hash_set[[value]])self.*._data.set;
+        return (:*std::hash_set[[value]])&self.*._data.set;
     }
 
     func set_insert(self: *value, val: bubby::value) void {
