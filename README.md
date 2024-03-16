@@ -1,20 +1,28 @@
 NATAC
 =====
 
-## Dependencies
-+ [sunder](https://github.com/ashn-dot-dev/sunder)
+## Dependencies (Vendored)
++ [bubby](https://github.com/ashn-dot-dev/bubby)
 + [raylib-sunder](https://github.com/ashn-dot-dev/raylib-sunder) with raylib [version 5.0](https://github.com/raysan5/raylib/releases/tag/5.0)
 + [nbnet-sunder](https://github.com/ashn-dot-dev/nbnet-sunder)
-+ [bubby](https://github.com/ashn-dot-dev/bubby)
-+ [smolui](https://github.com/ashn-dot-dev/smolui.git)
++ [smolui](https://github.com/ashn-dot-dev/smolui)
++ [sunder](https://github.com/ashn-dot-dev/sunder)
 
-Building & linking raylib additionally requires some system dependencies to be
-installed:
-
-+ [Linux](https://github.com/raysan5/raylib/wiki/Working-on-GNU-Linux)
-+ [macOS](https://github.com/raysan5/raylib/wiki/Working-on-macOS)
+Building and linking with raylib requies some additional system dependencies to
+be installed when building for Linux: https://github.com/raysan5/raylib/wiki/Working-on-GNU-Linux.
 
 ## Building
+
+Build the native `natac` binary for Linux and macOS:
+
 ```sh
-$ make build  # Desktop (Linux, MacOS)
+$ make build
+```
+
+## Packaging
+
+Build the application bundle `natac.app` for macOS:
+
+```sh
+$ make package-macos
 ```

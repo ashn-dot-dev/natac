@@ -28,6 +28,7 @@ SUNDER_HOME := $$(pwd)/.sunder
 
 all: $(TARGET)
 build: $(TARGET)
+package-macos: $(TARGET).app
 
 $(TARGET): .sunder .sunder/lib/bubby .sunder/lib/nbnet .sunder/lib/raylib .sunder/lib/smolui
 	SUNDER_HOME=$(SUNDER_HOME) \
@@ -64,12 +65,12 @@ $(TARGET): .sunder .sunder/lib/bubby .sunder/lib/nbnet .sunder/lib/raylib .sunde
 	SUNDER_HOME=$(SUNDER_HOME) \
 	$(MAKE) -e -C vendor/smolui install
 
-package-macos: $(TARGET) macos/Natac.icns
+$(TARGET).app: $(TARGET) macos/Natac.icns
 	mkdir -p $(TARGET).app/Contents
 	mkdir -p $(TARGET).app/Contents/MacOS
 	mkdir -p $(TARGET).app/Contents/Resources
 	cp macos/Info.plist natac.app/Contents/Info.plist
-	mv $(TARGET) $(TARGET).app/Contents/MacOS/$(TARGET)
+	cp $(TARGET) $(TARGET).app/Contents/MacOS/$(TARGET)
 	cp macos/Natac.icns natac.app/Contents/Resources/Natac.icns
 
 macos/Natac.icns: macos/Natac.png
