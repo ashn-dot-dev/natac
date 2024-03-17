@@ -26,3 +26,6 @@ Build the application bundle `natac.app` for macOS:
 ```sh
 $ make package-macos
 ```
+
+NOTE: After downloading `natac.app`, one will likely need to run `xattr -c
+<path/to/natac.app>` to remove the `com.apple.Quarantine` extended attribute.
