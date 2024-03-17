@@ -56,10 +56,10 @@ struct server_state {
     var o_trade_submitted: bool; # trade phase
     var trade: trade;
     var turn: turn;
-    # Previous turn phase before playing a devlopment card. Used for restoring
-    # the turn state after a development card has resolved. An empty optional
+    # The phase a development card was played this turn. Used for restoring the
+    # turn state after a development card has resolved. An empty optional
     # indicates that a development card has not been played this turn.
-    var prev_phase: std::optional[[phase]];
+    var dev_card_used: std::optional[[phase]];
     var longest_road: std::optional[[player]];
     var largest_army: std::optional[[player]];
     var winner: std::optional[[player]];
@@ -111,7 +111,7 @@ struct server_state {
             .o_trade_submitted = false,
             .trade = uninit,
             .turn = turn::init(0, (:player)0),
-            .prev_phase = std::optional[[phase]]::EMPTY,
+            .dev_card_used = std::optional[[phase]]::EMPTY,
             .longest_road = std::optional[[player]]::EMPTY,
             .largest_army = std::optional[[player]]::EMPTY,
             .winner = std::optional[[player]]::EMPTY,
@@ -348,7 +348,7 @@ struct server_state {
 
     func change_turn(self: *server_state, player: player) void {
         self.*.turn = turn::init(self.*.turn.number + 1, player);
-        self.*.prev_phase = std::optional[[phase]]::EMPTY;
+        self.*.dev_card_used = std::optional[[phase]]::EMPTY;
         var name = player_to_name(player);
         self.*.sendc_all(server_message::init_log_format(
             "It's {}'s turn!",
@@ -613,8 +613,8 @@ struct server_state {
             self.*.turn.phase = phase::ROAD_BUILDING_2;
         }
         elif self.*.turn.phase == phase::ROAD_BUILDING_2 {
-            assert self.*.prev_phase.is_value();
-            self.*.turn.phase = self.*.prev_phase.value();
+            assert self.*.dev_card_used.is_value();
+            self.*.turn.phase = self.*.dev_card_used.value();
         }
     }
 
@@ -775,7 +775,7 @@ struct server_state {
             connection.*.sendc(server_message::init_rejected("Cannot use development card (invalid phase)."));
             return;
         }
-        if self.*.prev_phase.is_value() {
+        if self.*.dev_card_used.is_value() {
             connection.*.sendc(server_message::init_rejected("Cannot use development card (development card has already been played this turn)."));
             return;
         }
@@ -842,7 +842,7 @@ struct server_state {
         var cur_max_knights = sint::max(r_knights, sint::max(b_knights, sint::max(w_knights, o_knights)));
 
         card.*.used = true;
-        self.*.prev_phase = std::optional[[phase]]::init_value(self.*.turn.phase);
+        self.*.dev_card_used = std::optional[[phase]]::init_value(self.*.turn.phase);
         self.*.turn.phase = phase::ROBBER;
 
         var name = player_to_name(self.*.turn.player);
@@ -880,7 +880,7 @@ struct server_state {
             connection.*.sendc(server_message::init_rejected("Cannot use development card (invalid phase)."));
             return;
         }
-        if self.*.prev_phase.is_value() {
+        if self.*.dev_card_used.is_value() {
             connection.*.sendc(server_message::init_rejected("Cannot use development card (development card has already been played this turn)."));
             return;
         }
@@ -905,7 +905,7 @@ struct server_state {
         }
 
         card.*.used = true;
-        self.*.prev_phase = std::optional[[phase]]::init_value(self.*.turn.phase);
+        self.*.dev_card_used = std::optional[[phase]]::init_value(self.*.turn.phase);
         self.*.turn.phase = phase::ROAD_BUILDING_1;
 
         var name = player_to_name(self.*.turn.player);
@@ -924,7 +924,7 @@ struct server_state {
             connection.*.sendc(server_message::init_rejected("Cannot use development card (invalid phase)."));
             return;
         }
-        if self.*.prev_phase.is_value() {
+        if self.*.dev_card_used.is_value() {
             connection.*.sendc(server_message::init_rejected("Cannot use development card (development card has already been played this turn)."));
             return;
         }
@@ -959,7 +959,7 @@ struct server_state {
         info.*.wood += resources.wood;
 
         card.*.used = true;
-        self.*.prev_phase = std::optional[[phase]]::init_value(self.*.turn.phase);
+        self.*.dev_card_used = std::optional[[phase]]::init_value(self.*.turn.phase);
         self.*.turn.phase = self.*.turn.phase; # TODO: Should Year of Plenty have a distinct phase?
 
         var name = player_to_name(self.*.turn.player);
@@ -1013,7 +1013,7 @@ struct server_state {
             connection.*.sendc(server_message::init_rejected("Cannot use development card (invalid phase)."));
             return;
         }
-        if self.*.prev_phase.is_value() {
+        if self.*.dev_card_used.is_value() {
             connection.*.sendc(server_message::init_rejected("Cannot use development card (development card has already been played this turn)."));
             return;
         }
@@ -1124,7 +1124,7 @@ struct server_state {
         *ref += gained;
 
         card.*.used = true;
-        self.*.prev_phase = std::optional[[phase]]::init_value(self.*.turn.phase);
+        self.*.dev_card_used = std::optional[[phase]]::init_value(self.*.turn.phase);
         self.*.turn.phase = self.*.turn.phase; # TODO: Should Monopoly have a distinct phase?
     }
 
@@ -1180,8 +1180,8 @@ struct server_state {
             }
         }
 
-        if self.*.prev_phase.is_value() {
-            self.*.turn.phase = self.*.prev_phase.value();
+        if self.*.dev_card_used.is_value() {
+            self.*.turn.phase = self.*.dev_card_used.value();
         }
         else {
             self.*.turn.phase = phase::MAIN;
@@ -1498,8 +1498,8 @@ struct server_state {
                 std::formatter::init[[typeof(t_name)]](&t_name),
                 std::formatter::init[[typeof(f_name)]](&f_name)]));
 
-        if self.*.prev_phase.is_value() {
-            self.*.turn.phase = self.*.prev_phase.value();
+        if self.*.dev_card_used.is_value() {
+            self.*.turn.phase = self.*.dev_card_used.value();
         }
         else {
             self.*.turn.phase = phase::MAIN;
