@@ -1746,6 +1746,7 @@ struct server_state {
         and (not self.*.b_live or self.*.b_trade_submitted)
         and (not self.*.w_live or self.*.w_trade_submitted)
         and (not self.*.o_live or self.*.o_trade_submitted) {
+            self.*.sendc_all(server_message::init_log("All players have rejected the trade offer."));
             self.*.turn.phase = phase::MAIN;
         }
     }
