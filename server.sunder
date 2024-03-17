@@ -153,83 +153,79 @@ struct server_state {
     }
 
     func p_live(self: *server_state, player: player) *bool {
+        var out: *bool = uninit;
         switch player {
         ::player::RED {
-            return &self.*.r_live;
+            out = &self.*.r_live;
         }
         ::player::BLUE {
-            return &self.*.b_live;
+            out = &self.*.b_live;
         }
         ::player::WHITE {
-            return &self.*.w_live;
+            out = &self.*.w_live;
         }
         ::player::ORANGE {
-            return &self.*.o_live;
+            out = &self.*.o_live;
         }
         }
-
-        std::unreachable(fileof(), lineof());
-        return std::zeroed[[*bool]]();
+        return out;
     }
 
     func p_info(self: *server_state, player: player) *hidden_player_info {
+        var out: *hidden_player_info = uninit;
         switch player {
         ::player::RED {
-            return &self.*.r_info;
+            out = &self.*.r_info;
         }
         ::player::BLUE {
-            return &self.*.b_info;
+            out = &self.*.b_info;
         }
         ::player::WHITE {
-            return &self.*.w_info;
+            out = &self.*.w_info;
         }
         ::player::ORANGE {
-            return &self.*.o_info;
+            out = &self.*.o_info;
         }
         }
-
-        std::unreachable(fileof(), lineof());
-        return std::zeroed[[*hidden_player_info]]();
+        return out;
     }
 
     func p_discarded(self: *server_state, player: player) *bool {
+        var out: *bool = uninit;
         switch player {
         ::player::RED {
-            return &self.*.r_discarded;
+            out = &self.*.r_discarded;
         }
         ::player::BLUE {
-            return &self.*.b_discarded;
+            out = &self.*.b_discarded;
         }
         ::player::WHITE {
-            return &self.*.w_discarded;
+            out = &self.*.w_discarded;
         }
         ::player::ORANGE {
-            return &self.*.o_discarded;
+            out = &self.*.o_discarded;
         }
         }
-
-        std::unreachable(fileof(), lineof());
-        return std::zeroed[[*bool]]();
+        return out;
     }
 
     func p_trade_submitted(self: *server_state, player: player) *bool {
+        var out: *bool = uninit;
         switch player {
         ::player::RED {
-            return &self.*.r_trade_submitted;
+            out = &self.*.r_trade_submitted;
         }
         ::player::BLUE {
-            return &self.*.b_trade_submitted;
+            out = &self.*.b_trade_submitted;
         }
         ::player::WHITE {
-            return &self.*.w_trade_submitted;
+            out = &self.*.w_trade_submitted;
         }
         ::player::ORANGE {
-            return &self.*.o_trade_submitted;
+            out = &self.*.o_trade_submitted;
         }
         }
-
-        std::unreachable(fileof(), lineof());
-        return std::zeroed[[*bool]]();
+        return out;
     }
 
     func calculate_longest_road_visit(

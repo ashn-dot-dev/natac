@@ -36,52 +36,50 @@ func vec2_distance(a: Vector2, b: Vector2) f32 {
 }
 
 func tile_color(tile: tile) Color {
+    var out: Color = uninit;
     switch tile.kind {
     ::tile::DESERT {
-        return (:Color){.r = 0xEE, .g = 0xCC, .b = 0x88, .a = 0xFF};
+        out = (:Color){.r = 0xEE, .g = 0xCC, .b = 0x88, .a = 0xFF};
     }
     ::tile::OCEAN {
-        return (:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF};
+        out = (:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF};
     }
     ::tile::FOREST {
-        return (:Color){.r = 0x11, .g = 0x55, .b = 0x11, .a = 0xFF};
+        out = (:Color){.r = 0x11, .g = 0x55, .b = 0x11, .a = 0xFF};
     }
     ::tile::FIELD {
-        return (:Color){.r = 0xDD, .g = 0xAA, .b = 0x22, .a = 0xFF};
+        out = (:Color){.r = 0xDD, .g = 0xAA, .b = 0x22, .a = 0xFF};
     }
     ::tile::HILL {
-        return (:Color){.r = 0xCC, .g = 0x55, .b = 0x44, .a = 0xFF};
+        out = (:Color){.r = 0xCC, .g = 0x55, .b = 0x44, .a = 0xFF};
     }
     ::tile::MOUNTAIN {
-        return (:Color){.r = 0x88, .g = 0x88, .b = 0x88, .a = 0xFF};
+        out = (:Color){.r = 0x88, .g = 0x88, .b = 0x88, .a = 0xFF};
     }
     ::tile::PASTURE {
-        return (:Color){.r = 0x66, .g = 0xAA, .b = 0x66, .a = 0xFF};
+        out = (:Color){.r = 0x66, .g = 0xAA, .b = 0x66, .a = 0xFF};
     }
     }
-
-    std::unreachable(fileof(), lineof());
-    return std::zeroed[[Color]]();
+    return out;
 }
 
 func player_color(player: player) Color {
+    var out: Color = uninit;
     switch player {
     ::player::RED {
-        return RED;
+        out = RED;
     }
     ::player::BLUE {
-        return BLUE;
+        out = BLUE;
     }
     ::player::WHITE {
-        return WHITE;
+        out = WHITE;
     }
     ::player::ORANGE {
-        return ORANGE;
+        out = ORANGE;
     }
     }
-
-    std::unreachable(fileof(), lineof());
-    return std::zeroed[[Color]]();
+    return out;
 }
 
 func point_to_pointy_hex(point: Vector2, radius: f32) hex {
@@ -672,65 +670,62 @@ struct client_state {
     }
 
     func p_info(self: *client_state, player: player) *public_player_info {
+        var out: *public_player_info = uninit;
         switch player {
         ::player::RED {
-            return &self.*.r;
+            out = &self.*.r;
         }
         ::player::BLUE {
-            return &self.*.b;
+            out = &self.*.b;
         }
         ::player::WHITE {
-            return &self.*.w;
+            out = &self.*.w;
         }
         ::player::ORANGE {
-            return &self.*.o;
+            out = &self.*.o;
         }
         }
-
-        std::unreachable(fileof(), lineof());
-        return std::zeroed[[*public_player_info]]();
+        return out;
     }
 
     func p_discarded(self: *client_state) *bool {
         assert self.*.player.is_value();
+        var out: *bool = uninit;
         switch self.*.player.value() {
         player::RED {
-            return &self.*.r.discarded;
+            out = &self.*.r.discarded;
         }
         player::BLUE {
-            return &self.*.b.discarded;
+            out = &self.*.b.discarded;
         }
         player::WHITE {
-            return &self.*.w.discarded;
+            out = &self.*.w.discarded;
         }
         player::ORANGE {
-            return &self.*.o.discarded;
+            out = &self.*.o.discarded;
         }
         }
-
-        std::unreachable(fileof(), lineof());
-        return std::zeroed[[*bool]]();
+        return out;
     }
 
     func p_trade_submitted(self: *client_state) *bool {
         assert self.*.player.is_value();
+        var out: *bool = uninit;
         switch self.*.player.value() {
         player::RED {
-            return &self.*.r.trade_submitted;
+            out = &self.*.r.trade_submitted;
         }
         player::BLUE {
-            return &self.*.b.trade_submitted;
+            out = &self.*.b.trade_submitted;
         }
         player::WHITE {
-            return &self.*.w.trade_submitted;
+            out = &self.*.w.trade_submitted;
         }
         player::ORANGE {
-            return &self.*.o.trade_submitted;
+            out = &self.*.o.trade_submitted;
         }
         }
-
-        std::unreachable(fileof(), lineof());
-        return std::zeroed[[*bool]]();
+        return out;
     }
 
     func update_from_server_message(self: *client_state, message: *server_message) void {
