@@ -81,7 +81,6 @@ func int_to_bubby[[T]](int: T) bubby::value {
 }
 
 enum player {
-    NIL = 0;
     RED = 1;
     BLUE = 2;
     WHITE = 3;
@@ -102,30 +101,27 @@ func name_to_player(name: []byte) player {
         return ::player::ORANGE;
     }
 
-    return ::player::NIL;
+    std::unreachable(fileof(), lineof());
+    return std::zeroed[[player]]();
 }
 
 func player_to_name(player: player) []byte {
+    var out: []byte = uninit;
     switch player {
-    ::player::NIL {
-        return "SPECTATOR";
-    }
     ::player::RED {
-        return "RED";
+        out = "RED";
     }
     ::player::BLUE {
-        return "BLUE";
+        out = "BLUE";
     }
     ::player::WHITE {
-        return "WHITE";
+        out = "WHITE";
     }
     ::player::ORANGE {
-        return "ORANGE";
+        out = "ORANGE";
     }
     }
-
-    std::unreachable(fileof(), lineof());
-    return std::zeroed[[[]byte]]();
+    return out;
 }
 
 func player_to_bubby(player: player) bubby::value {

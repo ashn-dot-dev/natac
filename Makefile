@@ -30,7 +30,13 @@ all: $(TARGET)
 build: $(TARGET)
 package-macos: $(TARGET).app $(TARGET).app.zip
 
-$(TARGET): .sunder .sunder/lib/bubby .sunder/lib/nbnet .sunder/lib/raylib .sunder/lib/smolui
+$(TARGET): \
+	.sunder \
+	.sunder/lib/bubby \
+	.sunder/lib/nbnet \
+	.sunder/lib/raylib \
+	.sunder/lib/smolui \
+	util.c shared.sunder server.sunder client.sunder
 	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
 	SUNDER_CC=clang \
 	SUNDER_CFLAGS="$(CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --cflags)" \

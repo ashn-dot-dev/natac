@@ -66,9 +66,6 @@ func tile_color(tile: tile) Color {
 
 func player_color(player: player) Color {
     switch player {
-    ::player::NIL {
-        return BLACK;
-    }
     ::player::RED {
         return RED;
     }
@@ -574,7 +571,7 @@ struct client_state {
     var ui_main_trade_submitted: bool;
     var ui: smol::ui;
 
-    var player: player;
+    var player: std::optional[[player]];
     var pinfo: hidden_player_info;
     var board: board;
     var r: public_player_info;
@@ -646,7 +643,7 @@ struct client_state {
             .ui_main_trade_submitted = false,
             .ui = ui,
 
-            .player = player::NIL,
+            .player = std::optional[[player]]::EMPTY,
             .pinfo = uninit,
             .board = board,
             .r = uninit,
@@ -676,9 +673,6 @@ struct client_state {
 
     func p_info(self: *client_state, player: player) *public_player_info {
         switch player {
-        ::player::NIL {
-            std::unreachable(fileof(), lineof());
-        }
         ::player::RED {
             return &self.*.r;
         }
@@ -698,10 +692,8 @@ struct client_state {
     }
 
     func p_discarded(self: *client_state) *bool {
-        switch self.*.player {
-        player::NIL {
-            std::unreachable(fileof(), lineof());
-        }
+        assert self.*.player.is_value();
+        switch self.*.player.value() {
         player::RED {
             return &self.*.r.discarded;
         }
@@ -721,10 +713,8 @@ struct client_state {
     }
 
     func p_trade_submitted(self: *client_state) *bool {
-        switch self.*.player {
-        player::NIL {
-            std::unreachable(fileof(), lineof());
-        }
+        assert self.*.player.is_value();
+        switch self.*.player.value() {
         player::RED {
             return &self.*.r.trade_submitted;
         }
@@ -763,7 +753,7 @@ struct client_state {
             self.*.o = message.*.data.state.o;
         }
         server_message::PLAYER {
-            self.*.player = message.*.data.player;
+            self.*.player = std::optional[[player]]::init_value(message.*.data.player);
         }
         server_message::REJECTED {
             var log_writer = std::writer::init[[std::string]](&self.*.ui_log);
@@ -1031,9 +1021,6 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     if IsKeyPressed(KEY_F4) {
         ToggleFullscreen();
     }
-    if IsKeyPressed(KEY_ZERO) {
-        sender.*.sendc(client_message::init_select_player(player::NIL));
-    }
     if IsKeyPressed(KEY_ONE) {
         sender.*.sendc(client_message::init_select_player(player::RED));
     }
@@ -1058,7 +1045,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
-    var show_ui = cstate.*.player == player::NIL;
+    var show_ui = cstate.*.player.is_empty();
     if show_ui and cstate.*.ui.begin_window_ex("Select Color", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
         var win = cstate.*.ui.get_current_container();
@@ -1142,9 +1129,6 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             var resources: sint = uninit;
             var dev_cards: sint = uninit;
             switch player {
-            ::player::NIL {
-                std::unreachable(fileof(), lineof());
-            }
             ::player::RED {
                 victory_points = cstate.*.r.victory_points;
                 resources = cstate.*.r.resources;
@@ -1167,7 +1151,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             }
             }
 
-            if player == cstate.*.player {
+            if cstate.*.player.is_value() and cstate.*.player.value() == player {
                 victory_points = cstate.*.pinfo.victory_points;
             }
 
@@ -1181,7 +1165,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             defer s.fini();
             cstate.*.ui.text(s.data());
 
-            if player == cstate.*.player {
+            if cstate.*.player.is_value() and cstate.*.player.value() == player {
                 var s = std::string::init_from_format(
                     "Brick: {}, Ore: {}, Sheep: {}, Wheat: {}, Wood: {}",
                     (:[]std::formatter)[
@@ -1279,7 +1263,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
-    var show_ui = cstate.*.turn.phase == phase::RESOURCE_PRODUCTION and cstate.*.turn.player == cstate.*.player;
+    var show_ui = cstate.*.turn.phase == phase::RESOURCE_PRODUCTION and cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player;
     if show_ui and cstate.*.ui_play_dev_card_selected {
         ui_window_play_dev_card(cstate, sender);
     }
@@ -1314,7 +1298,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
-    var show_ui = cstate.*.turn.phase == phase::DISCARD and not *cstate.*.p_discarded();
+    var show_ui = cstate.*.turn.phase == phase::DISCARD and cstate.*.player.is_value() and not *cstate.*.p_discarded();
     if show_ui and cstate.*.ui.begin_window_ex("Select Resources", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
         var win = cstate.*.ui.get_current_container();
@@ -1353,7 +1337,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
-    var show_ui = cstate.*.turn.phase == phase::STEAL and cstate.*.turn.player == cstate.*.player;
+    var show_ui = cstate.*.turn.phase == phase::STEAL and cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player;
     if show_ui and cstate.*.ui.begin_window_ex("Select Player", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
         var win = cstate.*.ui.get_current_container();
@@ -1385,7 +1369,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
-    var show_ui = cstate.*.turn.phase == phase::MAIN and cstate.*.turn.player == cstate.*.player;
+    var show_ui = cstate.*.turn.phase == phase::MAIN and cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player;
     if show_ui
     and cstate.*.ui_main_build_road_selected
     and cstate.*.ui.begin_window_ex("Build Road", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
@@ -1457,7 +1441,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                 var id = mu_get_id(cstate.*.ui.context, s.start(), (:sint)s.count());
                 var r = mu_layout_next(cstate.*.ui.context);
                 if mu_button_raw(cstate.*.ui.context, s.start(), (:sint)s.count(), 0, id, r, MU_OPT_ALIGNCENTER) != 0 {
-                    var n_to_1 = n_to_1(&cstate.*.board, cstate.*.player, cstate.*.ui_main_trade_with_bank_resource.value());
+                    var n_to_1 = n_to_1(&cstate.*.board, cstate.*.player.value(), cstate.*.ui_main_trade_with_bank_resource.value());
                     var cmessage = client_message::init_trade_n_for_1(cstate.*.ui_main_trade_with_bank_resource.value(), RESOURCES[i], n_to_1);
                     sender.*.sendc(cmessage);
                     cstate.*.ui_main_trade_with_bank_selected = false;
@@ -1472,7 +1456,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         else {
             for i in countof(RESOURCES) {
                 var name = RESOURCES[i].data();
-                var n_to_1 = n_to_1(&cstate.*.board, cstate.*.player, RESOURCES[i]);
+                var n_to_1 = n_to_1(&cstate.*.board, cstate.*.player.value(), RESOURCES[i]);
                 var s = std::string::init_from_format(
                     "{}:1 {}...",
                     (:[]std::formatter)[
@@ -1643,7 +1627,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             # Window Content
             cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
             var resources: resources = uninit;
-            if cstate.*.player == cstate.*.turn.player {
+            if cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player {
                 resources = cstate.*.trade.give;
             }
             else {
@@ -1685,7 +1669,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             # Window Content
             cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
             var resources: resources = uninit;
-            if cstate.*.player == cstate.*.turn.player {
+            if cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player {
                 resources = cstate.*.trade.recv;
             }
             else {
@@ -1742,7 +1726,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
     # Board Actions
     if cstate.*.turn.phase == phase::ROBBER
-    and cstate.*.turn.player == cstate.*.player
+    and cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player
     and IsMouseButtonPressed(MOUSE_BUTTON_LEFT) {
         if cstate.*.world_tile.is_value() {
             var world_tile = cstate.*.world_tile.value();
@@ -1757,10 +1741,10 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     and IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
     and cstate.*.world_node.is_value() {
         var existing = cstate.*.board.towns.lookup(cstate.*.world_node.value());
-        if existing.is_value() and existing.value().*.player == cstate.*.player {
+        if existing.is_value() and cstate.*.player.is_value() and cstate.*.player.value() == existing.value().*.player {
             var cmessage = client_message::init_build_town(
                 town::init(
-                    cstate.*.player,
+                    cstate.*.player.value(),
                     cstate.*.world_node.value(),
                     town::CITY));
             sender.*.sendc(cmessage);
@@ -1770,7 +1754,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
         var cmessage = client_message::init_build_town(
             town::init(
-                cstate.*.player,
+                cstate.*.player.value(),
                 cstate.*.world_node.value(),
                 town::SETTLEMENT));
         sender.*.sendc(cmessage);
@@ -1802,7 +1786,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         if not is_road_across_water {
             sender.*.sendc(client_message::init_build_road(
                 road::init(
-                    cstate.*.player,
+                    cstate.*.player.value(),
                     cstate.*.world_edge.value())));
             cstate.*.ui_main_build_road_selected = false;
         }
@@ -1877,7 +1861,7 @@ func client_render(cstate: *client_state) void {
     # tile if the robber is being moved. This is done before towns and roads
     # are drawn so that the hovered-over tile appears highlighted.
     if cstate.*.turn.phase == phase::ROBBER
-    and cstate.*.turn.player == cstate.*.player {
+    and cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player {
         var tile = cstate.*.board.tiles.lookup(cstate.*.world_hex);
         if tile.is_value() and tile.value().*.kind != ::tile::OCEAN {
             draw_pointy_hexagon_outline(world_hex_center, HEX_RADIUS, YELLOW);
@@ -1944,7 +1928,7 @@ func client_render(cstate: *client_state) void {
     }
 
     var robber_outline = BLACK;
-    if cstate.*.turn.phase == phase::ROBBER and cstate.*.turn.player == cstate.*.player {
+    if cstate.*.turn.phase == phase::ROBBER and cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player {
         robber_outline = YELLOW;
     }
     draw_robber(pointy_hex_to_point(cstate.*.board.robber, HEX_RADIUS), HEX_RADIUS, robber_outline);

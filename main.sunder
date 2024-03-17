@@ -5,9 +5,9 @@ import "bubby";
 import "nbnet";
 import "raylib";
 
-import "client.sunder";
-import "server.sunder";
 import "shared.sunder";
+import "server.sunder";
+import "client.sunder";
 
 struct local_client_message_sender {
     # Server state immediately updated from client messages.
@@ -176,7 +176,7 @@ func run_local(debug: bool, fullscreen: bool) void {
         .client = &cstate,
     };
     sstate.connections.push((:connection){
-        .player = player::NIL,
+        .player = std::optional[[player]]::EMPTY,
         .sender = message_sender[[server_message]]::init[[local_server_message_sender]](&smessage_sender)
     });
     var connection = &sstate.connections.data()[0]; # The one and only connection.
@@ -341,7 +341,7 @@ func run_server() void {
                 *server_message_sender = nbnet_server_message_sender::init(NBN_GameServer_GetIncomingConnection());
                 NBN_GameServer_AcceptIncomingConnection();
                 sstate.connections.push((:connection){
-                    .player = player::NIL,
+                    .player = std::optional[[player]]::EMPTY,
                     .sender = message_sender[[server_message]]::init[[nbnet_server_message_sender]](server_message_sender)
                 });
             }

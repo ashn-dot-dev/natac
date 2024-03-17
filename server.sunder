@@ -5,7 +5,7 @@ import "util.sunder";
 import "shared.sunder";
 
 struct connection {
-    var player: player;
+    var player: std::optional[[player]];
     var sender: message_sender[[server_message]];
 
     # Send a reliable server message to the connection.
@@ -60,9 +60,9 @@ struct server_state {
     # the turn state after a development card has resolved. An empty optional
     # indicates that a development card has not been played this turn.
     var prev_phase: std::optional[[phase]];
-    var longest_road: player;
-    var largest_army: player;
-    var winner: player;
+    var longest_road: std::optional[[player]];
+    var largest_army: std::optional[[player]];
+    var winner: std::optional[[player]];
 
     func init() server_state {
         var dev_cards = std::vector[[dev_card]]::init();
@@ -110,11 +110,11 @@ struct server_state {
             .w_trade_submitted = false,
             .o_trade_submitted = false,
             .trade = uninit,
-            .turn = turn::init(0, player::NIL),
+            .turn = turn::init(0, (:player)0),
             .prev_phase = std::optional[[phase]]::EMPTY,
-            .longest_road = player::NIL,
-            .largest_army = player::NIL,
-            .winner = player::NIL,
+            .longest_road = std::optional[[player]]::EMPTY,
+            .largest_army = std::optional[[player]]::EMPTY,
+            .winner = std::optional[[player]]::EMPTY,
         };
     }
 
@@ -154,9 +154,6 @@ struct server_state {
 
     func p_live(self: *server_state, player: player) *bool {
         switch player {
-        ::player::NIL {
-            std::unreachable(fileof(), lineof());
-        }
         ::player::RED {
             return &self.*.r_live;
         }
@@ -177,9 +174,6 @@ struct server_state {
 
     func p_info(self: *server_state, player: player) *hidden_player_info {
         switch player {
-        ::player::NIL {
-            std::unreachable(fileof(), lineof());
-        }
         ::player::RED {
             return &self.*.r_info;
         }
@@ -200,9 +194,6 @@ struct server_state {
 
     func p_discarded(self: *server_state, player: player) *bool {
         switch player {
-        ::player::NIL {
-            std::unreachable(fileof(), lineof());
-        }
         ::player::RED {
             return &self.*.r_discarded;
         }
@@ -223,9 +214,6 @@ struct server_state {
 
     func p_trade_submitted(self: *server_state, player: player) *bool {
         switch player {
-        ::player::NIL {
-            std::unreachable(fileof(), lineof());
-        }
         ::player::RED {
             return &self.*.r_trade_submitted;
         }
@@ -338,11 +326,11 @@ struct server_state {
             }
         }
 
-        if self.*.longest_road == player {
+        if self.*.longest_road.is_value() and self.*.longest_road.value() == player {
             victory_points += 2;
         }
 
-        if self.*.largest_army == player {
+        if self.*.largest_army.is_value() and self.*.largest_army.value() == player {
             victory_points += 2;
         }
 
@@ -373,7 +361,7 @@ struct server_state {
     }
 
     func process_roll(self: *server_state, connection: *connection) void {
-        if self.*.turn.player != connection.*.player {
+        if connection.*.player.is_empty() or connection.*.player.value() != self.*.turn.player {
             connection.*.sendc(server_message::init_rejected("Cannot roll dice (it is not your turn)."));
             return;
         }
@@ -388,7 +376,7 @@ struct server_state {
         self.*.board.d6_a = roll_a;
         self.*.board.d6_b = roll_b;
 
-        var name = player_to_name(connection.*.player);
+        var name = player_to_name(connection.*.player.value());
         self.*.sendc_all(server_message::init_log_format(
             "{} rolled {} + {} = {}.",
             (:[]std::formatter)[
@@ -452,7 +440,7 @@ struct server_state {
     }
 
     func process_end_turn(self: *server_state, connection: *connection) void {
-        if self.*.turn.player != connection.*.player {
+        if connection.*.player.is_empty() or connection.*.player.value() != self.*.turn.player {
             connection.*.sendc(server_message::init_rejected("Cannot end turn (it is not your turn)."));
             return;
         }
@@ -461,7 +449,7 @@ struct server_state {
             return;
         }
 
-        var name = player_to_name(connection.*.player);
+        var name = player_to_name(connection.*.player.value());
         self.*.sendc_all(server_message::init_log_format(
             "{} ended their turn.",
             (:[]std::formatter)[
@@ -498,7 +486,7 @@ struct server_state {
     }
 
     func process_build_road(self: *server_state, connection: *connection, road: road) void {
-        if self.*.turn.player != connection.*.player {
+        if connection.*.player.is_empty() or connection.*.player.value() != self.*.turn.player {
             connection.*.sendc(server_message::init_rejected("Cannot build road (it is not your turn)."));
             return;
         }
@@ -635,7 +623,7 @@ struct server_state {
     }
 
     func process_build_town(self: *server_state, connection: *connection, town: town) void {
-        if self.*.turn.player != connection.*.player {
+        if connection.*.player.is_empty() or connection.*.player.value() != self.*.turn.player {
             connection.*.sendc(server_message::init_rejected("Cannot build town (it is not your turn)."));
             return;
         }
@@ -745,7 +733,7 @@ struct server_state {
     }
 
     func process_buy_dev_card(self: *server_state, connection: *connection) void {
-        if self.*.turn.player != connection.*.player {
+        if connection.*.player.is_empty() or connection.*.player.value() != self.*.turn.player {
             connection.*.sendc(server_message::init_rejected("Cannot buy development card (it is not your turn)."));
             return;
         }
@@ -783,7 +771,7 @@ struct server_state {
     }
 
     func process_use_dev_card_knight(self: *server_state, connection: *connection) void {
-        if self.*.turn.player != connection.*.player {
+        if connection.*.player.is_empty() or connection.*.player.value() != self.*.turn.player {
             connection.*.sendc(server_message::init_rejected("Cannot use development card (it is not your turn)."));
             return;
         }
@@ -878,7 +866,7 @@ struct server_state {
             p_knights += 1;
         }
         if p_knights == cur_max_knights + 1 and p_knights >= 3 {
-            self.*.largest_army = self.*.turn.player;
+            self.*.largest_army = std::optional[[player]]::init_value(self.*.turn.player);
             self.*.sendc_all(server_message::init_log_format(
                 "{} has the largest army ({} knights).",
                 (:[]std::formatter)[
@@ -888,7 +876,7 @@ struct server_state {
     }
 
     func process_use_dev_card_road_building(self: *server_state, connection: *connection) void {
-        if self.*.turn.player != connection.*.player {
+        if connection.*.player.is_empty() or connection.*.player.value() != self.*.turn.player {
             connection.*.sendc(server_message::init_rejected("Cannot use development card (it is not your turn)."));
             return;
         }
@@ -932,7 +920,7 @@ struct server_state {
     }
 
     func process_use_dev_card_year_of_plenty(self: *server_state, connection: *connection, resources: resources) void {
-        if self.*.turn.player != connection.*.player {
+        if connection.*.player.is_empty() or connection.*.player.value() != self.*.turn.player {
             connection.*.sendc(server_message::init_rejected("Cannot use development card (it is not your turn)."));
             return;
         }
@@ -1021,7 +1009,7 @@ struct server_state {
     }
 
     func process_use_dev_card_monopoly(self: *server_state, connection: *connection, resource: resource) void {
-        if self.*.turn.player != connection.*.player {
+        if connection.*.player.is_empty() or connection.*.player.value() != self.*.turn.player {
             connection.*.sendc(server_message::init_rejected("Cannot use development card (it is not your turn)."));
             return;
         }
@@ -1145,7 +1133,7 @@ struct server_state {
     }
 
     func process_move_robber(self: *server_state, connection: *connection, hex: hex) void {
-        if self.*.turn.player != connection.*.player {
+        if connection.*.player.is_empty() or connection.*.player.value() != self.*.turn.player {
             connection.*.sendc(server_message::init_rejected("Cannot move robber (it is not your turn)."));
             return;
         }
@@ -1187,7 +1175,7 @@ struct server_state {
                 continue;
             }
             var town = optional.value();
-            if town.*.player == connection.*.player {
+            if town.*.player == connection.*.player.value() {
                 continue;
             }
             if self.*.p_info(town.*.player).*.resource_count() != 0 {
@@ -1205,7 +1193,7 @@ struct server_state {
     }
 
     func process_select_player(self: *server_state, connection: *connection, selected: player) void {
-        if connection.*.player == selected {
+        if connection.*.player.is_value() and connection.*.player.value() == selected {
             connection.*.sendc(server_message::init_rejected("Cannot select player (you are already that player)."));
             return;
         }
@@ -1214,14 +1202,17 @@ struct server_state {
             if &self.*.connections.data()[i] == connection {
                 continue;
             }
-            if self.*.connections.data()[i].player != selected {
+            if self.*.connections.data()[i].player.is_empty() {
+                continue;
+            }
+            if self.*.connections.data()[i].player.value() != selected {
                 continue;
             }
             connection.*.sendc(server_message::init_rejected("Cannot select player (someone else is already that player)."));
             return;
         }
 
-        if selected != player::NIL and not *self.*.p_live(selected) {
+        if not *self.*.p_live(selected) {
             var start_of_game =
                 self.*.turn.number == 1 and
                 self.*.turn.phase == phase::RESOURCE_PRODUCTION;
@@ -1232,9 +1223,6 @@ struct server_state {
 
             # Insert Starter Map For Beginners Positions
             switch selected {
-            player::NIL {
-                # nothing
-            }
             player::RED {
                 insert_town(&self.*.board.towns, town::init(
                     player::RED,
@@ -1396,10 +1384,13 @@ struct server_state {
             }
         }
 
-        var was = player_to_name(connection.*.player);
-        connection.*.player = selected;
-        if connection.*.player != player::NIL {
-            var info = self.*.p_info(connection.*.player);
+        var was = "SPECTATOR";
+        if connection.*.player.is_value() {
+            was = player_to_name(connection.*.player.value());
+        }
+        connection.*.player = std::optional[[player]]::init_value(selected);
+        if connection.*.player.is_value() {
+            var info = self.*.p_info(connection.*.player.value());
             connection.*.sendc(server_message::init_info(*info));
             self.*.p_live(selected).* = true;
         }
@@ -1415,7 +1406,7 @@ struct server_state {
     }
 
     func process_submit_player(self: *server_state, connection: *connection, player: player) void {
-        if self.*.turn.player != connection.*.player {
+        if connection.*.player.is_empty() or connection.*.player.value() != self.*.turn.player {
             connection.*.sendc(server_message::init_rejected("Cannot submit player (it is not your turn)."));
             return;
         }
@@ -1520,16 +1511,20 @@ struct server_state {
     }
 
     func process_submit_resources(self: *server_state, connection: *connection, resources: resources) void {
+        if connection.*.player.is_empty() {
+            connection.*.sendc(server_message::init_rejected("Cannot discard resources (invalid player)."));
+            return;
+        }
         if self.*.turn.phase != phase::DISCARD {
             connection.*.sendc(server_message::init_rejected("Cannot discard resources (it is not the discard phase)."));
             return;
         }
-        var discarded = self.*.p_discarded(connection.*.player);
+        var discarded = self.*.p_discarded(connection.*.player.value());
         if *discarded {
             connection.*.sendc(server_message::init_rejected("Cannot discard resources (player has already discarded)."));
             return;
         }
-        var info = self.*.p_info(connection.*.player);
+        var info = self.*.p_info(connection.*.player.value());
         if info.*.resource_count() <= 7 {
             connection.*.sendc(server_message::init_rejected("Cannot discard resources (player has seven or fewer resources)."));
             return;
@@ -1571,7 +1566,7 @@ struct server_state {
     }
 
     func process_trade_n_for_1(self: *server_state, connection: *connection, trade_n_for_1: typeof(client_message::SELF.data.trade_n_for_1)) void {
-        if self.*.turn.player != connection.*.player {
+        if connection.*.player.is_empty() or connection.*.player.value() != self.*.turn.player {
             connection.*.sendc(server_message::init_rejected("Cannot trade with the bank (it is not your turn)."));
             return;
         }
@@ -1601,7 +1596,7 @@ struct server_state {
         var ref = self.*.p_info(self.*.turn.player).*.resource_ref(trade_n_for_1.recv);
         *ref += 1;
 
-        var name = player_to_name(connection.*.player);
+        var name = player_to_name(connection.*.player.value());
         var give = trade_n_for_1.give.data();
         var recv = trade_n_for_1.recv.data();
         self.*.sendc_all(server_message::init_log_format(
@@ -1614,7 +1609,7 @@ struct server_state {
     }
 
     func process_trade_players(self: *server_state, connection: *connection, trade: trade) void {
-        if self.*.turn.player != connection.*.player {
+        if connection.*.player.is_empty() or connection.*.player.value() != self.*.turn.player {
             connection.*.sendc(server_message::init_rejected("Cannot trade with players (it is not your turn)."));
             return;
         }
@@ -1642,7 +1637,7 @@ struct server_state {
             return;
         }
 
-        var name = player_to_name(connection.*.player);
+        var name = player_to_name(connection.*.player.value());
         self.*.sendc_all(server_message::init_log_format(
             "{} proposed a trade.",
             (:[]std::formatter)[
@@ -1651,12 +1646,16 @@ struct server_state {
         self.*.b_trade_submitted = false;
         self.*.w_trade_submitted = false;
         self.*.o_trade_submitted = false;
-        self.*.p_trade_submitted(connection.*.player).* = true;
+        self.*.p_trade_submitted(connection.*.player.value()).* = true;
         self.*.trade = trade;
         self.*.turn.phase = phase::TRADE;
     }
 
     func process_trade_accept(self: *server_state, connection: *connection, trade: trade) void {
+        if connection.*.player.is_empty() {
+            connection.*.sendc(server_message::init_rejected("Cannot accept trade (invalid player)."));
+            return;
+        }
         if self.*.turn.phase != phase::TRADE {
             connection.*.sendc(server_message::init_rejected("Cannot accept trade (it is not the trade phase)."));
             return;
@@ -1667,14 +1666,14 @@ struct server_state {
             return;
         }
 
-        var submitted = self.*.p_trade_submitted(connection.*.player);
+        var submitted = self.*.p_trade_submitted(connection.*.player.value());
         if *submitted {
             connection.*.sendc(server_message::init_rejected("Cannot accept trade (already submitted)."));
             return;
         }
 
         var giver = self.*.p_info(self.*.turn.player);
-        var recvr = self.*.p_info(connection.*.player);
+        var recvr = self.*.p_info(connection.*.player.value());
         if recvr.*.brick < trade.recv.brick
         or recvr.*.ore < trade.recv.ore
         or recvr.*.sheep < trade.recv.sheep
@@ -1714,6 +1713,10 @@ struct server_state {
     }
 
     func process_trade_reject(self: *server_state, connection: *connection, trade: trade) void {
+        if connection.*.player.is_empty() {
+            connection.*.sendc(server_message::init_rejected("Cannot reject trade (invalid player)."));
+            return;
+        }
         if self.*.turn.phase != phase::TRADE {
             connection.*.sendc(server_message::init_rejected("Cannot reject trade (it is not the trade phase)."));
             return;
@@ -1724,7 +1727,7 @@ struct server_state {
             return;
         }
 
-        var submitted = self.*.p_trade_submitted(connection.*.player);
+        var submitted = self.*.p_trade_submitted(connection.*.player.value());
         if *submitted {
             connection.*.sendc(server_message::init_rejected("Cannot reject trade (already submitted)."));
             return;
@@ -1743,7 +1746,7 @@ struct server_state {
     func update_from_client_message(self: *server_state, message: *client_message, connection: *connection) void {
         # TODO: Checking for a winner before every message is a hack for not
         # having an end-of-game state. Remove this once such a state is added.
-        if self.*.winner != player::NIL {
+        if self.*.winner.is_value() {
             return; # Do not process additonal messages.
         }
 
@@ -1818,69 +1821,69 @@ struct server_state {
                 (:usize)(w_longest_road == p_longest_road) +
                 (:usize)(o_longest_road == p_longest_road) > 1;
             # Cases where someone loses longest road without someone stealing longest road.
-            if tied and r_longest_road < p_longest_road and self.*.longest_road == player::RED {
-                self.*.longest_road = player::NIL;
-                var name = player_to_name(self.*.longest_road);
+            if tied and r_longest_road < p_longest_road and self.*.longest_road.is_value() and self.*.longest_road.value() == player::RED {
+                var name = player_to_name(self.*.longest_road.value());
                 self.*.sendc_all(server_message::init_log_format(
                     "{} lost the longest road.",
                     (:[]std::formatter)[
                         std::formatter::init[[typeof(name)]](&name)]));
+                self.*.longest_road = std::optional[[player]]::EMPTY;
             }
-            if tied and b_longest_road < p_longest_road and self.*.longest_road == player::BLUE {
-                self.*.longest_road = player::NIL;
-                var name = player_to_name(self.*.longest_road);
+            if tied and b_longest_road < p_longest_road and self.*.longest_road.is_value() and self.*.longest_road.value() == player::BLUE {
+                var name = player_to_name(self.*.longest_road.value());
                 self.*.sendc_all(server_message::init_log_format(
                     "{} lost the longest road.",
                     (:[]std::formatter)[
                         std::formatter::init[[typeof(name)]](&name)]));
+                self.*.longest_road = std::optional[[player]]::EMPTY;
             }
-            if tied and w_longest_road < p_longest_road and self.*.longest_road == player::WHITE {
-                self.*.longest_road = player::NIL;
-                var name = player_to_name(self.*.longest_road);
+            if tied and w_longest_road < p_longest_road and self.*.longest_road.is_value() and self.*.longest_road.value() == player::WHITE {
+                var name = player_to_name(self.*.longest_road.value());
                 self.*.sendc_all(server_message::init_log_format(
                     "{} lost the longest road.",
                     (:[]std::formatter)[
                         std::formatter::init[[typeof(name)]](&name)]));
+                self.*.longest_road = std::optional[[player]]::EMPTY;
             }
-            if tied and o_longest_road < p_longest_road and self.*.longest_road == player::ORANGE {
-                self.*.longest_road = player::NIL;
-                var name = player_to_name(self.*.longest_road);
+            if tied and o_longest_road < p_longest_road and self.*.longest_road.is_value() and self.*.longest_road.value() == player::ORANGE {
+                var name = player_to_name(self.*.longest_road.value());
                 self.*.sendc_all(server_message::init_log_format(
                     "{} lost the longest road.",
                     (:[]std::formatter)[
                         std::formatter::init[[typeof(name)]](&name)]));
+                self.*.longest_road = std::optional[[player]]::EMPTY;
             }
             # Cases where someone steals longest road.
-            if not tied and r_longest_road == p_longest_road and self.*.longest_road != player::RED {
-                self.*.longest_road = player::RED;
-                var name = player_to_name(self.*.longest_road);
+            if not tied and r_longest_road == p_longest_road and (self.*.longest_road.is_empty() or self.*.longest_road.value() != player::RED) {
+                self.*.longest_road = std::optional[[player]]::init_value(player::RED);
+                var name = player_to_name(self.*.longest_road.value());
                 self.*.sendc_all(server_message::init_log_format(
                     "{} has the longest road ({} segments).",
                     (:[]std::formatter)[
                         std::formatter::init[[typeof(name)]](&name),
                         std::formatter::init[[usize]](&r_longest_road)]));
             }
-            if not tied and b_longest_road == p_longest_road and self.*.longest_road != player::BLUE {
-                self.*.longest_road = player::BLUE;
-                var name = player_to_name(self.*.longest_road);
+            if not tied and b_longest_road == p_longest_road and (self.*.longest_road.is_empty() or self.*.longest_road.value() != player::BLUE) {
+                self.*.longest_road = std::optional[[player]]::init_value(player::BLUE);
+                var name = player_to_name(self.*.longest_road.value());
                 self.*.sendc_all(server_message::init_log_format(
                     "{} has the longest road ({} segments).",
                     (:[]std::formatter)[
                         std::formatter::init[[typeof(name)]](&name),
                         std::formatter::init[[usize]](&b_longest_road)]));
             }
-            if not tied and w_longest_road == p_longest_road and self.*.longest_road != player::WHITE {
-                self.*.longest_road = player::WHITE;
-                var name = player_to_name(self.*.longest_road);
+            if not tied and w_longest_road == p_longest_road and (self.*.longest_road.is_empty() or self.*.longest_road.value() != player::WHITE) {
+                self.*.longest_road = std::optional[[player]]::init_value(player::WHITE);
+                var name = player_to_name(self.*.longest_road.value());
                 self.*.sendc_all(server_message::init_log_format(
                     "{} has the longest road ({} segments).",
                     (:[]std::formatter)[
                         std::formatter::init[[typeof(name)]](&name),
                         std::formatter::init[[usize]](&w_longest_road)]));
             }
-            if not tied and o_longest_road == p_longest_road and self.*.longest_road != player::ORANGE {
-                self.*.longest_road = player::ORANGE;
-                var name = player_to_name(self.*.longest_road);
+            if not tied and o_longest_road == p_longest_road and (self.*.longest_road.is_empty() or self.*.longest_road.value() != player::ORANGE) {
+                self.*.longest_road = std::optional[[player]]::init_value(player::ORANGE);
+                var name = player_to_name(self.*.longest_road.value());
                 self.*.sendc_all(server_message::init_log_format(
                     "{} has the longest road ({} segments).",
                     (:[]std::formatter)[
@@ -1889,14 +1892,14 @@ struct server_state {
             }
         }
         else {
-            if self.*.longest_road != player::NIL {
-                var name = player_to_name(self.*.longest_road);
+            if self.*.longest_road.is_value() {
+                var name = player_to_name(self.*.longest_road.value());
                 self.*.sendc_all(server_message::init_log_format(
                     "{} lost the longest road.",
                     (:[]std::formatter)[
                         std::formatter::init[[typeof(name)]](&name)]));
             }
-            self.*.longest_road = player::NIL;
+            self.*.longest_road = std::optional[[player]]::EMPTY;
         }
 
         # TODO: Probably don't need to update every player's victory points
@@ -1919,8 +1922,7 @@ struct server_state {
                     std::formatter::init[[typeof(name)]](&name),
                     std::formatter::init[[sint]](&self.*.r_info.victory_points),
                     std::formatter::init[[typeof(name)]](&name)]));
-            self.*.winner = player::RED;
-            self.*.turn.player = player::NIL;
+            self.*.winner = std::optional[[player]]::init_value(player::RED);
         }
         if self.*.b_info.victory_points >= WINNING_VICTORY_POINTS {
             var name = player_to_name(player::BLUE);
@@ -1930,8 +1932,7 @@ struct server_state {
                     std::formatter::init[[typeof(name)]](&name),
                     std::formatter::init[[sint]](&self.*.b_info.victory_points),
                     std::formatter::init[[typeof(name)]](&name)]));
-            self.*.winner = player::BLUE;
-            self.*.turn.player = player::NIL;
+            self.*.winner = std::optional[[player]]::init_value(player::BLUE);
         }
         if self.*.w_info.victory_points >= WINNING_VICTORY_POINTS {
             var name = player_to_name(player::WHITE);
@@ -1941,8 +1942,7 @@ struct server_state {
                     std::formatter::init[[typeof(name)]](&name),
                     std::formatter::init[[sint]](&self.*.w_info.victory_points),
                     std::formatter::init[[typeof(name)]](&name)]));
-            self.*.winner = player::WHITE;
-            self.*.turn.player = player::NIL;
+            self.*.winner = std::optional[[player]]::init_value(player::WHITE);
         }
         if self.*.o_info.victory_points >= WINNING_VICTORY_POINTS {
             var name = player_to_name(player::ORANGE);
@@ -1952,8 +1952,7 @@ struct server_state {
                     std::formatter::init[[typeof(name)]](&name),
                     std::formatter::init[[sint]](&self.*.o_info.victory_points),
                     std::formatter::init[[typeof(name)]](&name)]));
-            self.*.winner = player::ORANGE;
-            self.*.turn.player = player::NIL;
+            self.*.winner = std::optional[[player]]::init_value(player::ORANGE);
         }
     }
 }
@@ -2007,10 +2006,10 @@ func server_update(sstate: *server_state) void {
         o));
 
     for i in sstate.*.connections.count() {
-        if sstate.*.connections.data()[i].player == player::NIL {
+        if sstate.*.connections.data()[i].player.is_empty() {
             continue;
         }
-        var info = sstate.*.p_info(sstate.*.connections.data()[i].player);
+        var info = sstate.*.p_info(sstate.*.connections.data()[i].player.value());
         sstate.*.connections.data()[i].sendc_unreliable(server_message::init_info(*info));
     }
 
