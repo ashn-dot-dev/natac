@@ -28,7 +28,7 @@ SUNDER_HOME := $$(pwd)/.sunder
 
 all: $(TARGET)
 build: $(TARGET)
-package-macos: $(TARGET).app
+package-macos: $(TARGET).app $(TARGET).app.zip
 
 $(TARGET): .sunder .sunder/lib/bubby .sunder/lib/nbnet .sunder/lib/raylib .sunder/lib/smolui
 	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
@@ -72,6 +72,9 @@ $(TARGET).app: $(TARGET) macos/Natac.icns
 	cp $(TARGET) $(TARGET).app/Contents/MacOS/$(TARGET)
 	cp macos/Natac.icns natac.app/Contents/Resources/Natac.icns
 
+$(TARGET).app.zip: $(TARGET).app
+	zip -vr $(TARGET).app.zip $(TARGET).app
+
 macos/Natac.icns: macos/Natac.png
 	mkdir macos/Natac.iconset
 	sips -z 16 16   macos/Natac.png --out macos/Natac.iconset/icon_16x16.png
@@ -100,6 +103,7 @@ clean:
 	rm -rf \
 		$(TARGET) \
 		$(TARGET).app \
+		$(TARGET).app.zip \
 		macos/Natac.* \
 		$(SUNDER_HOME) \
 		$$(find . -name '*.out') \
