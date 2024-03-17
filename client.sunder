@@ -2098,4 +2098,30 @@ func client_render(cstate: *client_state) void {
             (:[]std::formatter)[
                 std::formatter::init[[[]byte]](&phase_text)]);
     }
+    else {
+        if cstate.*.world_tile.is_value() and cstate.*.world_tile.value().kind != tile::OCEAN {
+            var s = std::string::init();
+            defer s.fini();
+            var world_tile = cstate.*.world_tile.value();
+            var resource = world_tile.resource();
+            if resource.is_value() {
+                var resource = resource.value();
+                std::print_format(
+                    std::writer::init[[std::string]](&s),
+                    "{}({})",
+                    (:[]std::formatter)[
+                        std::formatter::init[[typeof(resource)]](&resource),
+                        std::formatter::init[[sint]](&world_tile.number)]);
+            }
+            else {
+                std::print_format(
+                    std::writer::init[[std::string]](&s),
+                    "{}",
+                    (:[]std::formatter)[
+                        std::formatter::init[[tile]](&world_tile)]);
+            }
+            s.data()[0] = std::ascii::to_uppercase(s.data()[0]);
+            draw_text_cstr(cstate.*.font, cstate.*.font_size, BLACK, (:Vector2){.x = 2.0, .y = 0.0}, s.cstr());
+        }
+    }
 }
