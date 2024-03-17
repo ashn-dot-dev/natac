@@ -1706,6 +1706,12 @@ struct server_state {
         self.*.w_trade_submitted = false;
         self.*.o_trade_submitted = false;
         self.*.turn.phase = phase::MAIN;
+
+        var name = player_to_name(connection.*.player.value());
+        self.*.sendc_all(server_message::init_log_format(
+            "{} accepted the trade offer.",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name)]));
     }
 
     func process_trade_reject(self: *server_state, connection: *connection, trade: trade) void {
@@ -1728,8 +1734,13 @@ struct server_state {
             connection.*.sendc(server_message::init_rejected("Cannot reject trade (already submitted)."));
             return;
         }
-
         *submitted = true;
+
+        var name = player_to_name(connection.*.player.value());
+        self.*.sendc_all(server_message::init_log_format(
+            "{} rejected the trade offer.",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name)]));
 
         if (not self.*.r_live or self.*.r_trade_submitted)
         and (not self.*.b_live or self.*.b_trade_submitted)
