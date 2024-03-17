@@ -1852,6 +1852,19 @@ func client_render(cstate: *client_state) void {
         draw_pointy_hexagon_border(point, HEX_RADIUS, BLACK);
     }
 
+    # Draw outlines tiles corresponding to the current turn's dice roll.
+    if cstate.*.turn.phase == phase::MAIN {
+        var sum = cstate.*.board.d6_a + cstate.*.board.d6_b;
+        var iter = std::hash_map_iterator[[hex, tile]]::init(&cstate.*.board.tiles);
+        for iter.advance() {
+            if iter.current().*.value.*.number == sum {
+                var center = pointy_hex_to_point(iter.current().*.key.*, HEX_RADIUS);
+                draw_pointy_hexagon_outline(center, HEX_RADIUS, YELLOW);
+                draw_pointy_hexagon_border(center, HEX_RADIUS, BLACK);
+            }
+        }
+    }
+
     # Re-draw the hexagon outline and boarder for the currently hovered-over
     # tile if the robber is being moved. This is done before towns and roads
     # are drawn so that the hovered-over tile appears highlighted.
