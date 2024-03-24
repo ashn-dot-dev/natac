@@ -1695,7 +1695,24 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         }
 
         # Menu Buttons Window
-        if not *cstate.*.p_trade_submitted()
+        if cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player
+        and cstate.*.ui.begin_window_ex("Trade with Players", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+            # Re-set cached window rect in case the screen was resized.
+            var win = cstate.*.ui.get_current_container();
+            win.*.rect.w = ui_w;
+            win.*.rect.h = ui_h;
+            win.*.rect.x = ui_x;
+            win.*.rect.y = ui_y;
+
+            # Window Content
+            cstate.*.ui.layout_row((:[]sint)[-1], 0);
+            if cstate.*.ui.button("Withdraw Trade") {
+                sender.*.sendc(client_message::init_trade_withdraw());
+            }
+
+            cstate.*.ui.end_window();
+        }
+        elif not *cstate.*.p_trade_submitted()
         and cstate.*.ui.begin_window_ex("Trade with Players", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
             # Re-set cached window rect in case the screen was resized.
             var win = cstate.*.ui.get_current_container();

@@ -1758,6 +1758,7 @@ struct client_message {
         TRADE_PLAYERS;
         TRADE_ACCEPT;
         TRADE_REJECT;
+        TRADE_WITHDRAW;
     };
     var data: union {
         var build_road: road;
@@ -1908,6 +1909,13 @@ struct client_message {
         };
     }
 
+    func init_trade_withdraw() client_message {
+        return (:client_message){
+            .kind = client_message::TRADE_WITHDRAW,
+            .data = uninit,
+        };
+    }
+
     func init_from_bubby(value: *bubby::value) client_message {
         var kind = value.*.map_xlookup_str("kind");
         if std::str::eq(kind.*.str(), "roll") {
@@ -1977,6 +1985,9 @@ struct client_message {
         if std::str::eq(kind.*.str(), "trade-reject") {
             var trade = trade::init_from_bubby(value.*.map_xlookup_str("data"));
             return client_message::init_trade_reject(trade);
+        }
+        if std::str::eq(kind.*.str(), "trade-withdraw") {
+            return client_message::init_trade_withdraw();
         }
 
         std::unreachable(fileof(), lineof());
@@ -2055,6 +2066,9 @@ struct client_message {
         client_message::TRADE_REJECT {
             out.map_insert_str("kind", bubby::value::init_str("trade-reject"));
             out.map_insert_str("data", self.*.data.trade_reject.to_bubby());
+        }
+        client_message::TRADE_WITHDRAW {
+            out.map_insert_str("kind", bubby::value::init_str("trade-withdraw"));
         }
         }
         return out;

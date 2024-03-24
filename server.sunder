@@ -1747,8 +1747,30 @@ struct server_state {
         and (not self.*.w_live or self.*.w_trade_submitted)
         and (not self.*.o_live or self.*.o_trade_submitted) {
             self.*.sendc_all(server_message::init_log("All players have rejected the trade offer."));
+            self.*.r_trade_submitted = false;
+            self.*.b_trade_submitted = false;
+            self.*.w_trade_submitted = false;
+            self.*.o_trade_submitted = false;
             self.*.turn.phase = phase::MAIN;
         }
+    }
+
+    func process_trade_withdraw(self: *server_state, connection: *connection) void {
+        if connection.*.player.is_empty() or connection.*.player.value() != self.*.turn.player {
+            connection.*.sendc(server_message::init_rejected("Cannot withdraw trade (it is not your turn)."));
+            return;
+        }
+        if self.*.turn.phase != phase::TRADE {
+            connection.*.sendc(server_message::init_rejected("Cannot withdraw trade (it is not the trade phase)."));
+            return;
+        }
+
+        self.*.sendc_all(server_message::init_log("The trade offer has been withdrawn."));
+        self.*.r_trade_submitted = false;
+        self.*.b_trade_submitted = false;
+        self.*.w_trade_submitted = false;
+        self.*.o_trade_submitted = false;
+        self.*.turn.phase = phase::MAIN;
     }
 
     func update_from_client_message(self: *server_state, message: *client_message, connection: *connection) void {
@@ -1809,6 +1831,9 @@ struct server_state {
         }
         client_message::TRADE_REJECT {
             self.*.process_trade_reject(connection, message.*.data.trade_reject);
+        }
+        client_message::TRADE_WITHDRAW {
+            self.*.process_trade_withdraw(connection);
         }
         }
 
