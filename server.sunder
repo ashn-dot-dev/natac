@@ -1494,11 +1494,31 @@ struct server_state {
         }
         }
 
-        self.*.sendc_all(server_message::init_log_format(
-            "{} stole from {}.",
-            (:[]std::formatter)[
-                std::formatter::init[[typeof(t_name)]](&t_name),
-                std::formatter::init[[typeof(f_name)]](&f_name)]));
+        var r_name = r.data();
+        for i in self.*.connections.count() {
+            var connection = &self.*.connections.data()[i];
+            if connection.*.player.is_value() and connection.*.player.value() == self.*.turn.player {
+                connection.*.sendc(server_message::init_log_format(
+                    "You stole {} from {}.",
+                    (:[]std::formatter)[
+                        std::formatter::init[[typeof(t_name)]](&r_name),
+                        std::formatter::init[[typeof(f_name)]](&f_name)]));
+                continue;
+            }
+            if connection.*.player.is_value() and connection.*.player.value() == player {
+                connection.*.sendc(server_message::init_log_format(
+                    "{} stole {} from you.",
+                    (:[]std::formatter)[
+                        std::formatter::init[[typeof(t_name)]](&t_name),
+                        std::formatter::init[[typeof(f_name)]](&r_name)]));
+                continue;
+            }
+            connection.*.sendc(server_message::init_log_format(
+                "{} stole from {}.",
+                (:[]std::formatter)[
+                    std::formatter::init[[typeof(t_name)]](&t_name),
+                    std::formatter::init[[typeof(f_name)]](&f_name)]));
+        }
 
         if self.*.dev_card_used.is_value() {
             self.*.turn.phase = self.*.dev_card_used.value();
