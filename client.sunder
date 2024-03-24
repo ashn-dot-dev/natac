@@ -1335,7 +1335,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     }
 
     # Steal From Player UI Window
-    var ui_w = (:sint)screen_w / 8;
+    var ui_w = (:sint)screen_w / 4;
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
