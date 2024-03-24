@@ -4,10 +4,21 @@ import "std";
 import "bubby";
 import "nbnet";
 
-# Simplified Permuted Congruential Generator algorithms (32 and 64 bit).
-# Originally created by Christopher Wellons[1].
+# Dan Bernstein's original djb2 implementation.
 #
-# [1]: https://nullprogram.com/blog/2017/09/21/
+# Source: http://www.cse.yorku.ca/~oz/hash.html
+func djb2(str: []byte) u64 {
+    var hash = 5381u64;
+    for i in countof(str) {
+        hash = ((hash << 5) +% hash) +% (:u64)str[i];
+    }
+    return hash;
+}
+
+# Simplified Permuted Congruential Generator algorithms (32 and 64 bit).
+# Originally created by Christopher Wellons.
+#
+# Source: https://nullprogram.com/blog/2017/09/21/
 var spcg32_state = 0xBADF00D01DC0FFEEu64;
 var spcg64_state = (:[2]u64)[0xBADF00D01DC0FFEE, 0xCAFED00DCAFEBABE];
 
@@ -42,6 +53,18 @@ func random64() u64 {
     return spcg64(&spcg64_state);
 }
 
+func random_init(seed: []byte) void {
+    spcg32_state = djb2(seed);
+    spcg64_state = (:[2]u64)[
+        (:u64)(random32() << 32) | (:u64)random32(),
+        (:u64)(random32() << 32) | (:u64)random32(),
+    ];
+}
+
+func random[[T]]() T {
+    return (:T)random64();
+}
+
 func shuffle[[T]](slice: []T) void {
     if countof(slice) <= 1 {
         return;
@@ -50,13 +73,13 @@ func shuffle[[T]](slice: []T) void {
     var i = countof(slice) - 1;
     for i >= 1 {
         defer { i -= 1; }
-        var j = (:usize)random64() % (i + 1);
+        var j = random[[usize]]() % (i + 1);
         std::swap[[T]](&slice[i], &slice[j]);
     }
 }
 
 func d6() sint {
-    return (:sint)(random32() % 6 + 1);
+    return (:sint)(random64() % 6 + 1);
 }
 
 func xstr_to_bool(str: []byte) bool {

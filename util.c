@@ -14,8 +14,18 @@ sleep_sec(double sec)
         .tv_sec = s,
         .tv_nsec = n,
     };
-
     if (nanosleep(&ts, NULL) != 0) {
         perror("nanosleep");
     }
+}
+
+uint64_t
+unix_time_now(void)
+{
+    time_t t = time(NULL);
+    if (t < 0) {
+        perror("time");
+        return 0;
+    }
+    return (uint64_t)t;
 }

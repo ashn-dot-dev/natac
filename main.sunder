@@ -5,6 +5,7 @@ import "bubby";
 import "nbnet";
 import "raylib";
 
+import "util.sunder";
 import "shared.sunder";
 import "server.sunder";
 import "client.sunder";
@@ -430,10 +431,16 @@ func main() void {
     var allocator = std::allocator::init[[typeof(allocator)]](&allocator);
     std::set_global_allocator(allocator);
 
+    var now = unix_time_now();
+    var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[typeof(now)]](&now)]);
+    defer s.fini();
+    random_init(s.data());
+
     # Argument Parsing.
     var argparser = std::argument_parser::init((:[][]byte)[
         "debug",
         "fullscreen",
+        "seed:",
 
         "local",
         "client:",
@@ -450,6 +457,10 @@ func main() void {
         }
         if argparser.check_option("fullscreen") {
             opt_fullscreen = true;
+            continue;
+        }
+        if argparser.check_option("seed") {
+            random_init(argparser.argument_value());
             continue;
         }
 

@@ -1470,7 +1470,7 @@ struct server_state {
         for _ in (:usize)f_info.*.wood {
             v.push(resource::WOOD);
         }
-        var r = v.data()[(:usize)random32() % v.count()];
+        var r = v.data()[random[[usize]]() % v.count()];
         switch r {
         resource::BRICK {
             f_info.*.brick -= 1;
