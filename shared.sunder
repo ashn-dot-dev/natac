@@ -2088,6 +2088,7 @@ struct server_message {
         var info: hidden_player_info;
         var state: struct {
             var board: board;
+            var turn_order: [4]player;
             var turn: turn;
             var trade: trade;
             var r: public_player_info;
@@ -2125,6 +2126,7 @@ struct server_message {
 
     func init_state(
         board: *board,
+        turn_order: [4]player,
         turn: turn,
         trade: trade,
         r: public_player_info,
@@ -2136,6 +2138,7 @@ struct server_message {
             .data = (:typeof(SELF.data)){
                 .state = (:typeof(SELF.data.state)){
                     .board = ::board::init_assign(board),
+                    .turn_order = turn_order,
                     .turn = turn,
                     .trade = trade,
                     .r = r,
@@ -2201,14 +2204,23 @@ struct server_message {
             var state = value.*.map_xlookup_str("data");
             var board = board::init_from_bubby(state.*.map_xlookup_str("board"));
             defer board.fini();
+            var turn_order = state.*.map_xlookup_str("turn-order").*.vec();
+            assert turn_order.*.count() == 4;
+            var turn_order = (:[4]player)[
+                bubby_to_player(&turn_order.*.data()[0]),
+                bubby_to_player(&turn_order.*.data()[1]),
+                bubby_to_player(&turn_order.*.data()[2]),
+                bubby_to_player(&turn_order.*.data()[3]),
+            ];
+            var turn = turn::init_from_bubby(state.*.map_xlookup_str("turn"));
+            var trade = trade::init_from_bubby(state.*.map_xlookup_str("trade"));
             var r = public_player_info::init_from_bubby(state.*.map_xlookup_str("r"));
             var b = public_player_info::init_from_bubby(state.*.map_xlookup_str("b"));
             var w = public_player_info::init_from_bubby(state.*.map_xlookup_str("w"));
             var o = public_player_info::init_from_bubby(state.*.map_xlookup_str("o"));
-            var turn = turn::init_from_bubby(state.*.map_xlookup_str("turn"));
-            var trade = trade::init_from_bubby(state.*.map_xlookup_str("trade"));
             return server_message::init_state(
                 &board,
+                turn_order,
                 turn,
                 trade,
                 r,
@@ -2243,6 +2255,12 @@ struct server_message {
             out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("state"));
             var state = bubby::value::init_map();
             state.map().*.insert(bubby::value::init_str("board"), self.*.data.state.board.to_bubby());
+            var turn_order = bubby::value::init_vec();
+            turn_order.vec().*.push(player_to_bubby(self.*.data.state.turn_order[0]));
+            turn_order.vec().*.push(player_to_bubby(self.*.data.state.turn_order[1]));
+            turn_order.vec().*.push(player_to_bubby(self.*.data.state.turn_order[2]));
+            turn_order.vec().*.push(player_to_bubby(self.*.data.state.turn_order[3]));
+            state.map().*.insert(bubby::value::init_str("turn-order"), turn_order);
             state.map().*.insert(bubby::value::init_str("turn"), self.*.data.state.turn.to_bubby());
             state.map().*.insert(bubby::value::init_str("trade"), self.*.data.state.trade.to_bubby());
             state.map().*.insert(bubby::value::init_str("r"), self.*.data.state.r.to_bubby());

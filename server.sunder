@@ -55,6 +55,10 @@ struct server_state {
     var w_trade_submitted: bool; # trade phase
     var o_trade_submitted: bool; # trade phase
     var trade: trade;
+    # The player turn order for the game. Shuffled from the four player colors.
+    # If the Nth player is not live, then that player's turn is skipped.
+    var turn_order: [4]player;
+    # The current turn.
     var turn: turn;
     # The phase a development card was played this turn. Used for restoring the
     # turn state after a development card has resolved. An empty optional
@@ -88,6 +92,14 @@ struct server_state {
         }
         shuffle[[dev_card]](dev_cards.data());
 
+        var turn_order = (:[4]player)[
+            player::RED,
+            player::BLUE,
+            player::WHITE,
+            player::ORANGE,
+        ];
+        shuffle[[player]]((:[]player){&turn_order[0], countof(turn_order)});
+
         return (:server_state){
             .connections = std::vector[[connection]]::init(),
             .ticks = 0,
@@ -110,6 +122,7 @@ struct server_state {
             .w_trade_submitted = false,
             .o_trade_submitted = false,
             .trade = uninit,
+            .turn_order = turn_order,
             .turn = turn::init(0, (:player)0),
             .dev_card_used = std::optional[[phase]]::EMPTY,
             .longest_road = std::optional[[player]]::EMPTY,
@@ -451,34 +464,23 @@ struct server_state {
             (:[]std::formatter)[
                 std::formatter::init[[typeof(name)]](&name)]));
 
-        var PLAYERS = (:[]player)[
-            player::RED,
-            player::BLUE,
-            player::WHITE,
-            player::ORANGE,
-        ];
-        var idx: usize = uninit;
-        if self.*.turn.player == player::RED {
-            idx = 0; # red
-        }
-        elif self.*.turn.player == player::BLUE {
-            idx = 1; # blue
-        }
-        elif self.*.turn.player == player::WHITE {
-            idx = 2; # white
-        }
-        elif self.*.turn.player == player::ORANGE {
-            idx = 3; # orange
-        }
-
-        for true {
-            idx += 1;
-            idx %= countof(PLAYERS);
-            if *self.*.p_live(PLAYERS[idx]) {
+        var idx = usize::MAX;
+        for i in countof(self.*.turn_order) {
+            if self.*.turn.player == self.*.turn_order[i] {
+                idx = i;
                 break;
             }
         }
-        self.*.change_turn(PLAYERS[idx]);
+        assert idx != usize::MAX;
+
+        for true {
+            idx += 1;
+            idx %= countof(self.*.turn_order);
+            if *self.*.p_live(self.*.turn_order[idx]) {
+                break;
+            }
+        }
+        self.*.change_turn(self.*.turn_order[idx]);
     }
 
     func process_build_road(self: *server_state, connection: *connection, road: road) void {
@@ -1994,7 +1996,9 @@ func server_update(sstate: *server_state) void {
     # Initial server messages sent on the first game tick.
     if sstate.*.ticks == 0 {
         sstate.*.sendc_all(server_message::init_log("Welcome to Natac!"));
-        sstate.*.change_turn(player::RED);
+        # XXX: This requires the first player in the turn order to be part of
+        # the game, since that player must roll and end their turn.
+        sstate.*.change_turn(sstate.*.turn_order[0]);
     }
 
     var r = (:public_player_info){
@@ -2031,6 +2035,7 @@ func server_update(sstate: *server_state) void {
     };
     sstate.*.sendc_all_unreliable(server_message::init_state(
         &sstate.*.board,
+        sstate.*.turn_order,
         sstate.*.turn,
         sstate.*.trade,
         r,
