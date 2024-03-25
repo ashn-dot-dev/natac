@@ -1602,6 +1602,14 @@ struct hidden_player_info {
     func resource_count(self: *hidden_player_info) sint {
         return self.*.brick + self.*.ore + self.*.sheep + self.*.wheat + self.*.wood;
     }
+
+    func unused_dev_card_count(self: *hidden_player_info) sint {
+        var count: sint = 0;
+        for i in self.*.dev_card_count {
+            count += (:sint)not self.*.dev_card_array[i].used;
+        }
+        return count;
+    }
 }
 
 struct public_player_info {
