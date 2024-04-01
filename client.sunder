@@ -613,8 +613,11 @@ struct client_state {
         var ctx = std::new[[mu_Context]]();
         mu_init(ctx);
         smol::setup_font(ctx, ui_font);
-        var ui_log = std::string::init();
         var ui = smol::ui::init(ctx);
+        var ui_log = std::string::init();
+        var log_writer = std::writer::init[[std::string]](&ui_log);
+        std::print_line(log_writer, "Welcome to Natac!");
+        var ui_log_updated = true;
 
         var board = board::init();
 
@@ -627,7 +630,7 @@ struct client_state {
             .ui_font = ui_font,
             .ui_font_size = ui_font_size,
             .ui_log = ui_log,
-            .ui_log_updated = false,
+            .ui_log_updated = ui_log_updated,
             .ui_resources_select = uninit,
             .ui_play_dev_card_selected = false,
             .ui_play_dev_card_year_of_plenty_selected = false,
@@ -1087,6 +1090,31 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         }
         if cstate.*.ui.button("Orange") {
             sender.*.sendc(client_message::init_select_player(player::ORANGE));
+        }
+
+        cstate.*.ui.end_window();
+    }
+
+    # Begin Game UI Window
+    var ui_w = (:sint)screen_w / 4;
+    var ui_h = (:sint)screen_h / 4;
+    var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
+    var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
+    var show_ui = cstate.*.turn.phase == phase::GAME_INIT and cstate.*.player.is_value();
+    if show_ui and cstate.*.ui.begin_window_ex("Start-of-Game Lobby", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Window Content
+        cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        cstate.*.ui.text("Click the \"Begin the Game\" button below once all players have joined.");
+        cstate.*.ui.text("");
+        if cstate.*.ui.button("Begin the Game") {
+            sender.*.sendc(client_message::init_begin_game());
         }
 
         cstate.*.ui.end_window();
@@ -2194,6 +2222,12 @@ func client_render(cstate: *client_state) void {
 
         var phase_text: []byte = uninit;
         switch cstate.*.turn.phase {
+        phase::GAME_INIT {
+            phase_text = "game-init";
+        }
+        phase::GAME_FINI {
+            phase_text = "game-fini";
+        }
         phase::RESOURCE_PRODUCTION {
             phase_text = "resource production";
         }

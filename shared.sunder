@@ -1644,6 +1644,8 @@ struct public_player_info {
 }
 
 enum phase {
+    GAME_INIT;
+    GAME_FINI;
     RESOURCE_PRODUCTION;
     DISCARD;
     ROBBER;
@@ -1654,6 +1656,12 @@ enum phase {
     TRADE;
 
     func init_from_bubby(value: *bubby::value) phase {
+        if std::str::eq(value.*.str(), "game-init") {
+            return phase::GAME_INIT;
+        }
+        if std::str::eq(value.*.str(), "game-fini") {
+            return phase::GAME_FINI;
+        }
         if std::str::eq(value.*.str(), "resource-production") {
             return phase::RESOURCE_PRODUCTION;
         }
@@ -1685,6 +1693,12 @@ enum phase {
 
     func to_bubby(self: *phase) bubby::value {
         switch *self {
+        phase::GAME_INIT {
+            return bubby::value::init_str("game-init");
+        }
+        phase::GAME_FINI {
+            return bubby::value::init_str("game-fini");
+        }
         phase::RESOURCE_PRODUCTION {
             return bubby::value::init_str("resource-production");
         }
@@ -1772,6 +1786,7 @@ struct message {
 
 struct client_message {
     var kind: enum {
+        BEGIN_GAME;
         ROLL;
         END_TURN;
         BUILD_ROAD;
@@ -1811,6 +1826,13 @@ struct client_message {
     };
 
     let SELF: client_message = uninit;
+
+    func init_begin_game() client_message {
+        return (:client_message){
+            .kind = client_message::BEGIN_GAME,
+            .data = uninit,
+        };
+    }
 
     func init_roll() client_message {
         return (:client_message){
@@ -1949,6 +1971,9 @@ struct client_message {
 
     func init_from_bubby(value: *bubby::value) client_message {
         var kind = value.*.map_xlookup_str("kind");
+        if std::str::eq(kind.*.str(), "begin-game") {
+            return client_message::init_begin_game();
+        }
         if std::str::eq(kind.*.str(), "roll") {
             return client_message::init_roll();
         }
@@ -2028,6 +2053,9 @@ struct client_message {
     func to_bubby(self: *client_message) bubby::value {
         var out = bubby::value::init_map();
         switch self.*.kind {
+        client_message::BEGIN_GAME {
+            out.map_insert_str("kind", bubby::value::init_str("begin-game"));
+        }
         client_message::ROLL {
             out.map_insert_str("kind", bubby::value::init_str("roll"));
         }

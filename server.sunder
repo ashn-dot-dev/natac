@@ -100,6 +100,9 @@ struct server_state {
         ];
         shuffle[[player]]((:[]player){&turn_order[0], countof(turn_order)});
 
+        var turn = turn::init(0, turn_order[0]);
+        turn.phase = phase::GAME_INIT;
+
         return (:server_state){
             .connections = std::vector[[connection]]::init(),
             .ticks = 0,
@@ -123,7 +126,7 @@ struct server_state {
             .o_trade_submitted = false,
             .trade = uninit,
             .turn_order = turn_order,
-            .turn = turn::init(0, (:player)0),
+            .turn = turn,
             .dev_card_used = std::optional[[phase]]::EMPTY,
             .longest_road = std::optional[[player]]::EMPTY,
             .largest_army = std::optional[[player]]::EMPTY,
@@ -367,6 +370,21 @@ struct server_state {
             "It's {}'s turn!",
             (:[]std::formatter)[
                 std::formatter::init[[typeof(name)]](&name)]));
+    }
+
+    func process_begin_game(self: *server_state, connection: *connection) void {
+        if connection.*.player.is_empty() {
+            connection.*.sendc(server_message::init_rejected("Cannot begin the game (you are not an active player)."));
+            return;
+        }
+        if self.*.turn.phase != phase::GAME_INIT {
+            connection.*.sendc(server_message::init_rejected("Cannot begin the game (the game has already started)."));
+            return;
+        }
+
+        # TODO: This should start the process of going through different
+        # start-of-game phases.
+        self.*.change_turn(self.*.turn_order[0]);
     }
 
     func process_roll(self: *server_state, connection: *connection) void {
@@ -1211,10 +1229,7 @@ struct server_state {
         }
 
         if not *self.*.p_live(selected) {
-            var start_of_game =
-                self.*.turn.number == 1 and
-                self.*.turn.phase == phase::RESOURCE_PRODUCTION;
-            if not start_of_game {
+            if self.*.turn.phase != phase::GAME_INIT {
                 connection.*.sendc(server_message::init_rejected("Cannot select player (player is not part of the game)."));
                 return;
             }
@@ -1803,6 +1818,9 @@ struct server_state {
         }
 
         switch message.*.kind {
+        client_message::BEGIN_GAME {
+            self.*.process_begin_game(connection);
+        }
         client_message::ROLL {
             self.*.process_roll(connection);
         }
@@ -1978,6 +1996,7 @@ struct server_state {
                     std::formatter::init[[sint]](&self.*.r_info.victory_points),
                     std::formatter::init[[typeof(name)]](&name)]));
             self.*.winner = std::optional[[player]]::init_value(player::RED);
+            self.*.turn.phase = phase::GAME_FINI;
         }
         if self.*.b_info.victory_points >= WINNING_VICTORY_POINTS {
             var name = player_to_name(player::BLUE);
@@ -1988,6 +2007,7 @@ struct server_state {
                     std::formatter::init[[sint]](&self.*.b_info.victory_points),
                     std::formatter::init[[typeof(name)]](&name)]));
             self.*.winner = std::optional[[player]]::init_value(player::BLUE);
+            self.*.turn.phase = phase::GAME_FINI;
         }
         if self.*.w_info.victory_points >= WINNING_VICTORY_POINTS {
             var name = player_to_name(player::WHITE);
@@ -1998,6 +2018,7 @@ struct server_state {
                     std::formatter::init[[sint]](&self.*.w_info.victory_points),
                     std::formatter::init[[typeof(name)]](&name)]));
             self.*.winner = std::optional[[player]]::init_value(player::WHITE);
+            self.*.turn.phase = phase::GAME_FINI;
         }
         if self.*.o_info.victory_points >= WINNING_VICTORY_POINTS {
             var name = player_to_name(player::ORANGE);
@@ -2008,19 +2029,12 @@ struct server_state {
                     std::formatter::init[[sint]](&self.*.o_info.victory_points),
                     std::formatter::init[[typeof(name)]](&name)]));
             self.*.winner = std::optional[[player]]::init_value(player::ORANGE);
+            self.*.turn.phase = phase::GAME_FINI;
         }
     }
 }
 
 func server_update(sstate: *server_state) void {
-    # Initial server messages sent on the first game tick.
-    if sstate.*.ticks == 0 {
-        sstate.*.sendc_all(server_message::init_log("Welcome to Natac!"));
-        # XXX: This requires the first player in the turn order to be part of
-        # the game, since that player must roll and end their turn.
-        sstate.*.change_turn(sstate.*.turn_order[0]);
-    }
-
     var r = (:public_player_info){
         .live = sstate.*.r_live,
         .victory_points = sstate.*.public_victory_points(player::RED),
