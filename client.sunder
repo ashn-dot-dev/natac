@@ -695,40 +695,38 @@ struct client_state {
         return out;
     }
 
-    func p_discarded(self: *client_state) *bool {
-        assert self.*.player.is_value();
+    func p_discarded(self: *client_state, player: player) *bool {
         var out: *bool = uninit;
-        switch self.*.player.value() {
-        player::RED {
+        switch player {
+        ::player::RED {
             out = &self.*.r.discarded;
         }
-        player::BLUE {
+        ::player::BLUE {
             out = &self.*.b.discarded;
         }
-        player::WHITE {
+        ::player::WHITE {
             out = &self.*.w.discarded;
         }
-        player::ORANGE {
+        ::player::ORANGE {
             out = &self.*.o.discarded;
         }
         }
         return out;
     }
 
-    func p_trade_submitted(self: *client_state) *bool {
-        assert self.*.player.is_value();
+    func p_trade_submitted(self: *client_state, player: player) *bool {
         var out: *bool = uninit;
-        switch self.*.player.value() {
-        player::RED {
+        switch player {
+        ::player::RED {
             out = &self.*.r.trade_submitted;
         }
-        player::BLUE {
+        ::player::BLUE {
             out = &self.*.b.trade_submitted;
         }
-        player::WHITE {
+        ::player::WHITE {
             out = &self.*.w.trade_submitted;
         }
-        player::ORANGE {
+        ::player::ORANGE {
             out = &self.*.o.trade_submitted;
         }
         }
@@ -1300,7 +1298,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
-    var show_ui = cstate.*.turn.phase == phase::DISCARD and cstate.*.player.is_value() and not *cstate.*.p_discarded();
+    var show_ui = cstate.*.turn.phase == phase::DISCARD and cstate.*.player.is_value() and not *cstate.*.p_discarded(cstate.*.player.value());
     if show_ui and cstate.*.ui.begin_window_ex("Select Resources", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
         var win = cstate.*.ui.get_current_container();
@@ -1719,7 +1717,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
             cstate.*.ui.end_window();
         }
-        elif not *cstate.*.p_trade_submitted()
+        elif cstate.*.player.is_value() and not *cstate.*.p_trade_submitted(cstate.*.player.value())
         and cstate.*.ui.begin_window_ex("Trade with Players", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
             # Re-set cached window rect in case the screen was resized.
             var win = cstate.*.ui.get_current_container();
