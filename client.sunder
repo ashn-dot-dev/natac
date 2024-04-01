@@ -765,6 +765,25 @@ struct client_state {
     }
 }
 
+func ui_labled_number(ui: *smol::ui, label: []byte, value: sint, layout: []sint) void {
+    ui.*.push_id(startof(label), countof(label));
+    ui.*.layout_begin_column();
+
+    ui.*.layout_row(layout, 0);
+    ui.*.begin_panel_ex("PANEL", smol::OPT_NOSCROLL); # XXX: Duplicate IDs?
+    ui.*.text(label);
+    ui.*.end_panel();
+
+    ui.*.begin_panel_ex("PANEL", smol::OPT_NOSCROLL); # XXX: Duplicate IDs?
+    var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&value)]);
+    defer s.fini();
+    ui.*.text(s.data());
+    ui.*.end_panel();
+
+    ui.*.layout_end_column();
+    ui.*.pop_id();
+}
+
 # In HTML this input element is has type "number", but elsewhere it is referred
 # to as a spinner for some reason. I'm calling it a "UI Number Select" for now.
 #
@@ -1074,13 +1093,21 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     }
 
     # Player Info UI Windows
-    var ui_players_w = (:sint)screen_w * 1 / 3;
-    var ui_players_h = ((:sint)screen_h * 1 / 2 - 2 * UI_BORDER) / (:sint)countof(cstate.*.turn_order);
+    var ui_player_w = (:sint)screen_w * 1 / 3;
+    var ui_player_x = (:sint)screen_w - ui_player_w - UI_BORDER;
+    var ui_player_y = UI_BORDER;
     for i in countof(cstate.*.turn_order) {
         var player = cstate.*.turn_order[i];
         if not cstate.*.p_info(player).*.live {
             continue;
         }
+
+        var ui_player_h = ((:sint)screen_h * 1 / 2 - 2 * UI_BORDER) / (:sint)countof(cstate.*.turn_order);
+        if cstate.*.player.is_value() and cstate.*.player.value() == player {
+            # Five extra rows pluse some wiggle room.
+            ui_player_h += (5 + 2) * (:sint)cstate.*.ui_font_size;
+        }
+        defer { ui_player_y += ui_player_h + UI_BORDER; }
 
         var pcolor = player_color(player);
         cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLEBG].r = pcolor.r;
@@ -1112,10 +1139,10 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].a = 0xFF;
         }
 
-        var ui_w = ui_players_w;
-        var ui_h = ui_players_h;
-        var ui_x = (:sint)screen_w - ui_w - UI_BORDER;
-        var ui_y = UI_BORDER + (:sint)i * (ui_players_h + UI_BORDER);
+        var ui_w = ui_player_w;
+        var ui_h = ui_player_h;
+        var ui_x = ui_player_x;
+        var ui_y = ui_player_y;
         if cstate.*.ui.begin_window_ex(player_to_name(player), smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
             # Re-set cached window rect in case the screen was resized.
             var win = cstate.*.ui.get_current_container();
@@ -1155,27 +1182,40 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                 victory_points = cstate.*.pinfo.victory_points;
             }
 
-            cstate.*.ui.layout_row((:[]sint)[-1], 1);
+            var text_w = (:sint)((:f32)ui_w / 2.0 * (2.0 / 3.0));
+            var nums_w = (:sint)((:f32)ui_w / 2.0 * (1.0 / 1.0));
+            cstate.*.ui.layout_row((:[]sint)[text_w, nums_w], 1);
+            cstate.*.ui.text("Victory Points:");
             var s = std::string::init_from_format(
-                "Victory Points: {}, Resources: {}, Dev Cards: {}",
+                "{}",
                 (:[]std::formatter)[
-                    std::formatter::init[[sint]](&victory_points),
-                    std::formatter::init[[sint]](&resources),
+                    std::formatter::init[[sint]](&victory_points)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+
+            cstate.*.ui.layout_row((:[]sint)[text_w, nums_w], 1);
+            cstate.*.ui.text("Resources:");
+            var s = std::string::init_from_format(
+                "{}",
+                (:[]std::formatter)[
+                    std::formatter::init[[sint]](&resources)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+
+            cstate.*.ui.layout_row((:[]sint)[text_w, nums_w], 1);
+            cstate.*.ui.text("Dev Cards:");
+            var s = std::string::init_from_format(
+                "{}",
+                (:[]std::formatter)[
                     std::formatter::init[[sint]](&dev_cards)]);
             defer s.fini();
             cstate.*.ui.text(s.data());
 
             if cstate.*.player.is_value() and cstate.*.player.value() == player {
-                var s = std::string::init_from_format(
-                    "Brick: {}, Ore: {}, Sheep: {}, Wheat: {}, Wood: {}",
-                    (:[]std::formatter)[
-                        std::formatter::init[[sint]](&cstate.*.pinfo.brick),
-                        std::formatter::init[[sint]](&cstate.*.pinfo.ore),
-                        std::formatter::init[[sint]](&cstate.*.pinfo.sheep),
-                        std::formatter::init[[sint]](&cstate.*.pinfo.wheat),
-                        std::formatter::init[[sint]](&cstate.*.pinfo.wood)]);
-                defer s.fini();
-                cstate.*.ui.text(s.data());
+                cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].r = BLACK.r;
+                cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].g = BLACK.g;
+                cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].b = BLACK.b;
+                cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].a = 0xFF;
 
                 var knight_count: usize = 0;
                 var road_building_count: usize = 0;
@@ -1204,16 +1244,33 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                     }
                     }
                 }
-                var s = std::string::init_from_format(
-                    "[Dev Cards] Kn: {}, RB: {}, YoP: {}, Mo: {}, VP: {}",
-                    (:[]std::formatter)[
-                        std::formatter::init[[usize]](&knight_count),
-                        std::formatter::init[[usize]](&road_building_count),
-                        std::formatter::init[[usize]](&year_of_plenty_count),
-                        std::formatter::init[[usize]](&monopoly_count),
-                        std::formatter::init[[usize]](&victory_point_count)]);
-                defer s.fini();
-                cstate.*.ui.text(s.data());
+
+                # XXX: Removing the dashes between label names below will cause
+                # line breaks to appear. These line breaks will end up showing
+                # only the first word of each label. No idea why this happens.
+                cstate.*.ui.layout_row((:[]sint)[64 + 24, 8, 128 + 24], 1);
+                let RESOURCE_LAYOUT = (:[]sint)[64, 24];
+                let DEV_CARD_LAYOUT = (:[]sint)[128, 24];
+
+                ui_labled_number(&cstate.*.ui, "Brick", cstate.*.pinfo.brick, RESOURCE_LAYOUT);
+                cstate.*.ui.text(""); # spacer
+                ui_labled_number(&cstate.*.ui, "Knight", (:sint)knight_count, DEV_CARD_LAYOUT);
+
+                ui_labled_number(&cstate.*.ui, "Ore", cstate.*.pinfo.ore, RESOURCE_LAYOUT);
+                cstate.*.ui.text(""); # spacer
+                ui_labled_number(&cstate.*.ui, "Road-Building", (:sint)road_building_count, DEV_CARD_LAYOUT);
+
+                ui_labled_number(&cstate.*.ui, "Sheep", cstate.*.pinfo.sheep, RESOURCE_LAYOUT);
+                cstate.*.ui.text(""); # spacer
+                ui_labled_number(&cstate.*.ui, "Year-of-Plenty", (:sint)year_of_plenty_count, DEV_CARD_LAYOUT);
+
+                ui_labled_number(&cstate.*.ui, "Wheat", cstate.*.pinfo.wheat, RESOURCE_LAYOUT);
+                cstate.*.ui.text(""); # spacer
+                ui_labled_number(&cstate.*.ui, "Monopoly", (:sint)monopoly_count, DEV_CARD_LAYOUT);
+
+                ui_labled_number(&cstate.*.ui, "Wood", cstate.*.pinfo.wood, RESOURCE_LAYOUT);
+                cstate.*.ui.text(""); # spacer
+                ui_labled_number(&cstate.*.ui, "Victory-Point", (:sint)victory_point_count, DEV_CARD_LAYOUT);
             }
 
             cstate.*.ui.end_window();
@@ -1234,9 +1291,9 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].b = WHITE.b;
     cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_TITLETEXT].a = 0xFF;
     var ui_w = (:sint)screen_w * 1 / 3;
-    var ui_h = (:sint)screen_h * 1 / 2 - 4 * UI_BORDER;
     var ui_x = (:sint)screen_w - ui_w - UI_BORDER;
-    var ui_y = (:sint)screen_h * 1 / 2 + 3 * UI_BORDER;
+    var ui_y = ui_player_y;
+    var ui_h = (:sint)screen_h - ui_y - UI_BORDER;
     if cstate.*.ui.begin_window_ex("LOG", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
         var win = cstate.*.ui.get_current_container();
