@@ -1563,43 +1563,91 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             cstate.*.ui.end_window();
         }
     }
-    elif show_ui
-    and cstate.*.ui.begin_window_ex("Your Turn", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+    elif show_ui {
+        if cstate.*.ui.begin_window_ex("Your Turn", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+            # Re-set cached window rect in case the screen was resized.
+            var win = cstate.*.ui.get_current_container();
+            win.*.rect.w = ui_w;
+            win.*.rect.h = ui_h;
+            win.*.rect.x = ui_x;
+            win.*.rect.y = ui_y;
 
-        # Window Content
-        cstate.*.ui.layout_row((:[]sint)[-1], 0);
-        if cstate.*.ui.button("Build a Road") {
-            cstate.*.ui_main_build_road_selected = true;
-        }
-        if cstate.*.ui.button("Build a Settlement/City") {
-            cstate.*.ui_main_build_town_selected = true;
-        }
-        if cstate.*.ui.button("Buy a Development Card") {
-            sender.*.sendc(client_message::init_buy_dev_card());
-        }
-        if cstate.*.ui.button("Play a Development Card") {
-            cstate.*.ui_play_dev_card_selected = true;
-        }
-        if cstate.*.ui.button("Trade with the Bank") {
-            cstate.*.ui_main_trade_with_bank_selected = true;
-            cstate.*.ui_main_trade_with_bank_resource = std::optional[[resource]]::EMPTY;
-        }
-        if cstate.*.ui.button("Trade with Players") {
-            cstate.*.ui_main_trade_with_players_selected = true;
-            cstate.*.ui_main_trade_with_players_give = std::zeroed[[resources]]();
-            cstate.*.ui_main_trade_with_players_recv = std::zeroed[[resources]]();
-        }
-        if cstate.*.ui.button("End Turn") {
-            sender.*.sendc(client_message::init_end_turn());
+            # Window Content
+            cstate.*.ui.layout_row((:[]sint)[-1], 0);
+            if cstate.*.ui.button("Build a Road") {
+                cstate.*.ui_main_build_road_selected = true;
+            }
+            if cstate.*.ui.button("Build a Settlement/City") {
+                cstate.*.ui_main_build_town_selected = true;
+            }
+            if cstate.*.ui.button("Buy a Development Card") {
+                sender.*.sendc(client_message::init_buy_dev_card());
+            }
+            if cstate.*.ui.button("Play a Development Card") {
+                cstate.*.ui_play_dev_card_selected = true;
+            }
+            if cstate.*.ui.button("Trade with the Bank") {
+                cstate.*.ui_main_trade_with_bank_selected = true;
+                cstate.*.ui_main_trade_with_bank_resource = std::optional[[resource]]::EMPTY;
+            }
+            if cstate.*.ui.button("Trade with Players") {
+                cstate.*.ui_main_trade_with_players_selected = true;
+                cstate.*.ui_main_trade_with_players_give = std::zeroed[[resources]]();
+                cstate.*.ui_main_trade_with_players_recv = std::zeroed[[resources]]();
+            }
+            if cstate.*.ui.button("End Turn") {
+                sender.*.sendc(client_message::init_end_turn());
+            }
+
+            cstate.*.ui.end_window();
         }
 
-        cstate.*.ui.end_window();
+        var ui_x = ui_x - ui_w - UI_BORDER;
+        if cstate.*.ui.begin_window_ex("Building Costs", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+            # Re-set cached window rect in case the screen was resized.
+            var win = cstate.*.ui.get_current_container();
+            win.*.rect.w = ui_w;
+            win.*.rect.h = ui_h;
+            win.*.rect.x = ui_x;
+            win.*.rect.y = ui_y;
+
+            # Window Content
+            cstate.*.ui.layout_row((:[]sint)[-1], 0);
+
+            var remaining = 15s;
+            var s = std::string::init_from_format(
+                "Road ({} remaining):\n    1 brick, 1 wood",
+                (:[]std::formatter)[
+                    std::formatter::init[[ssize]](&remaining)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+
+            var remaining = 5s;
+            var s = std::string::init_from_format(
+                "Settlement ({} remaining):\n    1 brick, 1 sheep, 1 wheat, 1 wood",
+                (:[]std::formatter)[
+                    std::formatter::init[[ssize]](&remaining)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+
+            var remaining = 4s;
+            var s = std::string::init_from_format(
+                "City ({} remaining):\n    3 ore, 1 wheat",
+                (:[]std::formatter)[
+                    std::formatter::init[[ssize]](&remaining)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+
+            var remaining = 25s;
+            var s = std::string::init_from_format(
+                "Development Card ({} remaining):\n    1 ore, 1 sheep, 1 wheat",
+                (:[]std::formatter)[
+                    std::formatter::init[[ssize]](&remaining)]);
+            defer s.fini();
+            cstate.*.ui.text(s.data());
+
+            cstate.*.ui.end_window();
+        }
     }
 
     # Trade Phase UI Window
