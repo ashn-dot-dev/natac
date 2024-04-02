@@ -1887,7 +1887,45 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         }
         return;
     }
-    elif cstate.*.ui_main_build_town_selected
+    elif IsKeyPressed(KEY_SPACE)
+    and cstate.*.turn.phase == phase::RESOURCE_PRODUCTION {
+        var cmessage = client_message::init_roll();
+        sender.*.sendc(cmessage);
+        return;
+    }
+    elif IsKeyPressed(KEY_SPACE)
+    and cstate.*.turn.phase == phase::MAIN {
+        var cmessage = client_message::init_end_turn();
+        sender.*.sendc(cmessage);
+        return;
+    }
+    elif (
+        cstate.*.ui_main_build_road_selected or
+        cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player and cstate.*.turn.phase == phase::GAME_INIT_BUILD_ROAD or
+        cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player and cstate.*.turn.phase == phase::ROAD_BUILDING_1 or
+        cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player and cstate.*.turn.phase == phase::ROAD_BUILDING_2
+    )
+    and IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
+    and cstate.*.world_edge.is_value() {
+        var tile_a = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[0]);
+        var tile_b = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[1]);
+        assert tile_a.is_value() and tile_b.is_value();
+        var is_road_across_water =
+            tile_a.value().*.kind == tile::OCEAN and
+            tile_b.value().*.kind == tile::OCEAN;
+        if not is_road_across_water {
+            sender.*.sendc(client_message::init_build_road(
+                road::init(
+                    cstate.*.player.value(),
+                    cstate.*.world_edge.value())));
+            cstate.*.ui_main_build_road_selected = false;
+        }
+        return;
+    }
+    elif (
+        cstate.*.ui_main_build_town_selected or
+        cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player and cstate.*.turn.phase == phase::GAME_INIT_BUILD_TOWN
+    )
     and IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
     and cstate.*.world_node.is_value() {
         var existing = cstate.*.board.towns.lookup(cstate.*.world_node.value());
@@ -1909,37 +1947,6 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                 town::SETTLEMENT));
         sender.*.sendc(cmessage);
         cstate.*.ui_main_build_town_selected = false;
-        return;
-    }
-    elif IsKeyPressed(KEY_SPACE)
-    and cstate.*.turn.phase == phase::RESOURCE_PRODUCTION {
-        var cmessage = client_message::init_roll();
-        sender.*.sendc(cmessage);
-        return;
-    }
-    elif IsKeyPressed(KEY_SPACE)
-    and cstate.*.turn.phase == phase::MAIN {
-        var cmessage = client_message::init_end_turn();
-        sender.*.sendc(cmessage);
-        return;
-    }
-    elif
-    (cstate.*.ui_main_build_road_selected or cstate.*.turn.phase == phase::ROAD_BUILDING_1 or cstate.*.turn.phase == phase::ROAD_BUILDING_2)
-    and IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
-    and cstate.*.world_edge.is_value() {
-        var tile_a = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[0]);
-        var tile_b = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[1]);
-        assert tile_a.is_value() and tile_b.is_value();
-        var is_road_across_water =
-            tile_a.value().*.kind == tile::OCEAN and
-            tile_b.value().*.kind == tile::OCEAN;
-        if not is_road_across_water {
-            sender.*.sendc(client_message::init_build_road(
-                road::init(
-                    cstate.*.player.value(),
-                    cstate.*.world_edge.value())));
-            cstate.*.ui_main_build_road_selected = false;
-        }
         return;
     }
 }
@@ -2054,6 +2061,12 @@ func client_render(cstate: *client_state) void {
         cstate.*.world_edge.is_value() and
         not cstate.*.board.roads.contains(cstate.*.world_edge.value()) and
         not cstate.*.world_node.is_value();
+    var show_world_edge_road =
+        show_world_edge_road or
+        cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player and cstate.*.turn.phase == phase::GAME_INIT_BUILD_ROAD and
+        cstate.*.world_edge.is_value() and
+        not cstate.*.board.roads.contains(cstate.*.world_edge.value()) and
+        not cstate.*.world_node.is_value();
     if show_world_edge_road {
         var tile_a = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[0]);
         var tile_b = cstate.*.board.tiles.lookup(cstate.*.world_edge.value().hexes[1]);
@@ -2083,6 +2096,10 @@ func client_render(cstate: *client_state) void {
     var show_world_node_town =
         cstate.*.turn.phase == phase::MAIN and
         cstate.*.ui_main_build_town_selected and
+        cstate.*.world_node.is_value();
+    var show_world_node_town =
+        show_world_node_town or
+        cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player and cstate.*.turn.phase == phase::GAME_INIT_BUILD_TOWN and
         cstate.*.world_node.is_value();
     if show_world_node_town {
         var point = node_to_point(cstate.*.world_node.value(), HEX_RADIUS);
@@ -2225,8 +2242,14 @@ func client_render(cstate: *client_state) void {
         phase::GAME_INIT {
             phase_text = "game-init";
         }
+        phase::GAME_INIT_BUILD_TOWN {
+            phase_text = "game-init (build town)";
+        }
+        phase::GAME_INIT_BUILD_ROAD {
+            phase_text = "game init (build road)";
+        }
         phase::GAME_FINI {
-            phase_text = "game-fini";
+            phase_text = "game fini";
         }
         phase::RESOURCE_PRODUCTION {
             phase_text = "resource production";

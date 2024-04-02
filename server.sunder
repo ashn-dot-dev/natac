@@ -349,6 +349,50 @@ struct server_state {
         return victory_points;
     }
 
+    func prev_player(self: *server_state, player: player) player {
+        var idx = usize::MAX;
+        for i in countof(self.*.turn_order) {
+            if player == self.*.turn_order[i] {
+                idx = i;
+                break;
+            }
+        }
+        assert idx != usize::MAX;
+
+        for true {
+            if idx == 0 {
+                idx = countof(self.*.turn_order);
+            }
+            idx -= 1;
+            if *self.*.p_live(self.*.turn_order[idx]) {
+                break;
+            }
+        }
+
+        return self.*.turn_order[idx];
+    }
+
+    func next_player(self: *server_state, player: player) player {
+        var idx = usize::MAX;
+        for i in countof(self.*.turn_order) {
+            if player == self.*.turn_order[i] {
+                idx = i;
+                break;
+            }
+        }
+        assert idx != usize::MAX;
+
+        for true {
+            idx += 1;
+            idx %= countof(self.*.turn_order);
+            if *self.*.p_live(self.*.turn_order[idx]) {
+                break;
+            }
+        }
+
+        return self.*.turn_order[idx];
+    }
+
     func hidden_victory_points(self: *server_state, player: player) sint {
         var victory_points: sint = self.*.public_victory_points(player);
 
@@ -360,6 +404,36 @@ struct server_state {
         }
 
         return victory_points;
+    }
+
+    func game_init_advance(self: *server_state) void {
+        switch self.*.turn.phase {
+        phase::GAME_INIT {
+            if *self.*.p_live(self.*.turn_order[0]) {
+                self.*.turn.phase = phase::GAME_INIT_BUILD_TOWN;
+                self.*.turn.player = self.*.turn_order[0];
+                return;
+            }
+            if *self.*.p_live(self.*.turn_order[1]) {
+                self.*.turn.phase = phase::GAME_INIT_BUILD_TOWN;
+                self.*.turn.player = self.*.turn_order[1];
+                return;
+            }
+            if *self.*.p_live(self.*.turn_order[2]) {
+                self.*.turn.phase = phase::GAME_INIT_BUILD_TOWN;
+                self.*.turn.player = self.*.turn_order[2];
+                return;
+            }
+            if *self.*.p_live(self.*.turn_order[3]) {
+                self.*.turn.phase = phase::GAME_INIT_BUILD_TOWN;
+                self.*.turn.player = self.*.turn_order[3];
+                return;
+            }
+        }
+        else {
+            std::unreachable(fileof(), lineof());
+        }
+        }
     }
 
     func change_turn(self: *server_state, player: player) void {
@@ -382,9 +456,7 @@ struct server_state {
             return;
         }
 
-        # TODO: This should start the process of going through different
-        # start-of-game phases.
-        self.*.change_turn(self.*.turn_order[0]);
+        self.*.game_init_advance();
     }
 
     func process_roll(self: *server_state, connection: *connection) void {
@@ -482,23 +554,7 @@ struct server_state {
             (:[]std::formatter)[
                 std::formatter::init[[typeof(name)]](&name)]));
 
-        var idx = usize::MAX;
-        for i in countof(self.*.turn_order) {
-            if self.*.turn.player == self.*.turn_order[i] {
-                idx = i;
-                break;
-            }
-        }
-        assert idx != usize::MAX;
-
-        for true {
-            idx += 1;
-            idx %= countof(self.*.turn_order);
-            if *self.*.p_live(self.*.turn_order[idx]) {
-                break;
-            }
-        }
-        self.*.change_turn(self.*.turn_order[idx]);
+        self.*.change_turn(self.*.next_player(self.*.turn.player));
     }
 
     func process_build_road(self: *server_state, connection: *connection, road: road) void {
@@ -510,7 +566,7 @@ struct server_state {
             connection.*.sendc(server_message::init_rejected("Cannot build road (it is not your road)."));
             return;
         }
-        if self.*.turn.phase != phase::MAIN and self.*.turn.phase != phase::ROAD_BUILDING_1 and self.*.turn.phase != phase::ROAD_BUILDING_2 {
+        if self.*.turn.phase != phase::GAME_INIT_BUILD_ROAD and self.*.turn.phase != phase::MAIN and self.*.turn.phase != phase::ROAD_BUILDING_1 and self.*.turn.phase != phase::ROAD_BUILDING_2 {
             connection.*.sendc(server_message::init_rejected("Cannot build road (invalid phase)."));
             return;
         }
@@ -629,7 +685,34 @@ struct server_state {
             (:[]std::formatter)[
                 std::formatter::init[[typeof(name)]](&name)]));
 
-        if self.*.turn.phase == phase::ROAD_BUILDING_1 {
+        if self.*.turn.phase == phase::GAME_INIT_BUILD_ROAD {
+            var live_count =
+                (:usize)*self.*.p_live(player::RED) +
+                (:usize)*self.*.p_live(player::BLUE) +
+                (:usize)*self.*.p_live(player::WHITE) +
+                (:usize)*self.*.p_live(player::ORANGE);
+            if self.*.board.towns.count() < live_count {
+                # First placement -> pass to next player in the turn order.
+                var next = self.*.next_player(self.*.turn.player);
+                self.*.turn.phase = phase::GAME_INIT_BUILD_TOWN;
+                self.*.turn.player = next;
+            }
+            elif self.*.board.towns.count() == live_count {
+                # First placement -> place next pair in reverse order.
+                self.*.turn.phase = phase::GAME_INIT_BUILD_TOWN;
+            }
+            elif self.*.board.towns.count() < live_count * 2 {
+                # Second placement -> pass to prevous player in the turn order.
+                var prev = self.*.prev_player(self.*.turn.player);
+                self.*.turn.phase = phase::GAME_INIT_BUILD_TOWN;
+                self.*.turn.player = prev;
+            }
+            else {
+                # Second placement -> initial placements are over.
+                self.*.change_turn(self.*.turn.player);
+            }
+        }
+        elif self.*.turn.phase == phase::ROAD_BUILDING_1 {
             self.*.turn.phase = phase::ROAD_BUILDING_2;
         }
         elif self.*.turn.phase == phase::ROAD_BUILDING_2 {
@@ -647,8 +730,8 @@ struct server_state {
             connection.*.sendc(server_message::init_rejected("Cannot build town (it is not your town)."));
             return;
         }
-        if self.*.turn.phase != phase::MAIN {
-            connection.*.sendc(server_message::init_rejected("Cannot build town (it is not the main phase)."));
+        if self.*.turn.phase != phase::GAME_INIT_BUILD_TOWN and self.*.turn.phase != phase::MAIN {
+            connection.*.sendc(server_message::init_rejected("Cannot build town (invalid phase)."));
             return;
         }
 
@@ -692,8 +775,13 @@ struct server_state {
 
             is_road_adjacent = true;
         }
-        if not is_road_adjacent {
+        if not is_road_adjacent and self.*.turn.phase != phase::GAME_INIT_BUILD_TOWN {
             connection.*.sendc(server_message::init_rejected("Cannot build town (no adjacent road)."));
+            return;
+        }
+
+        if self.*.turn.phase == phase::GAME_INIT_BUILD_TOWN and town.kind == ::town::CITY {
+            connection.*.sendc(server_message::init_rejected("Cannot build town (cannot place a city at the start of the game)."));
             return;
         }
 
@@ -714,25 +802,27 @@ struct server_state {
         }
 
         var info = self.*.p_info(self.*.turn.player);
-        switch town.kind {
-        ::town::SETTLEMENT {
-            if not (info.*.brick >= 1 and info.*.sheep >= 1 and info.*.wheat >= 1 and info.*.wood >= 1) {
-                connection.*.sendc(server_message::init_rejected("Cannot build settlement (insufficient resources)."));
-                return;
+        if self.*.turn.phase != phase::GAME_INIT_BUILD_TOWN {
+            switch town.kind {
+            ::town::SETTLEMENT {
+                if not (info.*.brick >= 1 and info.*.sheep >= 1 and info.*.wheat >= 1 and info.*.wood >= 1) {
+                    connection.*.sendc(server_message::init_rejected("Cannot build settlement (insufficient resources)."));
+                    return;
+                }
+                info.*.brick -= 1;
+                info.*.sheep -= 1;
+                info.*.wheat -= 1;
+                info.*.wood -= 1;
             }
-            info.*.brick -= 1;
-            info.*.sheep -= 1;
-            info.*.wheat -= 1;
-            info.*.wood -= 1;
-        }
-        ::town::CITY {
-            if not (info.*.ore >= 3 and info.*.wheat >= 2) {
-                connection.*.sendc(server_message::init_rejected("Cannot build city (insufficient resources)."));
-                return;
+            ::town::CITY {
+                if not (info.*.ore >= 3 and info.*.wheat >= 2) {
+                    connection.*.sendc(server_message::init_rejected("Cannot build city (insufficient resources)."));
+                    return;
+                }
+                info.*.ore -= 3;
+                info.*.wheat -= 2;
             }
-            info.*.ore -= 3;
-            info.*.wheat -= 2;
-        }
+            }
         }
         insert_town(&self.*.board.towns, town);
 
@@ -746,6 +836,33 @@ struct server_state {
             (:[]std::formatter)[
                 std::formatter::init[[typeof(name)]](&name),
                 std::formatter::init[[typeof(kind)]](&kind)]));
+
+        if self.*.turn.phase == phase::GAME_INIT_BUILD_TOWN {
+            var live_count =
+                (:usize)*self.*.p_live(player::RED) +
+                (:usize)*self.*.p_live(player::BLUE) +
+                (:usize)*self.*.p_live(player::WHITE) +
+                (:usize)*self.*.p_live(player::ORANGE);
+            if self.*.board.towns.count() > live_count {
+                # Second placement -> give resoruces.
+                var iter = std::hash_map_iterator[[hex, tile]]::init(&self.*.board.tiles);
+                for iter.advance() {
+                    if std::eq[[hex]](&town.node.hexes[0], iter.current().*.key)
+                    or std::eq[[hex]](&town.node.hexes[1], iter.current().*.key)
+                    or std::eq[[hex]](&town.node.hexes[2], iter.current().*.key) {
+                        var info = self.*.p_info(town.player);
+                        var tile = iter.current().*.value;
+                        info.*.brick += (:sint)(tile.*.kind == ::tile::HILL);
+                        info.*.ore += (:sint)(tile.*.kind == ::tile::MOUNTAIN);
+                        info.*.sheep += (:sint)(tile.*.kind == ::tile::PASTURE);
+                        info.*.wheat += (:sint)(tile.*.kind == ::tile::FIELD);
+                        info.*.wood += (:sint)(tile.*.kind == ::tile::FOREST);
+                    }
+                }
+            }
+
+            self.*.turn.phase = phase::GAME_INIT_BUILD_ROAD;
+        }
     }
 
     func process_buy_dev_card(self: *server_state, connection: *connection) void {
@@ -1228,173 +1345,9 @@ struct server_state {
             return;
         }
 
-        if not *self.*.p_live(selected) {
-            if self.*.turn.phase != phase::GAME_INIT {
-                connection.*.sendc(server_message::init_rejected("Cannot select player (player is not part of the game)."));
-                return;
-            }
-
-            # Insert Starter Map For Beginners Positions
-            switch selected {
-            player::RED {
-                insert_town(&self.*.board.towns, town::init(
-                    player::RED,
-                    node::init(
-                        hex::init(-2, +0, +2),
-                        hex::init(-2, +1, +1),
-                        hex::init(-1, +0, +1)),
-                    town::SETTLEMENT));
-                insert_town(&self.*.board.towns, town::init(
-                    player::RED,
-                    node::init(
-                        hex::init(+0, -2, +2),
-                        hex::init(+0, -1, +1),
-                        hex::init(+1, -2, +1)),
-                    town::SETTLEMENT));
-                insert_road(&self.*.board.roads, road::init(
-                    player::RED,
-                    edge::init(
-                        hex::init(-2, +1, +1),
-                        hex::init(-1, +0, +1))));
-                insert_road(&self.*.board.roads, road::init(
-                    player::RED,
-                    edge::init(
-                        hex::init(+0, -1, +1),
-                        hex::init(+1, -2, +1))));
-
-                self.*.r_info.wheat += 1;
-                self.*.r_info.wood += 1;
-                self.*.r_info.wood += 1;
-
-                # vvv ROADS FOR LONGEST ROAD TEST vvvv
-                #insert_road(&self.*.board.roads, road::init(
-                #    player::RED,
-                #    edge::init(
-                #        hex::init(-2, +0, +2),
-                #        hex::init(-2, +1, +1))));
-                #insert_road(&self.*.board.roads, road::init(
-                #    player::RED,
-                #    edge::init(
-                #        hex::init(-2, +0, +2),
-                #        hex::init(-1, +0, +1))));
-                #insert_road(&self.*.board.roads, road::init(
-                #    player::RED,
-                #    edge::init(
-                #        hex::init(+0, -1, +1),
-                #        hex::init(+1, -2, +1))));
-                #insert_road(&self.*.board.roads, road::init(
-                #    player::RED,
-                #    edge::init(
-                #        hex::init(-2, +1, +1),
-                #        hex::init(-1, +1, +0))));
-                #insert_road(&self.*.board.roads, road::init(
-                #    player::RED,
-                #    edge::init(
-                #        hex::init(-2, +2, +0),
-                #        hex::init(-1, +1, +0))));
-                #insert_road(&self.*.board.roads, road::init(
-                #    player::RED,
-                #    edge::init(
-                #        hex::init(-2, +1, +1),
-                #        hex::init(-2, +2, +0))));
-                #insert_road(&self.*.board.roads, road::init(
-                #    player::RED,
-                #    edge::init(
-                #        hex::init(-3, +2, +1),
-                #        hex::init(-2, +2, +0))));
-                # ^^^ ROADS FOR LONGEST ROAD TEST ^^^
-            }
-            player::BLUE {
-                insert_town(&self.*.board.towns, town::init(
-                    player::BLUE,
-                    node::init(
-                        hex::init(-2, +1, +1),
-                        hex::init(-2, +2, +0),
-                        hex::init(-1, +1, +0)),
-                    town::SETTLEMENT));
-                insert_town(&self.*.board.towns, town::init(
-                    player::BLUE,
-                    node::init(
-                        hex::init(+0, +1, -1),
-                        hex::init(+0, +2, -2),
-                        hex::init(+1, +1, -2)),
-                    town::SETTLEMENT));
-                insert_road(&self.*.board.roads, road::init(
-                    player::BLUE,
-                    edge::init(
-                        hex::init(-2, +2, +0),
-                        hex::init(-1, +1, +0))));
-                insert_road(&self.*.board.roads, road::init(
-                    player::BLUE,
-                    edge::init(
-                        hex::init(+0, +1, -1),
-                        hex::init(+1, +1, -2))));
-
-                self.*.b_info.brick += 1;
-                self.*.b_info.ore += 1;
-                self.*.b_info.wood += 1;
-            }
-            player::WHITE {
-                insert_town(&self.*.board.towns, town::init(
-                    player::WHITE,
-                    node::init(
-                        hex::init(-1, -1, +2),
-                        hex::init(-1, +0, +1),
-                        hex::init(+0, -1, +1)),
-                    town::SETTLEMENT));
-                insert_town(&self.*.board.towns, town::init(
-                    player::WHITE,
-                    node::init(
-                        hex::init(+1, +0, -1),
-                        hex::init(+1, +1, -2),
-                        hex::init(+2, +0, -2)),
-                    town::SETTLEMENT));
-                insert_road(&self.*.board.roads, road::init(
-                    player::WHITE,
-                    edge::init(
-                        hex::init(-1, -1, +2),
-                        hex::init(-1, +0, +1))));
-                insert_road(&self.*.board.roads, road::init(
-                    player::WHITE,
-                    edge::init(
-                        hex::init(+1, +0, -1),
-                        hex::init(+2, +0, -2))));
-
-                self.*.w_info.brick += 1;
-                self.*.w_info.wheat += 1;
-                self.*.w_info.wood += 1;
-            }
-            player::ORANGE {
-                insert_town(&self.*.board.towns, town::init(
-                    player::ORANGE,
-                    node::init(
-                        hex::init(-1, +1, +0),
-                        hex::init(-1, +2, -1),
-                        hex::init(+0, +1, -1)),
-                    town::SETTLEMENT));
-                insert_town(&self.*.board.towns, town::init(
-                    player::ORANGE,
-                    node::init(
-                        hex::init(+1, -1, +0),
-                        hex::init(+2, -2, +0),
-                        hex::init(+2, -1, -1)),
-                    town::SETTLEMENT));
-                insert_road(&self.*.board.roads, road::init(
-                    player::ORANGE,
-                    edge::init(
-                        hex::init(-1, +2, -1),
-                        hex::init(+0, +1, -1))));
-                insert_road(&self.*.board.roads, road::init(
-                    player::ORANGE,
-                    edge::init(
-                        hex::init(+1, -1, +0),
-                        hex::init(+2, -2, +0))));
-
-                self.*.o_info.ore += 1;
-                self.*.o_info.wheat += 1;
-                self.*.o_info.wheat += 1;
-            }
-            }
+        if not *self.*.p_live(selected) and self.*.turn.phase != phase::GAME_INIT {
+            connection.*.sendc(server_message::init_rejected("Cannot select player (player is not part of the game)."));
+            return;
         }
 
         var was = "SPECTATOR";

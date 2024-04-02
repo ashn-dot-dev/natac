@@ -1645,6 +1645,8 @@ struct public_player_info {
 
 enum phase {
     GAME_INIT;
+    GAME_INIT_BUILD_TOWN;
+    GAME_INIT_BUILD_ROAD;
     GAME_FINI;
     RESOURCE_PRODUCTION;
     DISCARD;
@@ -1656,6 +1658,15 @@ enum phase {
     TRADE;
 
     func init_from_bubby(value: *bubby::value) phase {
+        if std::str::eq(value.*.str(), "game-init") {
+            return phase::GAME_INIT;
+        }
+        if std::str::eq(value.*.str(), "game-init-build-town") {
+            return phase::GAME_INIT_BUILD_TOWN;
+        }
+        if std::str::eq(value.*.str(), "game-init-build-road") {
+            return phase::GAME_INIT_BUILD_ROAD;
+        }
         if std::str::eq(value.*.str(), "game-init") {
             return phase::GAME_INIT;
         }
@@ -1695,6 +1706,12 @@ enum phase {
         switch *self {
         phase::GAME_INIT {
             return bubby::value::init_str("game-init");
+        }
+        phase::GAME_INIT_BUILD_TOWN {
+            return bubby::value::init_str("game-init-build-town");
+        }
+        phase::GAME_INIT_BUILD_ROAD {
+            return bubby::value::init_str("game-init-build-road");
         }
         phase::GAME_FINI {
             return bubby::value::init_str("game-fini");
