@@ -1888,15 +1888,18 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         return;
     }
     elif IsKeyPressed(KEY_SPACE)
+    and cstate.*.turn.phase == phase::GAME_INIT {
+        sender.*.sendc(client_message::init_begin_game());
+        return;
+    }
+    elif IsKeyPressed(KEY_SPACE)
     and cstate.*.turn.phase == phase::RESOURCE_PRODUCTION {
-        var cmessage = client_message::init_roll();
-        sender.*.sendc(cmessage);
+        sender.*.sendc(client_message::init_roll());
         return;
     }
     elif IsKeyPressed(KEY_SPACE)
     and cstate.*.turn.phase == phase::MAIN {
-        var cmessage = client_message::init_end_turn();
-        sender.*.sendc(cmessage);
+        sender.*.sendc(client_message::init_end_turn());
         return;
     }
     elif (
