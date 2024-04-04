@@ -667,6 +667,59 @@ struct server_state {
             return;
         }
 
+        if self.*.turn.phase == phase::GAME_INIT_BUILD_ROAD {
+            # Ensure that all settlements have one adjoining road. Iterate over
+            # all towns (all settlements in this case) and verify that (1) the
+            # settlement has an existing adjacent road, or (2) that the road
+            # about to be placed will be adjacent to the settlement.
+            var towns_have_adjacent_roads = true;
+            var iter = std::hash_map_iterator[[node, town]]::init(&self.*.board.towns);
+            for iter.advance() {
+                var town = *iter.current().*.value;
+                if town.player != self.*.turn.player {
+                    continue;
+                }
+
+                var town_has_adjacent_road = false;
+                var adjacent_edges = adjacent_edges_to_node(town.node, &self.*.board.edges);
+                defer adjacent_edges.fini();
+
+                var iter = std::hash_set_iterator[[edge]]::init(&adjacent_edges);
+                for iter.advance() {
+                    if std::eq[[edge]](iter.current(), &road.edge) {
+                        # The road about to be placed is adjacent to the town.
+                        town_has_adjacent_road = true;
+                        break;
+                    }
+
+                    var iter = std::hash_map_iterator[[edge, ::road]]::init(&self.*.board.roads);
+                    for iter.advance() {
+                        var road = *iter.current().*.value;
+                        if road.player != self.*.turn.player {
+                            continue;
+                        }
+
+                        if not adjacent_edges.contains(road.edge) {
+                            continue;
+                        }
+
+                        # The town already has an adjacent road.
+                        town_has_adjacent_road = true;
+                        break;
+                    }
+                }
+
+                if not town_has_adjacent_road {
+                    towns_have_adjacent_roads = false;
+                }
+            }
+
+            if not towns_have_adjacent_roads {
+                connection.*.sendc(server_message::init_rejected("Cannot build road (must place road adjacent to the starting settlement)."));
+                return;
+            }
+        }
+
         var info = self.*.p_info(self.*.turn.player);
         if self.*.turn.phase == phase::MAIN {
             if not (info.*.brick >= 1 and info.*.wood >= 1) {
