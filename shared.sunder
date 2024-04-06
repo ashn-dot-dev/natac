@@ -2171,6 +2171,8 @@ struct server_message {
             var b: public_player_info;
             var w: public_player_info;
             var o: public_player_info;
+            var longest_road: std::optional[[player]];
+            var largest_army: std::optional[[player]];
         };
         var player: player;
         var accepted: std::string;
@@ -2208,7 +2210,9 @@ struct server_message {
         r: public_player_info,
         b: public_player_info,
         w: public_player_info,
-        o: public_player_info) server_message {
+        o: public_player_info,
+        longest_road: std::optional[[player]],
+        largest_army: std::optional[[player]]) server_message {
         return (:server_message){
             .kind = server_message::STATE,
             .data = (:typeof(SELF.data)){
@@ -2221,6 +2225,8 @@ struct server_message {
                     .b = b,
                     .w = w,
                     .o = o,
+                    .longest_road = longest_road,
+                    .largest_army = largest_army,
                 }
             },
         };
@@ -2294,6 +2300,16 @@ struct server_message {
             var b = public_player_info::init_from_bubby(state.*.map_xlookup_str("b"));
             var w = public_player_info::init_from_bubby(state.*.map_xlookup_str("w"));
             var o = public_player_info::init_from_bubby(state.*.map_xlookup_str("o"));
+            var longest_road = std::optional[[player]]::EMPTY;
+            var lookup = state.*.map_lookup_str("longest-road");
+            if lookup.is_value() {
+                longest_road = std::optional[[player]]::init_value(bubby_to_player(lookup.value()));
+            }
+            var largest_army = std::optional[[player]]::EMPTY;
+            var lookup = state.*.map_lookup_str("largest-army");
+            if lookup.is_value() {
+                largest_army = std::optional[[player]]::init_value(bubby_to_player(lookup.value()));
+            }
             return server_message::init_state(
                 &board,
                 turn_order,
@@ -2302,7 +2318,9 @@ struct server_message {
                 r,
                 b,
                 w,
-                o);
+                o,
+                longest_road,
+                largest_army);
         }
         if std::str::eq(kind, "player") {
             var player = bubby_to_player(value.*.map_xlookup_str("data"));
@@ -2343,6 +2361,12 @@ struct server_message {
             state.map().*.insert(bubby::value::init_str("b"), self.*.data.state.b.to_bubby());
             state.map().*.insert(bubby::value::init_str("w"), self.*.data.state.w.to_bubby());
             state.map().*.insert(bubby::value::init_str("o"), self.*.data.state.o.to_bubby());
+            if self.*.data.state.longest_road.is_value() {
+                state.map().*.insert(bubby::value::init_str("longest-road"), player_to_bubby(self.*.data.state.longest_road.value()));
+            }
+            if self.*.data.state.largest_army.is_value() {
+                state.map().*.insert(bubby::value::init_str("largest-army"), player_to_bubby(self.*.data.state.largest_army.value()));
+            }
             out.map().*.insert(bubby::value::init_str("data"), state);
         }
         server_message::PLAYER{

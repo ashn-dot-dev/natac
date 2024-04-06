@@ -69,6 +69,67 @@ struct server_state {
     var winner: std::optional[[player]];
 
     func init() server_state {
+        # Board
+        var board = board::init_starter_map_for_beginners();
+        # Tiles are randomized by taking the tiles from the starter map for
+        # beginners, shuffling the tile kinds and tile numbers, and then
+        # overwriting tiles on the board with the shuffled kind-number pairs.
+        var kinds = std::vector[[typeof(tile::SELF.kind)]]::init();
+        defer kinds.fini();
+        var numbers = std::vector[[typeof(tile::SELF.number)]]::init();
+        defer numbers.fini();
+        var iter = std::hash_map_iterator[[hex, tile]]::init(&board.tiles);
+        for iter.advance() {
+            if iter.current().*.value.*.kind == tile::DESERT {
+                continue;
+            }
+            if iter.current().*.value.*.kind == tile::OCEAN {
+                continue;
+            }
+            kinds.push(iter.current().*.value.*.kind);
+            numbers.push(iter.current().*.value.*.number);
+        }
+        shuffle[[typeof(tile::SELF.kind)]](kinds.data());
+        shuffle[[typeof(tile::SELF.number)]](numbers.data());
+        var idx = random[[usize]]() % kinds.count();
+        kinds.insert(idx, tile::DESERT);
+        numbers.insert(idx, -1);
+        var iter = std::hash_map_iterator[[hex, tile]]::init(&board.tiles);
+        for iter.advance() {
+            if iter.current().*.value.*.kind == tile::OCEAN {
+                continue;
+            }
+            iter.current().*.value.*.kind = kinds.pop();
+            iter.current().*.value.*.number = numbers.pop();
+        }
+
+        # Robber
+        # The robber always starts on the desert.
+        var iter = std::hash_map_iterator[[hex, tile]]::init(&board.tiles);
+        for iter.advance() {
+            if iter.current().*.value.*.kind == tile::DESERT {
+                board.robber = iter.current().*.key.*;
+                break;
+            }
+        }
+
+        # Ports
+        # Ports are randomized by taking the ports from the starter map for
+        # beginners, shuffling the port kinds, and then overwriting ports on
+        # the board with those shuffled kinds.
+        var kinds = std::vector[[typeof(port::SELF.kind)]]::init();
+        defer kinds.fini();
+        var iter = std::hash_set_iterator[[port]]::init(&board.ports);
+        for iter.advance() {
+            kinds.push(iter.current().*.kind);
+        }
+        shuffle[[typeof(port::SELF.kind)]](kinds.data());
+        var iter = std::hash_set_iterator[[port]]::init(&board.ports);
+        for iter.advance() {
+            iter.current().*.kind = kinds.pop();
+        }
+
+        # Development Cards
         var dev_cards = std::vector[[dev_card]]::init();
         # x14 Knight
         for _ in 14 {
@@ -106,7 +167,7 @@ struct server_state {
         return (:server_state){
             .connections = std::vector[[connection]]::init(),
             .ticks = 0,
-            .board = board::init_starter_map_for_beginners(),
+            .board = board,
             .dev_cards = dev_cards,
             .r_live = false,
             .b_live = false,
@@ -2081,7 +2142,9 @@ func server_update(sstate: *server_state) void {
         r,
         b,
         w,
-        o));
+        o,
+        sstate.*.longest_road,
+        sstate.*.largest_army));
 
     for i in sstate.*.connections.count() {
         if sstate.*.connections.data()[i].player.is_empty() {

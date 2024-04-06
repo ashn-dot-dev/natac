@@ -576,6 +576,8 @@ struct client_state {
     var b: public_player_info;
     var w: public_player_info;
     var o: public_player_info;
+    var longest_road: std::optional[[player]];
+    var largest_army: std::optional[[player]];
     var turn_order: [4]player;
     var turn: turn;
     var trade: trade;
@@ -652,6 +654,8 @@ struct client_state {
             .b = uninit,
             .w = uninit,
             .o = uninit,
+            .longest_road = std::optional[[player]]::EMPTY,
+            .largest_army = std::optional[[player]]::EMPTY,
             .turn_order = (:[4]player)[
                 player::RED,
                 player::BLUE,
@@ -755,6 +759,8 @@ struct client_state {
             self.*.b = message.*.data.state.b;
             self.*.w = message.*.data.state.w;
             self.*.o = message.*.data.state.o;
+            self.*.longest_road = message.*.data.state.longest_road;
+            self.*.largest_army = message.*.data.state.largest_army;
         }
         server_message::PLAYER {
             self.*.player = std::optional[[player]]::init_value(message.*.data.player);
@@ -769,19 +775,16 @@ struct client_state {
 }
 
 func ui_labled_number(ui: *smol::ui, label: []byte, value: sint, layout: []sint) void {
+    assert countof(layout) == 2;
     ui.*.push_id(startof(label), countof(label));
     ui.*.layout_begin_column();
 
     ui.*.layout_row(layout, 0);
-    ui.*.begin_panel_ex("PANEL", smol::OPT_NOSCROLL); # XXX: Duplicate IDs?
     ui.*.text(label);
-    ui.*.end_panel();
 
-    ui.*.begin_panel_ex("PANEL", smol::OPT_NOSCROLL); # XXX: Duplicate IDs?
     var s = std::string::init_from_format("{}", (:[]std::formatter)[std::formatter::init[[sint]](&value)]);
     defer s.fini();
     ui.*.text(s.data());
-    ui.*.end_panel();
 
     ui.*.layout_end_column();
     ui.*.pop_id();
@@ -1169,7 +1172,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         var ui_player_h = ((:sint)screen_h * 1 / 2 - 2 * UI_BORDER) / (:sint)countof(cstate.*.turn_order);
         if cstate.*.player.is_value() and cstate.*.player.value() == player {
             # Five extra rows pluse some wiggle room.
-            ui_player_h += (5 + 2) * (:sint)cstate.*.ui_font_size;
+            ui_player_h += (5 + 3) * (:sint)cstate.*.ui_font_size;
         }
         defer { ui_player_y += ui_player_h + UI_BORDER; }
 
@@ -1254,6 +1257,18 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                 "{}",
                 (:[]std::formatter)[
                     std::formatter::init[[sint]](&victory_points)]);
+            if cstate.*.longest_road.is_value() and cstate.*.longest_road.value() == player and cstate.*.largest_army.is_value() and cstate.*.largest_army.value() == player {
+                var w = std::writer::init[[std::string]](&s);
+                std::print(w, " LR, LA");
+            }
+            elif cstate.*.longest_road.is_value() and cstate.*.longest_road.value() == player {
+                var w = std::writer::init[[std::string]](&s);
+                std::print(w, " Longest Road");
+            }
+            elif cstate.*.largest_army.is_value() and cstate.*.largest_army.value() == player {
+                var w = std::writer::init[[std::string]](&s);
+                std::print(w, " Largest Army");
+            }
             defer s.fini();
             cstate.*.ui.text(s.data());
 
@@ -1276,11 +1291,6 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             cstate.*.ui.text(s.data());
 
             if cstate.*.player.is_value() and cstate.*.player.value() == player {
-                cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].r = BLACK.r;
-                cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].g = BLACK.g;
-                cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].b = BLACK.b;
-                cstate.*.ui.context.*.style.*.colors[(:usize)MU_COLOR_BORDER].a = 0xFF;
-
                 var knight_count: usize = 0;
                 var road_building_count: usize = 0;
                 var year_of_plenty_count: usize = 0;
@@ -1309,32 +1319,26 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                     }
                 }
 
-                # XXX: Removing the dashes between label names below will cause
-                # line breaks to appear. These line breaks will end up showing
-                # only the first word of each label. No idea why this happens.
-                cstate.*.ui.layout_row((:[]sint)[64 + 24, 8, 128 + 24], 1);
-                let RESOURCE_LAYOUT = (:[]sint)[64, 24];
-                let DEV_CARD_LAYOUT = (:[]sint)[128, 24];
+                cstate.*.ui.text("---------------");
+
+                cstate.*.ui.layout_row((:[]sint)[ui_w / 2 - 16, ui_w / 2 - 16], 1);
+                var RESOURCE_LAYOUT = (:[]sint)[ui_w / 3 - 32, -1];
+                var DEV_CARD_LAYOUT = (:[]sint)[ui_w / 2 - 32, -1];
 
                 ui_labled_number(&cstate.*.ui, "Brick", cstate.*.pinfo.brick, RESOURCE_LAYOUT);
-                cstate.*.ui.text(""); # spacer
                 ui_labled_number(&cstate.*.ui, "Knight", (:sint)knight_count, DEV_CARD_LAYOUT);
 
                 ui_labled_number(&cstate.*.ui, "Ore", cstate.*.pinfo.ore, RESOURCE_LAYOUT);
-                cstate.*.ui.text(""); # spacer
-                ui_labled_number(&cstate.*.ui, "Road-Building", (:sint)road_building_count, DEV_CARD_LAYOUT);
+                ui_labled_number(&cstate.*.ui, "Road Building", (:sint)road_building_count, DEV_CARD_LAYOUT);
 
                 ui_labled_number(&cstate.*.ui, "Sheep", cstate.*.pinfo.sheep, RESOURCE_LAYOUT);
-                cstate.*.ui.text(""); # spacer
-                ui_labled_number(&cstate.*.ui, "Year-of-Plenty", (:sint)year_of_plenty_count, DEV_CARD_LAYOUT);
+                ui_labled_number(&cstate.*.ui, "Year of Plenty", (:sint)year_of_plenty_count, DEV_CARD_LAYOUT);
 
                 ui_labled_number(&cstate.*.ui, "Wheat", cstate.*.pinfo.wheat, RESOURCE_LAYOUT);
-                cstate.*.ui.text(""); # spacer
                 ui_labled_number(&cstate.*.ui, "Monopoly", (:sint)monopoly_count, DEV_CARD_LAYOUT);
 
                 ui_labled_number(&cstate.*.ui, "Wood", cstate.*.pinfo.wood, RESOURCE_LAYOUT);
-                cstate.*.ui.text(""); # spacer
-                ui_labled_number(&cstate.*.ui, "Victory-Point", (:sint)victory_point_count, DEV_CARD_LAYOUT);
+                ui_labled_number(&cstate.*.ui, "Victory Point", (:sint)victory_point_count, DEV_CARD_LAYOUT);
             }
 
             cstate.*.ui.end_window();
