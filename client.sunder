@@ -551,6 +551,8 @@ struct client_state {
 
     var wav_dice: Wave;
     var sound_dice: Sound;
+    var wav_impact: Wave;
+    var sound_impact: Sound;
     var font: Font;
     var font_size: f32;
     var ui_font: *Font;
@@ -600,6 +602,13 @@ struct client_state {
             (:sint)countof(DICE25_WAV));
         var sound_dice = LoadSoundFromWave(wav_dice);
 
+        let IMPACT_WAV = embed("assets/WoodPlasticHitImpact.wav");
+        var wav_impact = LoadWaveFromMemory(
+            startof(".wav"),
+            (:*u8)startof(IMPACT_WAV),
+            (:sint)countof(IMPACT_WAV));
+        var sound_impact = LoadSoundFromWave(wav_impact);
+
         let FONT_NUMCHARS: sint = '~' - ' ' + 1; # Printable ASCII
         let PUBLIC_PIXEL_TTF = embed("assets/PublicPixel.ttf");
         var font_size = 16.0f32;
@@ -639,6 +648,8 @@ struct client_state {
 
             .wav_dice = wav_dice,
             .sound_dice = sound_dice,
+            .wav_impact = wav_impact,
+            .sound_impact = sound_impact,
             .font = font,
             .font_size = font_size,
             .ui_font = ui_font,
@@ -693,6 +704,8 @@ struct client_state {
         UnloadFont(*self.*.ui_font);
         std::delete[[Font]](self.*.ui_font);
         UnloadFont(self.*.font);
+        UnloadSound(self.*.sound_impact);
+        UnloadWave(self.*.wav_impact);
         UnloadSound(self.*.sound_dice);
         UnloadWave(self.*.wav_dice);
         self.*.board.fini();
@@ -771,6 +784,27 @@ struct client_state {
                 (message.*.data.state.turn.phase == phase::DISCARD or message.*.data.state.turn.phase == phase::ROBBER or message.*.data.state.turn.phase == phase::MAIN);
             if is_dice_rolled {
                 PlaySound(self.*.sound_dice);
+            }
+
+            var old_road_count = self.*.board.roads.count();
+            var new_road_count = message.*.data.state.board.roads.count();
+            var old_settlement_count = 0u;
+            var old_city_count = 0u;
+            var iter = std::hash_map_iterator[[node, town]]::init(&self.*.board.towns);
+            for iter.advance() {
+                old_settlement_count += (:usize)(iter.current().*.value.*.kind == town::SETTLEMENT);
+                old_city_count += (:usize)(iter.current().*.value.*.kind == town::CITY);
+            }
+            var new_settlement_count = 0u;
+            var new_city_count = 0u;
+            var iter = std::hash_map_iterator[[node, town]]::init(&message.*.data.state.board.towns);
+            for iter.advance() {
+                new_settlement_count += (:usize)(iter.current().*.value.*.kind == town::SETTLEMENT);
+                new_city_count += (:usize)(iter.current().*.value.*.kind == town::CITY);
+            }
+            var is_robber_moved = std::ne[[hex]](&self.*.board.robber, &message.*.data.state.board.robber);
+            if new_road_count > old_road_count or new_settlement_count > old_settlement_count or new_city_count > old_city_count or is_robber_moved {
+                PlaySound(self.*.sound_impact);
             }
 
             board::assign(&self.*.board, &message.*.data.state.board);

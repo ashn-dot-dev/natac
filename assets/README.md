@@ -18,3 +18,9 @@ Dice25.wav: dice25.flac (converted to .wav)
 LICENSE: Creative Commons Zero
 SOURCES: https://freesound.org/people/Magnesus/sounds/353835/
 ```
+
+```txt
+WoodPlasticHitImpact.wav: Wood Plastic Hit Impact
+LICENSE: Creative Commons Zero
+SOURCES: https://freesound.org/people/Geoff-Bremner-Audio/sounds/653233/
+```
