@@ -1323,9 +1323,9 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
                 cstate.*.ui.text(""); # spacer
 
-                cstate.*.ui.layout_row((:[]sint)[(3 * ui_w) / 7 - 16, (4 * ui_w) / 7 - 16], 1);
-                var RESOURCE_LAYOUT = (:[]sint)[(2 * ui_w / 7) - 16, -1];
-                var DEV_CARD_LAYOUT = (:[]sint)[(3 * ui_w / 7) - 16, -1];
+                cstate.*.ui.layout_row((:[]sint)[(3 * ui_w) / 5 - 16, (2 * ui_w) / 5 - 16], 1);
+                var RESOURCE_LAYOUT = (:[]sint)[(2 * ui_w / 5) - 16, -1];
+                var DEV_CARD_LAYOUT = (:[]sint)[(2 * ui_w / 5) - 16, -1];
 
                 ui_labled_number(&cstate.*.ui, "Brick:", cstate.*.pinfo.brick, RESOURCE_LAYOUT);
                 ui_labled_number(&cstate.*.ui, "Knight:", (:sint)knight_count, DEV_CARD_LAYOUT);
