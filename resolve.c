@@ -2569,7 +2569,7 @@ complete_struct(
             // size zero in Sunder) so that the size and alignment of structs
             // with flexible array members is consistent between C and Sunder.
             if (member_type->align != 0) {
-                while (next_offset % member_type->align != 0) {
+                while ((next_offset % member_type->align) != 0) {
                     next_offset += 1;
                 }
             }
@@ -2608,7 +2608,7 @@ complete_struct(
             // padding.
             struct_type->size = next_offset + member_type->size;
             assert(struct_type->align != 0);
-            while (struct_type->size % struct_type->align != 0) {
+            while ((struct_type->size % struct_type->align) != 0) {
                 struct_type->size += 1;
             }
 
@@ -2772,7 +2772,6 @@ complete_union(
             }
 
         done_adding_member_variable:;
-
             // If this is the last member variable declaration within the
             // union, then the unions's final size and alignment are known, so
             // the union can be marked as complete. Default assume that the
@@ -2788,6 +2787,12 @@ complete_union(
                 }
             }
             if (union_type->data.union_.is_complete) {
+                // If the union is complete, pad the union to a size that
+                // matches the alignment of the union.
+                while ((union_type->size % union_type->align) != 0) {
+                    union_type->size += 1;
+                }
+
                 sbuf_freeze(member_variables);
                 union_type->data.union_.member_variables = member_variables;
                 sbuf_push(context()->types, union_type);
@@ -4731,6 +4736,8 @@ resolve_expr_call(struct resolver* resolver, struct cst_expr const* expr)
     if (expr->data.call.func->kind == CST_EXPR_ACCESS_MEMBER) {
         struct cst_expr const* const dot = expr->data.call.func;
         struct cst_expr const* const lhs = dot->data.access_member.lhs;
+        struct source_location location =
+            dot->data.access_member.member->identifier.location;
         char const* const name =
             dot->data.access_member.member->identifier.name;
         sbuf(struct cst_type const* const) const template_arguments =
@@ -4739,7 +4746,7 @@ resolve_expr_call(struct resolver* resolver, struct cst_expr const* expr)
         struct expr const* const instance = resolve_expr(resolver, lhs);
         if (!expr_is_lvalue(instance)) {
             fatal(
-                instance->location,
+                location,
                 "attempted to call member function `%s` on non-lvalue instance of type `%s`",
                 name,
                 instance->type->name);
@@ -4759,7 +4766,7 @@ resolve_expr_call(struct resolver* resolver, struct cst_expr const* expr)
         struct symbol const* symbol = type_member_symbol(instance->type, name);
         if (symbol == NULL) {
             fatal(
-                instance->location,
+                location,
                 "type `%s` has no member function `%s`",
                 instance->type->name,
                 name);
@@ -4774,7 +4781,7 @@ resolve_expr_call(struct resolver* resolver, struct cst_expr const* expr)
 
         if (symbol->kind != SYMBOL_FUNCTION) {
             fatal(
-                instance->location,
+                location,
                 "type `%s` has no member function `%s`",
                 instance->type->name,
                 name);
@@ -4789,7 +4796,7 @@ resolve_expr_call(struct resolver* resolver, struct cst_expr const* expr)
             function_type->data.function.parameter_types;
         if (sbuf_count(parameter_types) == 0) {
             fatal(
-                instance->location,
+                expr->location,
                 "expected type `%s` for the first parameter of member function `%s` of type `%s`",
                 selfptr_type->name,
                 name,
@@ -4797,7 +4804,7 @@ resolve_expr_call(struct resolver* resolver, struct cst_expr const* expr)
         }
         if (parameter_types[0] != selfptr_type) {
             fatal(
-                instance->location,
+                expr->location,
                 "expected type `%s` for the first parameter of member function `%s` of type `%s` (found `%s`)",
                 selfptr_type->name,
                 name,
