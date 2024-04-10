@@ -549,6 +549,8 @@ struct client_state {
     var debug: bool;
     var connected: bool;
 
+    var wav_dice: Wave;
+    var sound_dice: Sound;
     var font: Font;
     var font_size: f32;
     var ui_font: *Font;
@@ -591,6 +593,13 @@ struct client_state {
     var world_node: std::optional[[node]];
 
     func init() client_state {
+        let DICE25_WAV = embed("assets/Dice25.wav");
+        var wav_dice = LoadWaveFromMemory(
+            startof(".wav"),
+            (:*u8)startof(DICE25_WAV),
+            (:sint)countof(DICE25_WAV));
+        var sound_dice = LoadSoundFromWave(wav_dice);
+
         let FONT_NUMCHARS: sint = '~' - ' ' + 1; # Printable ASCII
         let PUBLIC_PIXEL_TTF = embed("assets/PublicPixel.ttf");
         var font_size = 16.0f32;
@@ -628,6 +637,8 @@ struct client_state {
             .debug = false,
             .connected = false,
 
+            .wav_dice = wav_dice,
+            .sound_dice = sound_dice,
             .font = font,
             .font_size = font_size,
             .ui_font = ui_font,
@@ -682,6 +693,8 @@ struct client_state {
         UnloadFont(*self.*.ui_font);
         std::delete[[Font]](self.*.ui_font);
         UnloadFont(self.*.font);
+        UnloadSound(self.*.sound_dice);
+        UnloadWave(self.*.wav_dice);
         self.*.board.fini();
     }
 
@@ -753,6 +766,13 @@ struct client_state {
             self.*.pinfo = message.*.data.info;
         }
         server_message::STATE {
+            var is_dice_rolled =
+                self.*.turn.phase == phase::RESOURCE_PRODUCTION and
+                (message.*.data.state.turn.phase == phase::DISCARD or message.*.data.state.turn.phase == phase::ROBBER or message.*.data.state.turn.phase == phase::MAIN);
+            if is_dice_rolled {
+                PlaySound(self.*.sound_dice);
+            }
+
             board::assign(&self.*.board, &message.*.data.state.board);
             self.*.turn_order = message.*.data.state.turn_order;
             self.*.turn = message.*.data.state.turn;

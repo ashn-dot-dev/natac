@@ -152,6 +152,7 @@ func raylib_init(fullscreen: bool) void {
     SetTraceLogLevel(LOG_WARNING);
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(960, 720, startof("NATAC"));
+    InitAudioDevice();
     SetTargetFPS(60);
     if fullscreen {
         ToggleFullscreen();
@@ -159,6 +160,7 @@ func raylib_init(fullscreen: bool) void {
 }
 
 func raylib_fini() void {
+    CloseAudioDevice();
     CloseWindow();
 }
 
