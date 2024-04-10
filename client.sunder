@@ -549,6 +549,8 @@ struct client_state {
     var debug: bool;
     var connected: bool;
 
+    var wav_ding: Wave;
+    var sound_ding: Sound;
     var wav_dice: Wave;
     var sound_dice: Sound;
     var wav_impact: Wave;
@@ -595,6 +597,13 @@ struct client_state {
     var world_node: std::optional[[node]];
 
     func init() client_state {
+        let BELLDING1_WAV = embed("assets/BellDing1.wav");
+        var wav_ding = LoadWaveFromMemory(
+            startof(".wav"),
+            (:*u8)startof(BELLDING1_WAV),
+            (:sint)countof(BELLDING1_WAV));
+        var sound_ding = LoadSoundFromWave(wav_ding);
+
         let DICE25_WAV = embed("assets/Dice25.wav");
         var wav_dice = LoadWaveFromMemory(
             startof(".wav"),
@@ -646,6 +655,8 @@ struct client_state {
             .debug = false,
             .connected = false,
 
+            .wav_ding = wav_ding,
+            .sound_ding = sound_ding,
             .wav_dice = wav_dice,
             .sound_dice = sound_dice,
             .wav_impact = wav_impact,
@@ -704,6 +715,8 @@ struct client_state {
         UnloadFont(*self.*.ui_font);
         std::delete[[Font]](self.*.ui_font);
         UnloadFont(self.*.font);
+        UnloadSound(self.*.sound_ding);
+        UnloadWave(self.*.wav_ding);
         UnloadSound(self.*.sound_impact);
         UnloadWave(self.*.wav_impact);
         UnloadSound(self.*.sound_dice);
@@ -779,6 +792,18 @@ struct client_state {
             self.*.pinfo = message.*.data.info;
         }
         server_message::STATE {
+            # We purposefully check that the player of the turn has changed
+            # rather than the turn number changing in combination with it being
+            # the current players turn so that one player games are not
+            # constantly dinging during testing.
+            var is_your_turn =
+                self.*.player.is_value() and
+                self.*.player.value() != self.*.turn.player and
+                self.*.player.value() == message.*.data.state.turn.player;
+            if is_your_turn {
+                PlaySound(self.*.sound_ding);
+            }
+
             var is_dice_rolled =
                 self.*.turn.phase == phase::RESOURCE_PRODUCTION and
                 (message.*.data.state.turn.phase == phase::DISCARD or message.*.data.state.turn.phase == phase::ROBBER or message.*.data.state.turn.phase == phase::MAIN);
