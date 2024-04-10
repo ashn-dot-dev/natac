@@ -555,6 +555,7 @@ struct client_state {
     var ui_font_size: f32;
     var ui_log: std::string;
     var ui_log_updated: bool;
+    var ui_textbox_buf: [256]char;
     var ui_resources_select: resources;
     var ui_play_dev_card_selected: bool;
     var ui_play_dev_card_year_of_plenty_selected: bool;
@@ -633,6 +634,7 @@ struct client_state {
             .ui_font_size = ui_font_size,
             .ui_log = ui_log,
             .ui_log_updated = ui_log_updated,
+            .ui_textbox_buf = uninit,
             .ui_resources_select = uninit,
             .ui_play_dev_card_selected = false,
             .ui_play_dev_card_year_of_plenty_selected = false,
@@ -1319,26 +1321,26 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                     }
                 }
 
-                cstate.*.ui.text("---------------");
+                cstate.*.ui.text(""); # spacer
 
-                cstate.*.ui.layout_row((:[]sint)[ui_w / 2 - 16, ui_w / 2 - 16], 1);
-                var RESOURCE_LAYOUT = (:[]sint)[ui_w / 3 - 32, -1];
-                var DEV_CARD_LAYOUT = (:[]sint)[ui_w / 2 - 32, -1];
+                cstate.*.ui.layout_row((:[]sint)[(3 * ui_w) / 7 - 16, (4 * ui_w) / 7 - 16], 1);
+                var RESOURCE_LAYOUT = (:[]sint)[(2 * ui_w / 7) - 16, -1];
+                var DEV_CARD_LAYOUT = (:[]sint)[(3 * ui_w / 7) - 16, -1];
 
-                ui_labled_number(&cstate.*.ui, "Brick", cstate.*.pinfo.brick, RESOURCE_LAYOUT);
-                ui_labled_number(&cstate.*.ui, "Knight", (:sint)knight_count, DEV_CARD_LAYOUT);
+                ui_labled_number(&cstate.*.ui, "Brick:", cstate.*.pinfo.brick, RESOURCE_LAYOUT);
+                ui_labled_number(&cstate.*.ui, "Knight:", (:sint)knight_count, DEV_CARD_LAYOUT);
 
-                ui_labled_number(&cstate.*.ui, "Ore", cstate.*.pinfo.ore, RESOURCE_LAYOUT);
-                ui_labled_number(&cstate.*.ui, "Road Building", (:sint)road_building_count, DEV_CARD_LAYOUT);
+                ui_labled_number(&cstate.*.ui, "Ore:", cstate.*.pinfo.ore, RESOURCE_LAYOUT);
+                ui_labled_number(&cstate.*.ui, "Road Building:", (:sint)road_building_count, DEV_CARD_LAYOUT);
 
-                ui_labled_number(&cstate.*.ui, "Sheep", cstate.*.pinfo.sheep, RESOURCE_LAYOUT);
-                ui_labled_number(&cstate.*.ui, "Year of Plenty", (:sint)year_of_plenty_count, DEV_CARD_LAYOUT);
+                ui_labled_number(&cstate.*.ui, "Sheep:", cstate.*.pinfo.sheep, RESOURCE_LAYOUT);
+                ui_labled_number(&cstate.*.ui, "Year of Plenty:", (:sint)year_of_plenty_count, DEV_CARD_LAYOUT);
 
-                ui_labled_number(&cstate.*.ui, "Wheat", cstate.*.pinfo.wheat, RESOURCE_LAYOUT);
-                ui_labled_number(&cstate.*.ui, "Monopoly", (:sint)monopoly_count, DEV_CARD_LAYOUT);
+                ui_labled_number(&cstate.*.ui, "Wheat:", cstate.*.pinfo.wheat, RESOURCE_LAYOUT);
+                ui_labled_number(&cstate.*.ui, "Monopoly:", (:sint)monopoly_count, DEV_CARD_LAYOUT);
 
-                ui_labled_number(&cstate.*.ui, "Wood", cstate.*.pinfo.wood, RESOURCE_LAYOUT);
-                ui_labled_number(&cstate.*.ui, "Victory Point", (:sint)victory_point_count, DEV_CARD_LAYOUT);
+                ui_labled_number(&cstate.*.ui, "Wood:", cstate.*.pinfo.wood, RESOURCE_LAYOUT);
+                ui_labled_number(&cstate.*.ui, "Victory Point:", (:sint)victory_point_count, DEV_CARD_LAYOUT);
             }
 
             cstate.*.ui.end_window();
@@ -1371,13 +1373,31 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         win.*.rect.y = ui_y;
 
         # Window Content
+        cstate.*.ui.layout_row((:[]sint)[-1], -25);
+        cstate.*.ui.begin_panel("Log Output");
+        var panel = cstate.*.ui.get_current_container();
         cstate.*.ui.layout_row((:[]sint)[-1], -1);
         cstate.*.ui.text(std::ascii::view_trimmed(cstate.*.ui_log.data()));
+        cstate.*.ui.end_panel();
 
         # Re-set scroll if the log was updated.
         if cstate.*.ui_log_updated {
-            win.*.scroll.y = win.*.content_size.y;
+            panel.*.scroll.y = panel.*.content_size.y;
             cstate.*.ui_log_updated = false;
+        }
+
+        var submitted = false;
+        cstate.*.ui.layout_row((:[]sint)[-70, -1], 0);
+        if (cstate.*.ui.textbox_buffer(cstate.*.ui_textbox_buf[0:countof(cstate.*.ui_textbox_buf)]) & smol::RES_SUBMIT) != 0 {
+            cstate.*.ui.set_focus(cstate.*.ui.context.*.last_id);
+            submitted = true;
+        }
+        if cstate.*.ui.button("Submit") {
+            submitted = true;
+        }
+        if submitted {
+            sender.*.sendc(client_message::init_chat(std::cstr::data(&cstate.*.ui_textbox_buf[0])));
+            cstate.*.ui_textbox_buf[0] = '\0';
         }
 
         cstate.*.ui.end_window();
@@ -1927,17 +1947,17 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         }
         return;
     }
-    elif IsKeyPressed(KEY_SPACE)
+    elif IsKeyPressed(KEY_TAB)
     and cstate.*.turn.phase == phase::GAME_INIT {
         sender.*.sendc(client_message::init_begin_game());
         return;
     }
-    elif IsKeyPressed(KEY_SPACE)
+    elif IsKeyPressed(KEY_TAB)
     and cstate.*.turn.phase == phase::RESOURCE_PRODUCTION {
         sender.*.sendc(client_message::init_roll());
         return;
     }
-    elif IsKeyPressed(KEY_SPACE)
+    elif IsKeyPressed(KEY_TAB)
     and cstate.*.turn.phase == phase::MAIN {
         sender.*.sendc(client_message::init_end_turn());
         return;

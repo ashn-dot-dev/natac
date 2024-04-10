@@ -1822,6 +1822,7 @@ struct client_message {
         TRADE_ACCEPT;
         TRADE_REJECT;
         TRADE_WITHDRAW;
+        CHAT;
     };
     var data: union {
         var build_road: road;
@@ -1840,6 +1841,7 @@ struct client_message {
         var trade_players: trade;
         var trade_accept: trade;
         var trade_reject: trade;
+        var chat: std::string;
     };
 
     let SELF: client_message = uninit;
@@ -1986,6 +1988,24 @@ struct client_message {
         };
     }
 
+    func init_chat(text: []byte) client_message {
+        return (:client_message){
+            .kind = client_message::CHAT,
+            .data = (:typeof(SELF.data)){.chat = std::string::init_from_str(text)},
+        };
+    }
+
+    func fini(self: *client_message) void {
+        switch self.*.kind {
+        client_message::CHAT {
+            self.*.data.chat.fini();
+        }
+        else {
+            # nothing
+        }
+        }
+    }
+
     func init_from_bubby(value: *bubby::value) client_message {
         var kind = value.*.map_xlookup_str("kind");
         if std::str::eq(kind.*.str(), "begin-game") {
@@ -2061,6 +2081,9 @@ struct client_message {
         }
         if std::str::eq(kind.*.str(), "trade-withdraw") {
             return client_message::init_trade_withdraw();
+        }
+        if std::str::eq(kind.*.str(), "chat") {
+            return client_message::init_chat(value.*.map_xlookup_str("data").*.str());
         }
 
         std::unreachable(fileof(), lineof());
@@ -2146,6 +2169,10 @@ struct client_message {
         client_message::TRADE_WITHDRAW {
             out.map_insert_str("kind", bubby::value::init_str("trade-withdraw"));
         }
+        client_message::CHAT {
+            out.map().*.insert(bubby::value::init_str("kind"), bubby::value::init_str("chat"));
+            out.map().*.insert(bubby::value::init_str("data"), bubby::value::init_str(self.*.data.chat.data()));
+        }
         }
         return out;
     }
@@ -2175,7 +2202,6 @@ struct server_message {
             var largest_army: std::optional[[player]];
         };
         var player: player;
-        var accepted: std::string;
         var rejected: std::string;
     };
 

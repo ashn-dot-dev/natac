@@ -1877,6 +1877,19 @@ struct server_state {
         self.*.turn.phase = phase::MAIN;
     }
 
+    func process_chat(self: *server_state, connection: *connection, text: []byte) void {
+        if not connection.*.player.is_value() {
+            connection.*.sendc(server_message::init_rejected("Cannot send chat message (you are not a player in the game)."));
+            return;
+        }
+        var name = player_to_name(connection.*.player.value());
+        self.*.sendc_all(server_message::init_log_format(
+            "{}: {}",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(name)]](&name),
+                std::formatter::init[[typeof(text)]](&text)]));
+    }
+
     func update_from_client_message(self: *server_state, message: *client_message, connection: *connection) void {
         # TODO: Checking for a winner before every message is a hack for not
         # having an end-of-game state. Remove this once such a state is added.
@@ -1941,6 +1954,9 @@ struct server_state {
         }
         client_message::TRADE_WITHDRAW {
             self.*.process_trade_withdraw(connection);
+        }
+        client_message::CHAT {
+            self.*.process_chat(connection, message.*.data.chat.data());
         }
         }
 

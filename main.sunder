@@ -26,6 +26,7 @@ struct local_client_message_sender {
         defer message.fini();
         #std::print_format_line(std::err(), "INCOMING LOCAL CLIENT MESSAGE STRING: {}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&message)]);
         var message = client_message::init_from_bubby(&message);
+        defer message.fini();
         # Update the local server based on the deserialized client message.
         self.*.server.*.update_from_client_message(&message, self.*.connection);
     }
@@ -376,6 +377,7 @@ func run_server() void {
                 defer value.fini();
 
                 var client_message = client_message::init_from_bubby(&value);
+                defer client_message.fini();
                 var handle = info.sender;
                 for i in sstate.connections.count() {
                     if ((:*nbnet_server_message_sender)sstate.connections.data()[i].sender.object).*.handle != handle {
