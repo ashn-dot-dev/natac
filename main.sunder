@@ -505,11 +505,13 @@ func main() void {
     }
 
     # Start the Application Main Loop.
-    var network = network::LOCAL;
-    if opt_network.is_value() {
-        network = opt_network.value();
+    if not opt_network.is_value() {
+        # Specifically do not mention the -local option.
+        # That network option is primarily intended for Natac development.
+        std::print_line(std::err(), "error: no network type selected (expected -client or -server)");
+        std::exit(std::EXIT_FAILURE);
     }
-    switch network {
+    switch opt_network.value() {
     ::network::LOCAL {
         run_local(opt_debug, opt_fullscreen);
     }
