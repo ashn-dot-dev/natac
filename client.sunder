@@ -1354,8 +1354,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             }
 
             var text_w = (:sint)((:f32)ui_w / 2.0 * (2.0 / 3.0));
-            var nums_w = (:sint)((:f32)ui_w / 2.0 * (1.0 / 1.0));
-            cstate.*.ui.layout_row((:[]sint)[text_w, nums_w], 1);
+            cstate.*.ui.layout_row((:[]sint)[text_w, -1], 1);
             cstate.*.ui.text("Victory Points:");
             var s = std::string::init_from_format(
                 "{}",
@@ -1376,7 +1375,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             defer s.fini();
             cstate.*.ui.text(s.data());
 
-            cstate.*.ui.layout_row((:[]sint)[text_w, nums_w], 1);
+            cstate.*.ui.layout_row((:[]sint)[text_w, -1], 1);
             cstate.*.ui.text("Resources:");
             var s = std::string::init_from_format(
                 "{}",
@@ -1385,7 +1384,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             defer s.fini();
             cstate.*.ui.text(s.data());
 
-            cstate.*.ui.layout_row((:[]sint)[text_w, nums_w], 1);
+            cstate.*.ui.layout_row((:[]sint)[text_w, -1], 1);
             cstate.*.ui.text("Dev Cards:");
             var s = std::string::init_from_format(
                 "{}",
@@ -1426,8 +1425,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                 cstate.*.ui.text(""); # spacer
 
                 cstate.*.ui.layout_row((:[]sint)[(3 * ui_w) / 5 - 16, (2 * ui_w) / 5 - 16], 1);
-                var RESOURCE_LAYOUT = (:[]sint)[(2 * ui_w / 5) - 16, -1];
-                var DEV_CARD_LAYOUT = (:[]sint)[(2 * ui_w / 5) - 16, -1];
+                var RESOURCE_LAYOUT = (:[]sint)[text_w, -1];
+                var DEV_CARD_LAYOUT = (:[]sint)[text_w, -1];
 
                 ui_labled_number(&cstate.*.ui, "Brick:", cstate.*.pinfo.brick, RESOURCE_LAYOUT);
                 ui_labled_number(&cstate.*.ui, "Knight:", (:sint)knight_count, DEV_CARD_LAYOUT);

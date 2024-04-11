@@ -256,6 +256,13 @@ func run_client(debug: bool, fullscreen: bool, address: std::optional[[*byte]]) 
 
         BeginDrawing();
         ClearBackground((:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF});
+        let text = startof("NATAC!");
+        var font_size = (:sint)(cstate.font_size * 8.0);
+        var text_w = MeasureText(text, font_size);
+        var text_h = GetFontDefault().baseSize;
+        var text_x = (:sint)screen_w / 2 - text_w / 2;
+        var text_y = (:sint)screen_w / 8 - text_h;
+        DrawText(text, text_x, text_y, font_size, (:Color){.r = 0xA1, .g = 0x21, .b = 0x21, .a = 0xFF});
         smol::render(cstate.ui.context);
         EndDrawing();
     }
