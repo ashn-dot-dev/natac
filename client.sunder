@@ -1358,15 +1358,15 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                     std::formatter::init[[sint]](&victory_points)]);
             if cstate.*.longest_road.is_value() and cstate.*.longest_road.value() == player and cstate.*.largest_army.is_value() and cstate.*.largest_army.value() == player {
                 var w = std::writer::init[[std::string]](&s);
-                std::print(w, " LR, LA");
+                std::print(w, " (LR, LA)");
             }
             elif cstate.*.longest_road.is_value() and cstate.*.longest_road.value() == player {
                 var w = std::writer::init[[std::string]](&s);
-                std::print(w, " Longest Road");
+                std::print(w, " (Longest Road)");
             }
             elif cstate.*.largest_army.is_value() and cstate.*.largest_army.value() == player {
                 var w = std::writer::init[[std::string]](&s);
-                std::print(w, " Largest Army");
+                std::print(w, " (Largest Army)");
             }
             defer s.fini();
             cstate.*.ui.text(s.data());
