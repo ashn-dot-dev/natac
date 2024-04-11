@@ -417,6 +417,18 @@ func run_server() void {
     }
 }
 
+func usage() void {
+    # Specifically do not mention the -debug and -local options.
+    # Those options are primarily intended for Natac development.
+    std::print_line(std::err(), "Usage: natac [options]");
+    std::print_line(std::err(), "Options:");
+    std::print_line(std::err(), "  -client=IPADDR   Join a game hosted on a server with IP address IPADDR.");
+    std::print_line(std::err(), "  -server          Start the game server.");
+    std::print_line(std::err(), "  -seed=SEED       Initialize the random number generator with a the specified seed.");
+    std::print_line(std::err(), "  -fullscreen      Run the game in fullscreen mode (default is 960x720).");
+    std::print_line(std::err(), "  -h, -help        Display usage information and exit.");
+}
+
 func main() void {
     # Application Global Allocator.
     var allocator = std::general_allocator::init();
@@ -442,23 +454,23 @@ func main() void {
 
     # Argument Parsing.
     var argparser = std::argument_parser::init((:[][]byte)[
-        "debug",
         "fullscreen",
         "seed:",
+        "debug",
 
-        "local",
         "client:",
         "server",
+        "local",
+
+        "h",
+        "help",
+
     ]);
     var opt_debug = false;
     var opt_fullscreen = false;
     var opt_network = std::optional[[network]]::EMPTY;
     var opt_address = std::optional[[*byte]]::EMPTY;
     for argparser.advance() {
-        if argparser.check_option("debug") {
-            opt_debug = true;
-            continue;
-        }
         if argparser.check_option("fullscreen") {
             opt_fullscreen = true;
             continue;
@@ -467,11 +479,11 @@ func main() void {
             random_init(argparser.argument_value());
             continue;
         }
-
-        if argparser.check_option("local") {
-            opt_network = std::optional[[network]]::init_value(network::LOCAL);
+        if argparser.check_option("debug") {
+            opt_debug = true;
             continue;
         }
+
         if argparser.check_option("client") {
             opt_network = std::optional[[network]]::init_value(network::CLIENT);
             opt_address = std::optional[[*byte]]::init_value(startof(argparser.argument_value()));
@@ -480,6 +492,15 @@ func main() void {
         if argparser.check_option("server") {
             opt_network = std::optional[[network]]::init_value(network::SERVER);
             continue;
+        }
+        if argparser.check_option("local") {
+            opt_network = std::optional[[network]]::init_value(network::LOCAL);
+            continue;
+        }
+
+        if argparser.check_option("h") or argparser.check_option("help") {
+            usage();
+            std::exit(std::EXIT_SUCCESS);
         }
     }
 

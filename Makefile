@@ -36,7 +36,7 @@ $(TARGET): \
 	.sunder/lib/nbnet \
 	.sunder/lib/raylib \
 	.sunder/lib/smolui \
-	util.c shared.sunder server.sunder client.sunder
+	util.c shared.sunder server.sunder client.sunder main.sunder
 	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
 	SUNDER_CC=clang \
 	SUNDER_CFLAGS="$(CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --cflags)" \
