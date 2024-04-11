@@ -555,6 +555,8 @@ struct client_state {
     var sound_dice: Sound;
     var wav_impact: Wave;
     var sound_impact: Sound;
+    var wav_winner: Wave;
+    var sound_winner: Sound;
     var font: Font;
     var font_size: f32;
     var ui_font: *Font;
@@ -597,26 +599,33 @@ struct client_state {
     var world_node: std::optional[[node]];
 
     func init() client_state {
-        let BELLDING1_WAV = embed("assets/BellDing1.wav");
+        let WAV = embed("assets/BellDing1.wav");
         var wav_ding = LoadWaveFromMemory(
             startof(".wav"),
-            (:*u8)startof(BELLDING1_WAV),
-            (:sint)countof(BELLDING1_WAV));
+            (:*u8)startof(WAV),
+            (:sint)countof(WAV));
         var sound_ding = LoadSoundFromWave(wav_ding);
 
-        let DICE25_WAV = embed("assets/Dice25.wav");
+        let WAV = embed("assets/Dice25.wav");
         var wav_dice = LoadWaveFromMemory(
             startof(".wav"),
-            (:*u8)startof(DICE25_WAV),
-            (:sint)countof(DICE25_WAV));
+            (:*u8)startof(WAV),
+            (:sint)countof(WAV));
         var sound_dice = LoadSoundFromWave(wav_dice);
 
-        let IMPACT_WAV = embed("assets/WoodPlasticHitImpact.wav");
+        let WAV = embed("assets/WoodPlasticHitImpact.wav");
         var wav_impact = LoadWaveFromMemory(
             startof(".wav"),
-            (:*u8)startof(IMPACT_WAV),
-            (:sint)countof(IMPACT_WAV));
+            (:*u8)startof(WAV),
+            (:sint)countof(WAV));
         var sound_impact = LoadSoundFromWave(wav_impact);
+
+        let WAV = embed("assets/SuccessFanfareTrumpets.wav");
+        var wav_winner = LoadWaveFromMemory(
+            startof(".wav"),
+            (:*u8)startof(WAV),
+            (:sint)countof(WAV));
+        var sound_winner = LoadSoundFromWave(wav_winner);
 
         let FONT_NUMCHARS: sint = '~' - ' ' + 1; # Printable ASCII
         let PUBLIC_PIXEL_TTF = embed("assets/PublicPixel.ttf");
@@ -661,6 +670,8 @@ struct client_state {
             .sound_dice = sound_dice,
             .wav_impact = wav_impact,
             .sound_impact = sound_impact,
+            .wav_winner = wav_winner,
+            .sound_winner = sound_winner,
             .font = font,
             .font_size = font_size,
             .ui_font = ui_font,
@@ -715,6 +726,8 @@ struct client_state {
         UnloadFont(*self.*.ui_font);
         std::delete[[Font]](self.*.ui_font);
         UnloadFont(self.*.font);
+        UnloadSound(self.*.sound_winner);
+        UnloadWave(self.*.wav_winner);
         UnloadSound(self.*.sound_ding);
         UnloadWave(self.*.wav_ding);
         UnloadSound(self.*.sound_impact);
@@ -830,6 +843,11 @@ struct client_state {
             var is_robber_moved = std::ne[[hex]](&self.*.board.robber, &message.*.data.state.board.robber);
             if new_road_count > old_road_count or new_settlement_count > old_settlement_count or new_city_count > old_city_count or is_robber_moved {
                 PlaySound(self.*.sound_impact);
+            }
+
+            var is_game_ended = self.*.turn.phase != phase::GAME_FINI and message.*.data.state.turn.phase == phase::GAME_FINI;
+            if is_game_ended {
+                PlaySound(self.*.sound_winner);
             }
 
             board::assign(&self.*.board, &message.*.data.state.board);
