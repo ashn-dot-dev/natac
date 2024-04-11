@@ -840,7 +840,12 @@ struct client_state {
                 new_settlement_count += (:usize)(iter.current().*.value.*.kind == town::SETTLEMENT);
                 new_city_count += (:usize)(iter.current().*.value.*.kind == town::CITY);
             }
-            var is_robber_moved = std::ne[[hex]](&self.*.board.robber, &message.*.data.state.board.robber);
+            # Since the robber will populate to tile (+0, +0, +0) on the
+            # intital state message from the server, skip playing a sound for
+            # the robber being "moved" when the previous board was empty.
+            var is_robber_moved =
+                self.*.board.tiles.count() != 0 and
+                std::ne[[hex]](&self.*.board.robber, &message.*.data.state.board.robber);
             if new_road_count > old_road_count or new_settlement_count > old_settlement_count or new_city_count > old_city_count or is_robber_moved {
                 PlaySound(self.*.sound_impact);
             }
