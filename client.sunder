@@ -1563,7 +1563,12 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.wood, 0, cstate.*.pinfo.wood);
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         var total = cstate.*.ui_resources_select.count();
-        var s = std::string::init_from_format("Total = {}", (:[]std::formatter)[std::formatter::init[[sint]](&total)]);
+        var outof = (cstate.*.pinfo.brick + cstate.*.pinfo.ore + cstate.*.pinfo.sheep + cstate.*.pinfo.wheat + cstate.*.pinfo.wood) / 2;
+        var s = std::string::init_from_format(
+            "Selected {} out of {} resources",
+            (:[]std::formatter)[
+                std::formatter::init[[sint]](&total),
+                std::formatter::init[[sint]](&outof)]);
         defer s.fini();
         cstate.*.ui.text(s.data());
         if cstate.*.ui.button("Submit") {
