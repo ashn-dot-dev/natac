@@ -4,6 +4,7 @@ import "std";
 import "bubby";
 import "nbnet";
 import "raylib";
+import "smolui";
 
 import "util.sunder";
 import "shared.sunder";
@@ -198,13 +199,74 @@ func run_local(debug: bool, fullscreen: bool) void {
     }
 }
 
-func run_client(debug: bool, fullscreen: bool, address: *byte) void {
+func run_client(debug: bool, fullscreen: bool, address: std::optional[[*byte]]) void {
     raylib_init(fullscreen);
     defer raylib_fini();
+
+    var cstate = client_state::init();
+    defer cstate.fini();
+    cstate.debug = debug;
+
+    # TODO: Move IP address selection loop into its own function.
+    var address_buf = (:[128]byte)[0...];
+    for not WindowShouldClose() and not address.is_value() {
+        var screen_w = screen_w();
+        var screen_h = screen_h();
+
+        smol::handle_input(cstate.ui.context);
+        mu_begin(cstate.ui.context);
+
+        var ui_w = (:sint)screen_w / 4;
+        var ui_h = (:sint)screen_h / 4;
+        var ui_x = (:sint)screen_w / 2 - ui_w / 2;
+        var ui_y = (:sint)screen_h / 2 - ui_h / 2;
+        if cstate.ui.begin_window_ex("Enter Server Address", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
+            if IsKeyPressed(KEY_F4) {
+                ToggleFullscreen();
+            }
+
+            # Re-set cached window rect in case the screen was resized.
+            var win = cstate.ui.get_current_container();
+            win.*.rect.w = ui_w;
+            win.*.rect.h = ui_h;
+            win.*.rect.x = ui_x;
+            win.*.rect.y = ui_y;
+
+            # Window Content
+            cstate.ui.layout_row((:[]sint)[-1], 0);
+            cstate.ui.text("Enter the IP address (IPv4) of the Natac server (e.g. 192.0.2.0).");
+            cstate.ui.text("");
+            var submitted = false;
+            if (cstate.ui.textbox_buffer(address_buf[0:countof(address_buf)]) & smol::RES_SUBMIT) != 0 {
+                cstate.ui.set_focus(cstate.ui.context.*.last_id);
+                submitted = true;
+            }
+            if cstate.ui.button("Submit") {
+                submitted = true;
+            }
+            if submitted {
+                address = std::optional[[*byte]]::init_value(&address_buf[0]);
+                cstate.ui_textbox_buf[0] = '\0';
+            }
+
+            cstate.ui.end_window();
+        }
+
+        mu_end(cstate.ui.context);
+
+        BeginDrawing();
+        ClearBackground((:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF});
+        smol::render(cstate.ui.context);
+        EndDrawing();
+    }
+    if WindowShouldClose() {
+        return;
+    }
 
     NBN_Log_SetIsEnabled(NBN_LogType::NBN_LOG_TRACE, false);
     NBN_Log_SetIsEnabled(NBN_LogType::NBN_LOG_DEBUG, false);
     NBN_Driver_Init();
+    var address = address.value();
     var port = 31415u16;
     if NBN_GameClient_StartEx(startof("natac"), address, port, false, std::ptr[[uint8_t]]::NULL, 0) < 0 {
         std::print_line(std::err(), "error: failed to start the nbnet client");
@@ -216,10 +278,6 @@ func run_client(debug: bool, fullscreen: bool, address: *byte) void {
         (:NBN_MessageBuilder)message::create,
         (:NBN_MessageDestructor)message::destroy,
         (:NBN_MessageSerializer)message::serialize);
-
-    var cstate = client_state::init();
-    defer cstate.fini();
-    cstate.debug = debug;
 
     var client_message_sender = nbnet_client_message_sender::init();
     var message_sender = message_sender[[client_message]]::init[[nbnet_client_message_sender]](&client_message_sender);
@@ -505,21 +563,14 @@ func main() void {
     }
 
     # Start the Application Main Loop.
-    if not opt_network.is_value() {
-        # Specifically do not mention the -local option.
-        # That network option is primarily intended for Natac development.
-        std::print_line(std::err(), "error: no network type selected (expected -client or -server)");
-        std::exit(std::EXIT_FAILURE);
+    if opt_network.is_empty() or opt_network.value() == ::network::CLIENT {
+        return run_client(opt_debug, opt_fullscreen, opt_address);
     }
-    switch opt_network.value() {
-    ::network::LOCAL {
-        run_local(opt_debug, opt_fullscreen);
+    if opt_network.value() == ::network::SERVER {
+        return run_server();
     }
-    ::network::CLIENT {
-        run_client(opt_debug, opt_fullscreen, opt_address.value());
+    if opt_network.value() == ::network::LOCAL {
+        return run_local(opt_debug, opt_fullscreen);
     }
-    ::network::SERVER {
-        run_server();
-    }
-    }
+    std::unreachable(fileof(), lineof());
 }
