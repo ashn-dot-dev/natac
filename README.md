@@ -22,3 +22,25 @@ $ make package-macos
 
 NOTE: After downloading `natac.app`, one will likely need to run `xattr -c
 <path/to/natac.app>` to remove the `com.apple.Quarantine` extended attribute.
+
+## Running
+
+After building the `natac` application, one may launch a Natac server with:
+
+```sh
+$ ./natac -server
+```
+
+Other players may run the game and connect to that server with:
+
+```sh
+$ ./natac -client=IPADDR
+```
+
+where `IPADDR` is the IP address (IPv4) of the server.
+
+### Example
+
+```sh
+$ ./natac -client=$(dig +short natac.net)
+```
