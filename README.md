@@ -34,7 +34,7 @@ $ ./natac -server
 Other players may run the game and connect to that server with:
 
 ```sh
-$ ./natac -client=IPADDR
+$ ./natac -client IPADDR
 ```
 
 where `IPADDR` is the IP address (IPv4) of the server.
@@ -42,5 +42,5 @@ where `IPADDR` is the IP address (IPv4) of the server.
 ### Example
 
 ```sh
-$ ./natac -client=$(dig +short natac.net)
+$ ./natac -client $(dig +short natac.net)
 ```
