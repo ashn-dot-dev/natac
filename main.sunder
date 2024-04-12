@@ -241,7 +241,7 @@ func run_client(debug: bool, fullscreen: bool, address: std::optional[[*byte]]) 
                 cstate.ui.set_focus(cstate.ui.context.*.last_id);
                 submitted = true;
             }
-            if cstate.ui.button("Submit") {
+            if cstate.ui.button("Connect") {
                 submitted = true;
             }
             if submitted {

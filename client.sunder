@@ -1493,7 +1493,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             cstate.*.ui.set_focus(cstate.*.ui.context.*.last_id);
             submitted = true;
         }
-        if cstate.*.ui.button("Submit") {
+        if cstate.*.ui.button("Send") {
             submitted = true;
         }
         if submitted {
