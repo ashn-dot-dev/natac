@@ -1223,16 +1223,16 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     if IsKeyPressed(KEY_F4) {
         ToggleFullscreen();
     }
-    if IsKeyPressed(KEY_ONE) {
+    if cstate.*.debug and IsKeyPressed(KEY_ONE) {
         sender.*.sendc(client_message::init_select_player(cstate.*.turn_order[0]));
     }
-    if IsKeyPressed(KEY_TWO) {
+    if cstate.*.debug and IsKeyPressed(KEY_TWO) {
         sender.*.sendc(client_message::init_select_player(cstate.*.turn_order[1]));
     }
-    if IsKeyPressed(KEY_THREE) {
+    if cstate.*.debug and IsKeyPressed(KEY_THREE) {
         sender.*.sendc(client_message::init_select_player(cstate.*.turn_order[2]));
     }
-    if IsKeyPressed(KEY_FOUR) {
+    if cstate.*.debug and IsKeyPressed(KEY_FOUR) {
         sender.*.sendc(client_message::init_select_player(cstate.*.turn_order[3]));
     }
 
