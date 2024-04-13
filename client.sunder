@@ -283,7 +283,7 @@ func draw_number_token(center: Vector2, number: sint, radius: f32, font: Font) v
     }
 }
 
-func draw_port(port: port, radius: f32, font: Font) void {
+func draw_port(port: port, radius: f32, font: Font, font_size: f32) void {
     var center = pointy_hex_to_point(port.hex, radius);
 
     var a = node_to_point(port.nodes[0], radius);
@@ -315,7 +315,6 @@ func draw_port(port: port, radius: f32, font: Font) void {
         text = "wood 2:1";
     }
     }
-    var font_size = radius / 6.0;
     var size = measure_text_cstr(font, font_size, startof(text));
     var position = (:Vector2){.x = center.x - size.x / 2.0, .y = center.y - size.y / 2.0};
     draw_text_cstr(font, font_size, BLACK, position, startof(text));
@@ -819,7 +818,9 @@ struct client_state {
 
             var is_dice_rolled =
                 self.*.turn.phase == phase::RESOURCE_PRODUCTION and
-                (message.*.data.state.turn.phase == phase::DISCARD or message.*.data.state.turn.phase == phase::ROBBER or message.*.data.state.turn.phase == phase::MAIN);
+                (message.*.data.state.turn.phase == phase::DISCARD or
+                    message.*.data.state.turn.phase == phase::ROBBER or
+                    message.*.data.state.turn.phase == phase::MAIN);
             if is_dice_rolled {
                 PlaySound(self.*.sound_dice);
             }
@@ -871,7 +872,11 @@ struct client_state {
         }
         server_message::REJECTED {
             var log_writer = std::writer::init[[std::string]](&self.*.ui_log);
-            std::print_format_line(log_writer, "[ACTION REJECTED]: {}", (:[]std::formatter)[std::formatter::init[[std::string]](&message.*.data.rejected)]);
+            std::print_format_line(
+                log_writer,
+                "[ACTION REJECTED]: {}",
+                (:[]std::formatter)[
+                    std::formatter::init[[std::string]](&message.*.data.rejected)]);
             self.*.ui_log_updated = true;
         }
         }
@@ -1076,6 +1081,70 @@ func ui_window_play_dev_card_monopoly(cstate: *client_state, sender: *message_se
     }
 }
 
+var address_buf = (:[128]byte)[0...];
+func client_pre_connect_update(cstate: *client_state, address: *std::optional[[*byte]]) void {
+    var screen_w = screen_w();
+    var screen_h = screen_h();
+
+    smol::handle_input(cstate.*.ui.context);
+    mu_begin(cstate.*.ui.context);
+
+    var ui_w = (:sint)screen_w / 4;
+    var ui_h = (:sint)screen_h / 4;
+    var ui_x = (:sint)screen_w / 2 - ui_w / 2;
+    var ui_y = (:sint)screen_h / 2 - ui_h / 2;
+    if cstate.*.ui.begin_window_ex("Enter Server Address", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
+        if IsKeyPressed(KEY_F4) {
+            ToggleFullscreen();
+        }
+
+        # Re-set cached window rect in case the screen was resized.
+        var win = cstate.*.ui.get_current_container();
+        win.*.rect.w = ui_w;
+        win.*.rect.h = ui_h;
+        win.*.rect.x = ui_x;
+        win.*.rect.y = ui_y;
+
+        # Window Content
+        cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        cstate.*.ui.text("Enter the IP address (IPv4) of the Natac server (e.g. 192.0.2.0).");
+        cstate.*.ui.text("");
+        var submitted = false;
+        if (cstate.*.ui.textbox_buffer(address_buf[0:countof(address_buf)]) & smol::RES_SUBMIT) != 0 {
+            cstate.*.ui.set_focus(cstate.*.ui.context.*.last_id);
+            submitted = true;
+        }
+        if cstate.*.ui.button("Connect") {
+            submitted = true;
+        }
+        if submitted {
+            *address = std::optional[[*byte]]::init_value(&address_buf[0]);
+            cstate.*.ui_textbox_buf[0] = '\0';
+        }
+
+        cstate.*.ui.end_window();
+    }
+
+    mu_end(cstate.*.ui.context);
+}
+
+func client_pre_connect_render(cstate: *client_state) void {
+    var screen_w = screen_w();
+    var screen_h = screen_h();
+
+    BeginDrawing();
+    ClearBackground((:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF});
+    let text = startof("NATAC!");
+    var font_size = (:sint)(cstate.*.font_size * 8.0);
+    var text_w = MeasureText(text, font_size);
+    var text_h = GetFontDefault().baseSize;
+    var text_x = (:sint)screen_w / 2 - text_w / 2;
+    var text_y = (:sint)screen_h / 8 - text_h;
+    DrawText(text, text_x, text_y, font_size, (:Color){.r = 0xA1, .g = 0x21, .b = 0x21, .a = 0xFF});
+    smol::render(cstate.*.ui.context);
+    EndDrawing();
+}
+
 func client_update(cstate: *client_state, sender: *message_sender[[client_message]]) void {
     if not cstate.*.connected {
         return;
@@ -1175,7 +1244,12 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
-    var show_ui = cstate.*.player.is_empty();
+    var is_open_seat =
+        ((cstate.*.turn.phase == phase::GAME_INIT and not cstate.*.p_info(player::RED).*.live) or not cstate.*.p_info(player::RED).*.connected) or
+        ((cstate.*.turn.phase == phase::GAME_INIT and not cstate.*.p_info(player::BLUE).*.live) or not cstate.*.p_info(player::BLUE).*.connected) or
+        ((cstate.*.turn.phase == phase::GAME_INIT and not cstate.*.p_info(player::WHITE).*.live) or not cstate.*.p_info(player::WHITE).*.connected) or
+        ((cstate.*.turn.phase == phase::GAME_INIT and not cstate.*.p_info(player::ORANGE).*.live) or not cstate.*.p_info(player::ORANGE).*.connected);
+    var show_ui = cstate.*.player.is_empty() and is_open_seat;
     if show_ui and cstate.*.ui.begin_window_ex("Select Color", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
         var win = cstate.*.ui.get_current_container();
@@ -1232,7 +1306,9 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
-    var show_ui = cstate.*.turn.phase == phase::GAME_INIT_BUILD_TOWN and cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player;
+    var show_ui = cstate.*.turn.phase == phase::GAME_INIT_BUILD_TOWN and
+        cstate.*.player.is_value() and
+        cstate.*.player.value() == cstate.*.turn.player;
     if show_ui and cstate.*.ui.begin_window_ex("Initial Setup", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
         var win = cstate.*.ui.get_current_container();
@@ -1247,7 +1323,9 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
         cstate.*.ui.end_window();
     }
-    var show_ui = cstate.*.turn.phase == phase::GAME_INIT_BUILD_ROAD and cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player;
+    var show_ui = cstate.*.turn.phase == phase::GAME_INIT_BUILD_ROAD and
+        cstate.*.player.is_value() and
+        cstate.*.player.value() == cstate.*.turn.player;
     if show_ui and cstate.*.ui.begin_window_ex("Initial Setup", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
         var win = cstate.*.ui.get_current_container();
@@ -1509,7 +1587,9 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
-    var show_ui = cstate.*.turn.phase == phase::RESOURCE_PRODUCTION and cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player;
+    var show_ui = cstate.*.turn.phase == phase::RESOURCE_PRODUCTION and
+        cstate.*.player.is_value() and
+        cstate.*.player.value() == cstate.*.turn.player;
     if show_ui and cstate.*.ui_play_dev_card_selected {
         ui_window_play_dev_card(cstate, sender);
     }
@@ -1544,7 +1624,9 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
-    var show_ui = cstate.*.turn.phase == phase::DISCARD and cstate.*.player.is_value() and not *cstate.*.p_discarded(cstate.*.player.value());
+    var show_ui = cstate.*.turn.phase == phase::DISCARD and
+        cstate.*.player.is_value() and
+        not *cstate.*.p_discarded(cstate.*.player.value());
     if show_ui and cstate.*.ui.begin_window_ex("Select Resources", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
         var win = cstate.*.ui.get_current_container();
@@ -1588,7 +1670,9 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
-    var show_ui = cstate.*.turn.phase == phase::STEAL and cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player;
+    var show_ui = cstate.*.turn.phase == phase::STEAL and
+        cstate.*.player.is_value() and
+        cstate.*.player.value() == cstate.*.turn.player;
     if show_ui and cstate.*.ui.begin_window_ex("Select Player", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         # Re-set cached window rect in case the screen was resized.
         var win = cstate.*.ui.get_current_container();
@@ -1620,7 +1704,9 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_h = (:sint)screen_h / 4;
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
-    var show_ui = cstate.*.turn.phase == phase::MAIN and cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player;
+    var show_ui = cstate.*.turn.phase == phase::MAIN and
+        cstate.*.player.is_value() and
+        cstate.*.player.value() == cstate.*.turn.player;
     if show_ui
     and cstate.*.ui_main_build_road_selected
     and cstate.*.ui.begin_window_ex("Build Road", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
@@ -2211,7 +2297,7 @@ func client_render(cstate: *client_state) void {
     var iter = std::hash_set_iterator[[port]]::init(&cstate.*.board.ports);
     for iter.advance() {
         var port = iter.current();
-        draw_port(*port, HEX_RADIUS, cstate.*.font);
+        draw_port(*port, HEX_RADIUS, cstate.*.font, cstate.*.font_size / 2.0);
     }
 
     var iter = std::hash_map_iterator[[edge, road]]::init(&cstate.*.board.roads);

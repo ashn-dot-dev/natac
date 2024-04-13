@@ -1614,6 +1614,7 @@ struct hidden_player_info {
 
 struct public_player_info {
     var live: bool;
+    var connected: bool;
     var victory_points: sint;
     var resources: sint;
     var dev_cards: sint;
@@ -1623,6 +1624,7 @@ struct public_player_info {
     func init_from_bubby(value: *bubby::value) public_player_info {
         var self: public_player_info = uninit;
         self.live = xstr_to_bool(value.*.map_xlookup_str("live").*.str());
+        self.connected = xstr_to_bool(value.*.map_xlookup_str("connected").*.str());
         self.victory_points = xstr_to_int[[sint]](value.*.map_xlookup_str("victory-points").*.str());
         self.resources = xstr_to_int[[sint]](value.*.map_xlookup_str("resources").*.str());
         self.dev_cards = xstr_to_int[[sint]](value.*.map_xlookup_str("dev-cards").*.str());
@@ -1634,6 +1636,7 @@ struct public_player_info {
     func to_bubby(self: *public_player_info) bubby::value {
         var out = bubby::value::init_map();
         out.map_insert_str("live", bool_to_bubby(self.*.live));
+        out.map_insert_str("connected", bool_to_bubby(self.*.connected));
         out.map_insert_str("victory-points", int_to_bubby[[sint]](self.*.victory_points));
         out.map_insert_str("resources", int_to_bubby[[sint]](self.*.resources));
         out.map_insert_str("dev-cards", int_to_bubby[[sint]](self.*.dev_cards));

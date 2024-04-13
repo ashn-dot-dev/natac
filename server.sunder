@@ -2118,8 +2118,33 @@ struct server_state {
 }
 
 func server_update(sstate: *server_state) void {
+    var r_connected = false;
+    var b_connected = false;
+    var w_connected = false;
+    var o_connected = false;
+    for i in sstate.*.connections.count() {
+        if sstate.*.connections.data()[i].player.is_empty() {
+            continue;
+        }
+        switch sstate.*.connections.data()[i].player.value() {
+        player::RED {
+            r_connected = true;
+        }
+        player::BLUE {
+            b_connected = true;
+        }
+        player::WHITE {
+            w_connected = true;
+        }
+        player::ORANGE {
+            o_connected = true;
+        }
+        }
+    }
+
     var r = (:public_player_info){
         .live = sstate.*.r_live,
+        .connected = r_connected,
         .victory_points = sstate.*.public_victory_points(player::RED),
         .resources = sstate.*.r_info.resource_count(),
         .dev_cards = sstate.*.r_info.unused_dev_card_count(),
@@ -2128,6 +2153,7 @@ func server_update(sstate: *server_state) void {
     };
     var b = (:public_player_info){
         .live = sstate.*.b_live,
+        .connected = b_connected,
         .victory_points = sstate.*.public_victory_points(player::BLUE),
         .resources = sstate.*.b_info.resource_count(),
         .dev_cards = sstate.*.b_info.unused_dev_card_count(),
@@ -2136,6 +2162,7 @@ func server_update(sstate: *server_state) void {
     };
     var w = (:public_player_info){
         .live = sstate.*.w_live,
+        .connected = w_connected,
         .victory_points = sstate.*.public_victory_points(player::WHITE),
         .resources = sstate.*.w_info.resource_count(),
         .dev_cards = sstate.*.w_info.unused_dev_card_count(),
@@ -2144,6 +2171,7 @@ func server_update(sstate: *server_state) void {
     };
     var o = (:public_player_info){
         .live = sstate.*.o_live,
+        .connected = o_connected,
         .victory_points = sstate.*.public_victory_points(player::ORANGE),
         .resources = sstate.*.o_info.resource_count(),
         .dev_cards = sstate.*.o_info.unused_dev_card_count(),

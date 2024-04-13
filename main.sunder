@@ -4,7 +4,6 @@ import "std";
 import "bubby";
 import "nbnet";
 import "raylib";
-import "smolui";
 
 import "util.sunder";
 import "shared.sunder";
@@ -207,64 +206,9 @@ func run_client(debug: bool, fullscreen: bool, address: std::optional[[*byte]]) 
     defer cstate.fini();
     cstate.debug = debug;
 
-    # TODO: Move IP address selection loop into its own function.
-    var address_buf = (:[128]byte)[0...];
-    for not WindowShouldClose() and not address.is_value() {
-        var screen_w = screen_w();
-        var screen_h = screen_h();
-
-        smol::handle_input(cstate.ui.context);
-        mu_begin(cstate.ui.context);
-
-        var ui_w = (:sint)screen_w / 4;
-        var ui_h = (:sint)screen_h / 4;
-        var ui_x = (:sint)screen_w / 2 - ui_w / 2;
-        var ui_y = (:sint)screen_h / 2 - ui_h / 2;
-        if cstate.ui.begin_window_ex("Enter Server Address", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
-            if IsKeyPressed(KEY_F4) {
-                ToggleFullscreen();
-            }
-
-            # Re-set cached window rect in case the screen was resized.
-            var win = cstate.ui.get_current_container();
-            win.*.rect.w = ui_w;
-            win.*.rect.h = ui_h;
-            win.*.rect.x = ui_x;
-            win.*.rect.y = ui_y;
-
-            # Window Content
-            cstate.ui.layout_row((:[]sint)[-1], 0);
-            cstate.ui.text("Enter the IP address (IPv4) of the Natac server (e.g. 192.0.2.0).");
-            cstate.ui.text("");
-            var submitted = false;
-            if (cstate.ui.textbox_buffer(address_buf[0:countof(address_buf)]) & smol::RES_SUBMIT) != 0 {
-                cstate.ui.set_focus(cstate.ui.context.*.last_id);
-                submitted = true;
-            }
-            if cstate.ui.button("Connect") {
-                submitted = true;
-            }
-            if submitted {
-                address = std::optional[[*byte]]::init_value(&address_buf[0]);
-                cstate.ui_textbox_buf[0] = '\0';
-            }
-
-            cstate.ui.end_window();
-        }
-
-        mu_end(cstate.ui.context);
-
-        BeginDrawing();
-        ClearBackground((:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF});
-        let text = startof("NATAC!");
-        var font_size = (:sint)(cstate.font_size * 8.0);
-        var text_w = MeasureText(text, font_size);
-        var text_h = GetFontDefault().baseSize;
-        var text_x = (:sint)screen_w / 2 - text_w / 2;
-        var text_y = (:sint)screen_w / 8 - text_h;
-        DrawText(text, text_x, text_y, font_size, (:Color){.r = 0xA1, .g = 0x21, .b = 0x21, .a = 0xFF});
-        smol::render(cstate.ui.context);
-        EndDrawing();
+    for not WindowShouldClose() and address.is_empty() {
+        client_pre_connect_update(&cstate, &address);
+        client_pre_connect_render(&cstate);
     }
     if WindowShouldClose() {
         return;
