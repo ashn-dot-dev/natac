@@ -17,7 +17,7 @@ A free and open source game inspired by Klaus Teuber's *Settlers of Catan*.
 $ make build
 ```
 
-### Debug BUILD
+### Debug Build
 
 ```sh
 $ make build CFLAGS='$(CFLAGS_DBG)' SUNDER_FLAGS='$(SUNDER_FLAGS_DBG)'
