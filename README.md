@@ -5,10 +5,19 @@ A free and open source game inspired by Klaus Teuber's *Settlers of Catan*.
 
 ## Building
 
+### Release Build
+
 ```sh
 $ make build
 ```
 
+### Debug BUILD
+
+```sh
+$ make build CFLAGS='$(CFLAGS_DBG)' SUNDER_FLAGS='$(SUNDER_FLAGS_DBG)'
+```
+
+### Additional Notes
 Building and linking with raylib requies some additional system dependencies to
 be installed when building for Linux: https://github.com/raysan5/raylib/wiki/Working-on-GNU-Linux.
 

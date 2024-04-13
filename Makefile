@@ -24,6 +24,10 @@ CFLAGS_DBG=-O0 -Wl,-stack_size -Wl,0x1000000 -g
 CFLAGS_REL=-Os
 CFLAGS=$(CFLAGS_REL)
 
+SUNDER_FLAGS_DBG=-g -k
+SUNDER_FLAGS_REL=
+SUNDER_FLAGS=$(SUNDER_FLAGS_REL)
+
 SUNDER_HOME := $$(pwd)/.sunder
 
 all: $(TARGET)
@@ -41,6 +45,7 @@ $(TARGET): \
 	SUNDER_CC=clang \
 	SUNDER_CFLAGS="$(CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --cflags)" \
 	sunder-compile \
+		$(SUNDER_FLAGS) \
 		-o $(TARGET) \
 		$$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --libs) \
 		-L$(SUNDER_HOME)/lib/nbnet -lnbnet \
