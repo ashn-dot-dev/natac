@@ -584,6 +584,7 @@ struct client_state {
     var b: public_player_info;
     var w: public_player_info;
     var o: public_player_info;
+    var dev_cards_remaining: sint;
     var longest_road: std::optional[[player]];
     var largest_army: std::optional[[player]];
     var turn_order: [4]player;
@@ -699,6 +700,7 @@ struct client_state {
             .b = uninit,
             .w = uninit,
             .o = uninit,
+            .dev_cards_remaining = uninit,
             .longest_road = std::optional[[player]]::EMPTY,
             .largest_army = std::optional[[player]]::EMPTY,
             .turn_order = (:[4]player)[
@@ -864,6 +866,7 @@ struct client_state {
             self.*.b = message.*.data.state.b;
             self.*.w = message.*.data.state.w;
             self.*.o = message.*.data.state.o;
+            self.*.dev_cards_remaining =message.*.data.state.dev_cards_remaining;
             self.*.longest_road = message.*.data.state.longest_road;
             self.*.largest_army = message.*.data.state.largest_army;
         }
@@ -1952,6 +1955,11 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             cstate.*.ui.layout_row((:[]sint)[-1], 0);
 
             var remaining = 15s;
+            var iter = std::hash_map_iterator[[edge, road]]::init(&cstate.*.board.roads);
+            for iter.advance() {
+                var road = iter.current().*.value.*;
+                remaining -= (:ssize)(road.player == cstate.*.player.value());
+            }
             var s = std::string::init_from_format(
                 "Road ({} remaining):\n    1 brick, 1 wood",
                 (:[]std::formatter)[
@@ -1960,6 +1968,11 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             cstate.*.ui.text(s.data());
 
             var remaining = 5s;
+            var iter = std::hash_map_iterator[[node, town]]::init(&cstate.*.board.towns);
+            for iter.advance() {
+                var town = iter.current().*.value.*;
+                remaining -= (:ssize)(town.player == cstate.*.player.value() and town.kind == ::town::SETTLEMENT);
+            }
             var s = std::string::init_from_format(
                 "Settlement ({} remaining):\n    1 brick, 1 sheep, 1 wheat, 1 wood",
                 (:[]std::formatter)[
@@ -1968,6 +1981,11 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             cstate.*.ui.text(s.data());
 
             var remaining = 4s;
+            var iter = std::hash_map_iterator[[node, town]]::init(&cstate.*.board.towns);
+            for iter.advance() {
+                var town = iter.current().*.value.*;
+                remaining -= (:ssize)(town.player == cstate.*.player.value() and town.kind == ::town::CITY);
+            }
             var s = std::string::init_from_format(
                 "City ({} remaining):\n    3 ore, 1 wheat",
                 (:[]std::formatter)[
@@ -1975,7 +1993,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             defer s.fini();
             cstate.*.ui.text(s.data());
 
-            var remaining = 25s;
+            var remaining = (:ssize)cstate.*.dev_cards_remaining;
             var s = std::string::init_from_format(
                 "Development Card ({} remaining):\n    1 ore, 1 sheep, 1 wheat",
                 (:[]std::formatter)[

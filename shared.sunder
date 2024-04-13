@@ -2201,6 +2201,7 @@ struct server_message {
             var b: public_player_info;
             var w: public_player_info;
             var o: public_player_info;
+            var dev_cards_remaining: sint;
             var longest_road: std::optional[[player]];
             var largest_army: std::optional[[player]];
         };
@@ -2240,6 +2241,7 @@ struct server_message {
         b: public_player_info,
         w: public_player_info,
         o: public_player_info,
+        dev_cards_remaining: sint,
         longest_road: std::optional[[player]],
         largest_army: std::optional[[player]]) server_message {
         return (:server_message){
@@ -2254,6 +2256,7 @@ struct server_message {
                     .b = b,
                     .w = w,
                     .o = o,
+                    .dev_cards_remaining = dev_cards_remaining,
                     .longest_road = longest_road,
                     .largest_army = largest_army,
                 }
@@ -2331,6 +2334,7 @@ struct server_message {
             var o = public_player_info::init_from_bubby(state.*.map_xlookup_str("o"));
             var longest_road = std::optional[[player]]::EMPTY;
             var lookup = state.*.map_lookup_str("longest-road");
+            var dev_cards_remaining = xstr_to_int[[sint]](state.*.map_xlookup_str("dev-cards-remaining").*.str());
             if lookup.is_value() {
                 longest_road = std::optional[[player]]::init_value(bubby_to_player(lookup.value()));
             }
@@ -2348,6 +2352,7 @@ struct server_message {
                 b,
                 w,
                 o,
+                dev_cards_remaining,
                 longest_road,
                 largest_army);
         }
@@ -2390,6 +2395,7 @@ struct server_message {
             state.map().*.insert(bubby::value::init_str("b"), self.*.data.state.b.to_bubby());
             state.map().*.insert(bubby::value::init_str("w"), self.*.data.state.w.to_bubby());
             state.map().*.insert(bubby::value::init_str("o"), self.*.data.state.o.to_bubby());
+            state.map().*.insert(bubby::value::init_str("dev-cards-remaining"), int_to_bubby[[sint]](self.*.data.state.dev_cards_remaining));
             if self.*.data.state.longest_road.is_value() {
                 state.map().*.insert(bubby::value::init_str("longest-road"), player_to_bubby(self.*.data.state.longest_road.value()));
             }

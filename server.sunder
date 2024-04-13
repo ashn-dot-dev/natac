@@ -148,7 +148,7 @@ struct server_state {
             dev_cards.push(dev_card::MONOPOLY);
         }
         # x05 Victory Point
-        for _ in 2 {
+        for _ in 5 {
             dev_cards.push(dev_card::VICTORY_POINT);
         }
         shuffle[[dev_card]](dev_cards.data());
@@ -2187,6 +2187,7 @@ func server_update(sstate: *server_state) void {
         b,
         w,
         o,
+        (:sint)sstate.*.dev_cards.count(),
         sstate.*.longest_road,
         sstate.*.largest_army));
 
