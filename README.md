@@ -4,7 +4,6 @@ NATAC
 A free and open source game inspired by Klaus Teuber's *Settlers of Catan*.
 
 <span float="left" align="center">
-  
 <img width="45%" src="https://github.com/ashn-dot-dev/natac/assets/60763262/e4f27eab-9218-4f52-a6f9-8dc7cc8f2605">
 <img width="45%" src="https://github.com/ashn-dot-dev/natac/assets/60763262/83645b7c-fec2-496b-bd29-542a68128c5a">
 </span>
