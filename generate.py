@@ -23,7 +23,7 @@ def generate_type(s):
         return f"[{match[2]}]{generate_type(match[1])}"
     match = RE_TYPE_PTR.match(s)
     if match:
-        return f"*{generate_type(match[1])}"
+        return f"*{generate_type(match[1])}" if match[1].strip() != "void" else "*any"
     match = RE_TYPE_UXX.match(s)
     if match:
         return f"u{match[1]}"

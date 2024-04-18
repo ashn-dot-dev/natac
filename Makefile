@@ -3,6 +3,7 @@
 .PHONY: \
 	all \
 	install \
+	install-web \
 	uninstall \
 	clean
 
