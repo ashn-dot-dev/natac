@@ -556,8 +556,8 @@ struct client_state {
     var sound_impact: Sound;
     var wav_winner: Wave;
     var sound_winner: Sound;
-    var font: Font;
-    var font_size: f32;
+    var board_font: Font;
+    var board_font_size: f32;
     var ui_font: *Font;
     var ui_font_size: f32;
     var ui_log: std::string;
@@ -629,12 +629,12 @@ struct client_state {
 
         let FONT_NUMCHARS: sint = '~' - ' ' + 1; # Printable ASCII
         let PUBLIC_PIXEL_TTF = embed("assets/PublicPixel.ttf");
-        var font_size = 16.0f32;
-        var font = LoadFontFromMemory(
+        var board_font_size = 16.0f32;
+        var board_font = LoadFontFromMemory(
             startof(".ttf"),
             (:*u8)startof(PUBLIC_PIXEL_TTF),
             (:sint)countof(PUBLIC_PIXEL_TTF),
-            (:sint)font_size,
+            (:sint)board_font_size,
             std::ptr[[sint]]::NULL,
             FONT_NUMCHARS);
 
@@ -672,8 +672,8 @@ struct client_state {
             .sound_impact = sound_impact,
             .wav_winner = wav_winner,
             .sound_winner = sound_winner,
-            .font = font,
-            .font_size = font_size,
+            .board_font = board_font,
+            .board_font_size = board_font_size,
             .ui_font = ui_font,
             .ui_font_size = ui_font_size,
             .ui_log = ui_log,
@@ -726,7 +726,7 @@ struct client_state {
         self.*.ui_log.fini();
         UnloadFont(*self.*.ui_font);
         std::delete[[Font]](self.*.ui_font);
-        UnloadFont(self.*.font);
+        UnloadFont(self.*.board_font);
         UnloadSound(self.*.sound_winner);
         UnloadWave(self.*.wav_winner);
         UnloadSound(self.*.sound_ding);
@@ -1121,7 +1121,7 @@ func client_pre_connect_render(cstate: *client_state) void {
     BeginDrawing();
     ClearBackground((:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF});
     let text = startof("NATAC!");
-    var font_size = (:sint)(cstate.*.font_size * 8.0);
+    var font_size = (:sint)(cstate.*.board_font_size * 8.0);
     var text_w = MeasureText(text, font_size);
     var text_h = GetFontDefault().baseSize;
     var text_x = (:sint)screen_w / 2 - text_w / 2;
@@ -2105,12 +2105,12 @@ func client_render(cstate: *client_state) void {
 
     if not cstate.*.connected or cstate.*.board.tiles.count() == 0 {
         var text = "Connecting...";
-        var size = measure_text(cstate.*.font, cstate.*.font_size, text);
+        var size = measure_text(cstate.*.board_font, cstate.*.board_font_size, text);
         var position = (:Vector2){
             .x = screen_w / 2.0 - size.x / 2.0,
             .y = screen_h / 2.0 - size.y / 2.0,
         };
-        draw_text(cstate.*.font, cstate.*.font_size, BLACK, position, text);
+        draw_text(cstate.*.board_font, cstate.*.board_font_size, BLACK, position, text);
         return;
     }
 
@@ -2123,7 +2123,7 @@ func client_render(cstate: *client_state) void {
         draw_pointy_hexagon(point, HEX_RADIUS, tile_color(*tile));
         var resource = tile.*.resource();
         if resource.is_value() {
-            draw_number_token(point, tile.*.number, HEX_RADIUS, cstate.*.font);
+            draw_number_token(point, tile.*.number, HEX_RADIUS, cstate.*.board_font);
         }
     }
 
@@ -2185,7 +2185,7 @@ func client_render(cstate: *client_state) void {
     var iter = cstate.*.board.ports.iterator();
     for iter.advance() {
         var port = iter.current();
-        draw_port(*port, HEX_RADIUS, cstate.*.font, cstate.*.font_size / 2.0);
+        draw_port(*port, HEX_RADIUS, cstate.*.board_font, cstate.*.board_font_size / 2.0);
     }
 
     var iter = cstate.*.board.roads.iterator();
@@ -2284,7 +2284,7 @@ func client_render(cstate: *client_state) void {
     var square_xpos = SQUARE_OFFSET;
     var square_ypos = screen_h - SQUARE_SIDE - SQUARE_OFFSET;
     draw_d6(
-        cstate.*.font,
+        cstate.*.board_font,
         SQUARE_SIDE / 2.0,
         (:Vector2){
             .x = square_xpos + SQUARE_SIDE * 0.0 + SQUARE_OFFSET * 0.0,
@@ -2294,7 +2294,7 @@ func client_render(cstate: *client_state) void {
         YELLOW,
         RED);
     draw_d6(
-        cstate.*.font,
+        cstate.*.board_font,
         SQUARE_SIDE / 2.0,
         (:Vector2){
             .x = square_xpos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
@@ -2308,36 +2308,36 @@ func client_render(cstate: *client_state) void {
 
     if cstate.*.debug {
         var fps = GetFPS();
-        draw_text_format(cstate.*.font, cstate.*.font_size, BLACK,
+        draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
             (:Vector2){.x = 2.0, .y = 0.0},
             "FPS {}",
             (:[]std::formatter)[
                 std::formatter::init[[typeof(fps)]](&fps)]);
 
-        draw_text_format(cstate.*.font, cstate.*.font_size, BLACK,
-            (:Vector2){.x = 2.0, .y = 1.0 * cstate.*.font_size},
+        draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
+            (:Vector2){.x = 2.0, .y = 1.0 * cstate.*.board_font_size},
             "MOUSE: x={.0}, y={.0}",
             (:[]std::formatter)[
                 std::formatter::init[[f32]](&cstate.*.mouse.x),
                 std::formatter::init[[f32]](&cstate.*.mouse.y)]);
 
-        draw_text_format(cstate.*.font, cstate.*.font_size, BLACK,
-            (:Vector2){.x = 2.0, .y = 2.0 * cstate.*.font_size},
+        draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
+            (:Vector2){.x = 2.0, .y = 2.0 * cstate.*.board_font_size},
             "WORLD: x={.0}, y={.0}",
             (:[]std::formatter)[
                 std::formatter::init[[f32]](&cstate.*.world.x),
                 std::formatter::init[[f32]](&cstate.*.world.y)]);
 
-        draw_text_format(cstate.*.font, cstate.*.font_size, BLACK,
-            (:Vector2){.x = 2.0, .y = 3.0 * cstate.*.font_size},
+        draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
+            (:Vector2){.x = 2.0, .y = 3.0 * cstate.*.board_font_size},
             "WORLD->HEX: q={}, r={}, s={}",
             (:[]std::formatter)[
                 std::formatter::init[[sint]](&cstate.*.world_hex.q),
                 std::formatter::init[[sint]](&cstate.*.world_hex.r),
                 std::formatter::init[[sint]](&cstate.*.world_hex.s)]);
 
-        draw_text_format(cstate.*.font, cstate.*.font_size, BLACK,
-            (:Vector2){.x = 2.0, .y = 4.0 * cstate.*.font_size},
+        draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
+            (:Vector2){.x = 2.0, .y = 4.0 * cstate.*.board_font_size},
             "WORLD->HEX->WORLD: x={.0}, y={.0}",
             (:[]std::formatter)[
                 std::formatter::init[[f32]](&world_hex_center.x),
@@ -2345,37 +2345,37 @@ func client_render(cstate: *client_state) void {
 
         if cstate.*.world_node.is_value() {
             var world_node = cstate.*.world_node.value();
-            draw_text_format(cstate.*.font, cstate.*.font_size, BLACK,
-                (:Vector2){.x = 2.0, .y = 5.0 * cstate.*.font_size},
+            draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
+                (:Vector2){.x = 2.0, .y = 5.0 * cstate.*.board_font_size},
                 "NODE: {}",
                 (:[]std::formatter)[
                     std::formatter::init[[node]](&world_node)]);
         }
         elif cstate.*.world_edge.is_value() {
             var world_edge = cstate.*.world_edge.value();
-            draw_text_format(cstate.*.font, cstate.*.font_size, BLACK,
-                (:Vector2){.x = 2.0, .y = 5.0 * cstate.*.font_size},
+            draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
+                (:Vector2){.x = 2.0, .y = 5.0 * cstate.*.board_font_size},
                 "EDGE: {}",
                 (:[]std::formatter)[
                     std::formatter::init[[edge]](&world_edge)]);
         }
         elif cstate.*.world_tile.is_value() {
             var world_tile = cstate.*.world_tile.value();
-            draw_text_format(cstate.*.font, cstate.*.font_size, BLACK,
-                (:Vector2){.x = 2.0, .y = 5.0 * cstate.*.font_size},
+            draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
+                (:Vector2){.x = 2.0, .y = 5.0 * cstate.*.board_font_size},
                 "TILE: {} {verbose}",
                 (:[]std::formatter)[
                     std::formatter::init[[hex]](&world_tile.hex),
                     std::formatter::init[[tile]](&world_tile)]);
         }
         else {
-            draw_text(cstate.*.font, cstate.*.font_size, BLACK,
-                (:Vector2){.x = 2.0, .y = 5.0 * cstate.*.font_size},
+            draw_text(cstate.*.board_font, cstate.*.board_font_size, BLACK,
+                (:Vector2){.x = 2.0, .y = 5.0 * cstate.*.board_font_size},
                 "NODE/EDGE/TILE: none");
         }
 
-        draw_text_format(cstate.*.font, cstate.*.font_size, BLACK,
-            (:Vector2){.x = 2.0, .y = 6.0 * cstate.*.font_size},
+        draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
+            (:Vector2){.x = 2.0, .y = 6.0 * cstate.*.board_font_size},
             "TURN: {}",
             (:[]std::formatter)[
                 std::formatter::init[[sint]](&cstate.*.turn.number)]);
@@ -2419,8 +2419,8 @@ func client_render(cstate: *client_state) void {
             phase_text = "trade";
         }
         }
-        draw_text_format(cstate.*.font, cstate.*.font_size, BLACK,
-            (:Vector2){.x = 2.0, .y = 7.0 * cstate.*.font_size},
+        draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
+            (:Vector2){.x = 2.0, .y = 7.0 * cstate.*.board_font_size},
             "PHASE: {}",
             (:[]std::formatter)[
                 std::formatter::init[[[]byte]](&phase_text)]);
@@ -2448,7 +2448,7 @@ func client_render(cstate: *client_state) void {
                         std::formatter::init[[tile]](&world_tile)]);
             }
             s.data()[0] = std::ascii::to_uppercase(s.data()[0]);
-            draw_text_cstr(cstate.*.font, cstate.*.font_size, BLACK, (:Vector2){.x = 2.0, .y = 0.0}, s.cstr());
+            draw_text_cstr(cstate.*.board_font, cstate.*.board_font_size, BLACK, (:Vector2){.x = 2.0, .y = 0.0}, s.cstr());
         }
     }
 }
