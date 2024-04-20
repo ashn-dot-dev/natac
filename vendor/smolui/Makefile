@@ -2,11 +2,13 @@
 .SUFFIXES:
 .PHONY: \
 	all \
+	demos \
 	install \
 	uninstall \
 	clean
 
 all: libsmolui.a
+demos: demo.c.out demo.sunder.out
 
 demo.c.out: libsmolui.a
 	$(CC) $(CFLAGS) -o $@ demo.c \
