@@ -1407,26 +1407,31 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             var victory_points: sint = uninit;
             var resources: sint = uninit;
             var dev_cards: sint = uninit;
+            var knights_played: sint = uninit;
             switch player {
             ::player::RED {
                 victory_points = cstate.*.r.victory_points;
                 resources = cstate.*.r.resources;
                 dev_cards = cstate.*.r.dev_cards;
+                knights_played = cstate.*.r.knights_played;
             }
             ::player::BLUE {
                 victory_points = cstate.*.b.victory_points;
                 resources = cstate.*.b.resources;
                 dev_cards = cstate.*.b.dev_cards;
+                knights_played = cstate.*.b.knights_played;
             }
             ::player::WHITE {
                 victory_points = cstate.*.w.victory_points;
                 resources = cstate.*.w.resources;
                 dev_cards = cstate.*.w.dev_cards;
+                knights_played = cstate.*.w.knights_played;
             }
             ::player::ORANGE {
                 victory_points = cstate.*.o.victory_points;
                 resources = cstate.*.o.resources;
                 dev_cards = cstate.*.o.dev_cards;
+                knights_played = cstate.*.o.knights_played;
             }
             }
 
@@ -1472,6 +1477,14 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                 (:[]std::formatter)[
                     std::formatter::init[[sint]](&dev_cards)]);
             defer s.fini();
+            if knights_played != 0 {
+                var w = std::writer::init[[typeof(s)]](&s);
+                std::print_format(
+                    w,
+                    " ({} knights played)",
+                    (:[]std::formatter)[
+                        std::formatter::init[[sint]](&knights_played)]);
+            }
             cstate.*.ui.text(s.data());
 
             if cstate.*.player.is_value() and cstate.*.player.value() == player {

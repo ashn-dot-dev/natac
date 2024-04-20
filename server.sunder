@@ -2148,6 +2148,7 @@ func server_update(sstate: *server_state) void {
         .victory_points = sstate.*.public_victory_points(player::RED),
         .resources = sstate.*.r_info.resource_count(),
         .dev_cards = sstate.*.r_info.unused_dev_card_count(),
+        .knights_played = sstate.*.r_info.knights_played_count(),
         .discarded = sstate.*.r_discarded,
         .trade_submitted = sstate.*.r_trade_submitted,
     };
@@ -2157,6 +2158,7 @@ func server_update(sstate: *server_state) void {
         .victory_points = sstate.*.public_victory_points(player::BLUE),
         .resources = sstate.*.b_info.resource_count(),
         .dev_cards = sstate.*.b_info.unused_dev_card_count(),
+        .knights_played = sstate.*.b_info.knights_played_count(),
         .discarded = sstate.*.b_discarded,
         .trade_submitted = sstate.*.b_trade_submitted,
     };
@@ -2166,6 +2168,7 @@ func server_update(sstate: *server_state) void {
         .victory_points = sstate.*.public_victory_points(player::WHITE),
         .resources = sstate.*.w_info.resource_count(),
         .dev_cards = sstate.*.w_info.unused_dev_card_count(),
+        .knights_played = sstate.*.w_info.knights_played_count(),
         .discarded = sstate.*.w_discarded,
         .trade_submitted = sstate.*.w_trade_submitted,
     };
@@ -2175,6 +2178,7 @@ func server_update(sstate: *server_state) void {
         .victory_points = sstate.*.public_victory_points(player::ORANGE),
         .resources = sstate.*.o_info.resource_count(),
         .dev_cards = sstate.*.o_info.unused_dev_card_count(),
+        .knights_played = sstate.*.o_info.knights_played_count(),
         .discarded = sstate.*.o_discarded,
         .trade_submitted = sstate.*.o_trade_submitted,
     };

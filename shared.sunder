@@ -1610,6 +1610,14 @@ struct hidden_player_info {
         }
         return count;
     }
+
+    func knights_played_count(self: *hidden_player_info) sint {
+        var count: sint = 0;
+        for i in self.*.dev_card_count {
+            count += (:sint)(self.*.dev_card_array[i].kind == dev_card::KNIGHT and self.*.dev_card_array[i].used);
+        }
+        return count;
+    }
 }
 
 struct public_player_info {
@@ -1618,6 +1626,7 @@ struct public_player_info {
     var victory_points: sint;
     var resources: sint;
     var dev_cards: sint;
+    var knights_played: sint;
     var discarded: bool;
     var trade_submitted: bool;
 
@@ -1628,6 +1637,7 @@ struct public_player_info {
         self.victory_points = xstr_to_int[[sint]](value.*.map_xlookup_str("victory-points").*.str());
         self.resources = xstr_to_int[[sint]](value.*.map_xlookup_str("resources").*.str());
         self.dev_cards = xstr_to_int[[sint]](value.*.map_xlookup_str("dev-cards").*.str());
+        self.knights_played = xstr_to_int[[sint]](value.*.map_xlookup_str("knights-played").*.str());
         self.discarded = xstr_to_bool(value.*.map_xlookup_str("discarded").*.str());
         self.trade_submitted = xstr_to_bool(value.*.map_xlookup_str("trade-submitted").*.str());
         return self;
@@ -1640,6 +1650,7 @@ struct public_player_info {
         out.map_insert_str("victory-points", int_to_bubby[[sint]](self.*.victory_points));
         out.map_insert_str("resources", int_to_bubby[[sint]](self.*.resources));
         out.map_insert_str("dev-cards", int_to_bubby[[sint]](self.*.dev_cards));
+        out.map_insert_str("knights-played", int_to_bubby[[sint]](self.*.knights_played));
         out.map_insert_str("discarded", bool_to_bubby(self.*.discarded));
         out.map_insert_str("trade-submitted", bool_to_bubby(self.*.trade_submitted));
         return out;
