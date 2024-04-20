@@ -1287,12 +1287,12 @@ func adjacent_edges_to_edge(target: edge, edges: *std::hash_set[[edge]], nodes: 
     var adjacent_nodes = adjacent_nodes_to_edge(target, nodes);
     defer adjacent_nodes.fini();
 
-    var iter = std::hash_set_iterator[[node]]::init(&adjacent_nodes);
+    var iter = adjacent_nodes.iterator();
     for iter.advance() {
         var adjacent_edges = adjacent_edges_to_node(*iter.current(), edges);
         defer adjacent_edges.fini();
 
-        var iter = std::hash_set_iterator[[edge]]::init(&adjacent_edges);
+        var iter = adjacent_edges.iterator();
         for iter.advance() {
             if not std::eq[[edge]](&target, iter.current()) {
                 out.insert(*iter.current());
@@ -1311,7 +1311,7 @@ func adjacent_nodes_to_edge(target: edge, nodes: *std::hash_set[[node]]) std::ha
     a.insert(target.hexes[0]);
     a.insert(target.hexes[1]);
 
-    var iter = std::hash_set_iterator[[node]]::init(nodes);
+    var iter = nodes.*.iterator();
     for iter.advance() {
         var b = std::hash_set[[hex]]::init();
         defer b.fini();
@@ -1332,7 +1332,7 @@ func adjacent_nodes_to_edge(target: edge, nodes: *std::hash_set[[node]]) std::ha
 func adjacent_nodes_to_hex(target: hex, nodes: *std::hash_set[[node]]) std::hash_set[[node]] {
     var out = std::hash_set[[node]]::init();
 
-    var iter = std::hash_set_iterator[[node]]::init(nodes);
+    var iter = nodes.*.iterator();
     for iter.advance() {
         if std::eq[[hex]](&iter.current().*.hexes[0], &target)
         or std::eq[[hex]](&iter.current().*.hexes[1], &target)
@@ -1353,7 +1353,7 @@ func adjacent_edges_to_node(target: node, edges: *std::hash_set[[edge]]) std::ha
     a.insert(target.hexes[1]);
     a.insert(target.hexes[2]);
 
-    var iter = std::hash_set_iterator[[edge]]::init(edges);
+    var iter = edges.*.iterator();
     for iter.advance() {
         var b = std::hash_set[[hex]]::init();
         defer b.fini();
@@ -1379,7 +1379,7 @@ func adjacent_nodes_to_node(target: node, nodes: *std::hash_set[[node]]) std::ha
     a.insert(target.hexes[1]);
     a.insert(target.hexes[2]);
 
-    var iter = std::hash_set_iterator[[node]]::init(nodes);
+    var iter = nodes.*.iterator();
     for iter.advance() {
         var b = std::hash_set[[hex]]::init();
         defer b.fini();
@@ -1400,7 +1400,7 @@ func adjacent_nodes_to_node(target: node, nodes: *std::hash_set[[node]]) std::ha
 func n_to_1(board: *board, player: player, resource: resource) sint {
     var n: sint = 4;
 
-    var iter = std::hash_set_iterator[[port]]::init(&board.*.ports);
+    var iter = board.*.ports.iterator();
     for iter.advance() {
         var port = *iter.current();
         for i in countof(port.nodes) {

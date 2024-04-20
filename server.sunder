@@ -78,7 +78,7 @@ struct server_state {
         defer kinds.fini();
         var numbers = std::vector[[typeof(tile::SELF.number)]]::init();
         defer numbers.fini();
-        var iter = std::hash_map_iterator[[hex, tile]]::init(&board.tiles);
+        var iter = board.tiles.iterator();
         for iter.advance() {
             if iter.current().*.value.*.kind == tile::DESERT {
                 continue;
@@ -94,7 +94,7 @@ struct server_state {
         var idx = random[[usize]]() % kinds.count();
         kinds.insert(idx, tile::DESERT);
         numbers.insert(idx, -1);
-        var iter = std::hash_map_iterator[[hex, tile]]::init(&board.tiles);
+        var iter = board.tiles.iterator();
         for iter.advance() {
             if iter.current().*.value.*.kind == tile::OCEAN {
                 continue;
@@ -105,7 +105,7 @@ struct server_state {
 
         # Robber
         # The robber always starts on the desert.
-        var iter = std::hash_map_iterator[[hex, tile]]::init(&board.tiles);
+        var iter = board.tiles.iterator();
         for iter.advance() {
             if iter.current().*.value.*.kind == tile::DESERT {
                 board.robber = iter.current().*.key.*;
@@ -119,12 +119,12 @@ struct server_state {
         # the board with those shuffled kinds.
         var kinds = std::vector[[typeof(port::SELF.kind)]]::init();
         defer kinds.fini();
-        var iter = std::hash_set_iterator[[port]]::init(&board.ports);
+        var iter = board.ports.iterator();
         for iter.advance() {
             kinds.push(iter.current().*.kind);
         }
         shuffle[[typeof(port::SELF.kind)]](kinds.data());
-        var iter = std::hash_set_iterator[[port]]::init(&board.ports);
+        var iter = board.ports.iterator();
         for iter.advance() {
             iter.current().*.kind = kinds.pop();
         }
@@ -321,7 +321,7 @@ struct server_state {
         var longest = 1u;
         var adjacent_nodes = adjacent_nodes_to_edge(visiting, &self.*.board.nodes);
         defer adjacent_nodes.fini();
-        var iter = std::hash_set_iterator[[node]]::init(&adjacent_nodes);
+        var iter = adjacent_nodes.iterator();
         for iter.advance() {
             if nodes_visited.*.contains(*iter.current()) {
                 continue;
@@ -340,7 +340,7 @@ struct server_state {
 
             var adjacent_edges = adjacent_edges_to_node(*iter.current(), &self.*.board.edges);
             defer adjacent_edges.fini();
-            var iter = std::hash_set_iterator[[edge]]::init(&adjacent_edges);
+            var iter = adjacent_edges.iterator();
             for iter.advance() {
                 if not edges.*.contains(*iter.current()) {
                     continue;
@@ -356,7 +356,7 @@ struct server_state {
     func calculate_longest_road(self: *server_state, player: player) usize {
         var edges = std::hash_set[[edge]]::init();
         defer edges.fini();
-        var iter = std::hash_map_iterator[[edge, road]]::init(&self.*.board.roads);
+        var iter = self.*.board.roads.iterator();
         for iter.advance() {
             if iter.current().*.value.*.player != player {
                 continue;
@@ -366,7 +366,7 @@ struct server_state {
 
         var longest = 0u;
 
-        var iter = std::hash_set_iterator[[edge]]::init(&edges);
+        var iter = edges.iterator();
         for iter.advance() {
             var edges_visited = std::hash_set[[edge]]::init();
             defer edges_visited.fini();
@@ -383,7 +383,7 @@ struct server_state {
     func public_victory_points(self: *server_state, player: player) sint {
         var victory_points: sint = 0;
 
-        var iter = std::hash_map_iterator[[node, town]]::init(&self.*.board.towns);
+        var iter = self.*.board.towns.iterator();
         for iter.advance() {
             var town = *iter.current().*.value;
             if town.player != player {
@@ -569,7 +569,7 @@ struct server_state {
             return;
         }
 
-        var iter = std::hash_map_iterator[[node, town]]::init(&self.*.board.towns);
+        var iter = self.*.board.towns.iterator();
         for iter.advance() {
             var amount: sint = uninit;
             var town = *iter.current().*.value;
@@ -652,7 +652,7 @@ struct server_state {
         defer adjacent_edges.fini();
         var adjacent_roads = std::hash_set[[::road]]::init();
         defer adjacent_roads.fini();
-        var iter = std::hash_set_iterator[[edge]]::init(&adjacent_edges);
+        var iter = adjacent_edges.iterator();
         for iter.advance() {
             var adjacent = self.*.board.roads.lookup(*iter.current());
             if adjacent.is_empty() {
@@ -668,7 +668,7 @@ struct server_state {
         defer adjacent_nodes.fini();
         var adjacent_towns = std::hash_set[[town]]::init();
         defer adjacent_towns.fini();
-        var iter = std::hash_set_iterator[[node]]::init(&adjacent_nodes);
+        var iter = adjacent_nodes.iterator();
         for iter.advance() {
             var adjacent = self.*.board.towns.lookup(*iter.current());
             if adjacent.is_empty() {
@@ -686,7 +686,7 @@ struct server_state {
         }
 
         var unobstructed_road_count = 0u;
-        var iter = std::hash_set_iterator[[::road]]::init(&adjacent_roads);
+        var iter = adjacent_roads.iterator();
         for iter.advance() {
             var a = adjacent_nodes_to_edge(road.edge, &self.*.board.nodes);
             defer a.fini();
@@ -695,7 +695,7 @@ struct server_state {
             var i = std::hash_set[[node]]::init_intersection(&a, &b);
             defer i.fini();
             assert i.count() == 1;
-            var iter = std::hash_set_iterator[[node]]::init(&i);
+            var iter = i.iterator();
             iter.advance();
             var town = self.*.board.towns.lookup(*iter.current());
             if town.is_empty() {
@@ -717,7 +717,7 @@ struct server_state {
         }
 
         var player_road_count = 0u;
-        var iter = std::hash_map_iterator[[edge, ::road]]::init(&self.*.board.roads);
+        var iter = self.*.board.roads.iterator();
         for iter.advance() {
             if iter.current().*.value.*.player == road.player {
                 player_road_count += 1;
@@ -734,7 +734,7 @@ struct server_state {
             # settlement has an existing adjacent road, or (2) that the road
             # about to be placed will be adjacent to the settlement.
             var towns_have_adjacent_roads = true;
-            var iter = std::hash_map_iterator[[node, town]]::init(&self.*.board.towns);
+            var iter = self.*.board.towns.iterator();
             for iter.advance() {
                 var town = *iter.current().*.value;
                 if town.player != self.*.turn.player {
@@ -745,7 +745,7 @@ struct server_state {
                 var adjacent_edges = adjacent_edges_to_node(town.node, &self.*.board.edges);
                 defer adjacent_edges.fini();
 
-                var iter = std::hash_set_iterator[[edge]]::init(&adjacent_edges);
+                var iter = adjacent_edges.iterator();
                 for iter.advance() {
                     if std::eq[[edge]](iter.current(), &road.edge) {
                         # The road about to be placed is adjacent to the town.
@@ -753,7 +753,7 @@ struct server_state {
                         break;
                     }
 
-                    var iter = std::hash_map_iterator[[edge, ::road]]::init(&self.*.board.roads);
+                    var iter = self.*.board.roads.iterator();
                     for iter.advance() {
                         var road = *iter.current().*.value;
                         if road.player != self.*.turn.player {
@@ -862,7 +862,7 @@ struct server_state {
         var adjacent_nodes = adjacent_nodes_to_node(town.node, &self.*.board.nodes);
         defer adjacent_nodes.fini();
         var adjacent_town_count = 0u;
-        var iter = std::hash_set_iterator[[node]]::init(&adjacent_nodes);
+        var iter = adjacent_nodes.iterator();
         for iter.advance() {
             if self.*.board.towns.contains(*iter.current()) {
                 adjacent_town_count = adjacent_town_count + 1;
@@ -876,7 +876,7 @@ struct server_state {
         var adjacent_edges = adjacent_edges_to_node(town.node, &self.*.board.edges);
         defer adjacent_edges.fini();
         var is_road_adjacent = false;
-        var iter = std::hash_set_iterator[[edge]]::init(&adjacent_edges);
+        var iter = adjacent_edges.iterator();
         for iter.advance() {
             var adjacent = self.*.board.roads.lookup(*iter.current());
             if adjacent.is_empty() {
@@ -900,7 +900,7 @@ struct server_state {
         }
 
         var player_town_count = 0u;
-        var iter = std::hash_map_iterator[[node, ::town]]::init(&self.*.board.towns);
+        var iter = self.*.board.towns.iterator();
         for iter.advance() {
             if iter.current().*.value.*.player == town.player and iter.current().*.value.*.kind == town.kind {
                 player_town_count = player_town_count + 1;
@@ -959,7 +959,7 @@ struct server_state {
                 (:usize)*self.*.p_live(player::ORANGE);
             if self.*.board.towns.count() > live_count {
                 # Second placement -> give resoruces.
-                var iter = std::hash_map_iterator[[hex, tile]]::init(&self.*.board.tiles);
+                var iter = self.*.board.tiles.iterator();
                 for iter.advance() {
                     if std::eq[[hex]](&town.node.hexes[0], iter.current().*.key)
                     or std::eq[[hex]](&town.node.hexes[1], iter.current().*.key)
@@ -1415,7 +1415,7 @@ struct server_state {
 
         var adjacent_nodes = adjacent_nodes_to_hex(hex, &self.*.board.nodes);
         defer adjacent_nodes.fini();
-        var iter = std::hash_set_iterator[[node]]::init(&adjacent_nodes);
+        var iter = adjacent_nodes.iterator();
         for iter.advance() {
             var optional = self.*.board.towns.lookup(*iter.current());
             if optional.is_empty() {
@@ -1505,7 +1505,7 @@ struct server_state {
         var is_adjacent = false;
         var adjacent_nodes = adjacent_nodes_to_hex(self.*.board.robber, &self.*.board.nodes);
         defer adjacent_nodes.fini();
-        var iter = std::hash_set_iterator[[node]]::init(&adjacent_nodes);
+        var iter = adjacent_nodes.iterator();
         for iter.advance() {
             var optional = self.*.board.towns.lookup(*iter.current());
             if optional.is_empty() {

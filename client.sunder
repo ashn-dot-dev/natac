@@ -831,14 +831,14 @@ struct client_state {
             var new_road_count = message.*.data.state.board.roads.count();
             var old_settlement_count = 0u;
             var old_city_count = 0u;
-            var iter = std::hash_map_iterator[[node, town]]::init(&self.*.board.towns);
+            var iter = self.*.board.towns.iterator();
             for iter.advance() {
                 old_settlement_count += (:usize)(iter.current().*.value.*.kind == town::SETTLEMENT);
                 old_city_count += (:usize)(iter.current().*.value.*.kind == town::CITY);
             }
             var new_settlement_count = 0u;
             var new_city_count = 0u;
-            var iter = std::hash_map_iterator[[node, town]]::init(&message.*.data.state.board.towns);
+            var iter = message.*.data.state.board.towns.iterator();
             for iter.advance() {
                 new_settlement_count += (:usize)(iter.current().*.value.*.kind == town::SETTLEMENT);
                 new_city_count += (:usize)(iter.current().*.value.*.kind == town::CITY);
@@ -1163,7 +1163,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var world_hex = point_to_pointy_hex(world, HEX_RADIUS);
 
     var world_tile = std::optional[[tile]]::EMPTY;
-    var iter = std::hash_map_iterator[[hex, tile]]::init(&cstate.*.board.tiles);
+    var iter = cstate.*.board.tiles.iterator();
     for iter.advance() {
         if std::eq[[hex]](iter.current().*.key, &world_hex) {
             world_tile = std::optional[[tile]]::init_value(*iter.current().*.value);
@@ -1172,7 +1172,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     }
 
     var world_edge = std::optional[[edge]]::EMPTY;
-    var iter = std::hash_set_iterator[[edge]]::init(&cstate.*.board.edges);
+    var iter = cstate.*.board.edges.iterator();
     for iter.advance() {
         var found = true;
         for i in countof(iter.current().*.hexes) {
@@ -1191,7 +1191,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     }
 
     var world_node = std::optional[[node]]::EMPTY;
-    var iter = std::hash_set_iterator[[node]]::init(&cstate.*.board.nodes);
+    var iter = cstate.*.board.nodes.iterator();
     for iter.advance() {
         var found = true;
         for i in countof(iter.current().*.hexes) {
@@ -1955,7 +1955,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             cstate.*.ui.layout_row((:[]sint)[-1], 0);
 
             var remaining = 15s;
-            var iter = std::hash_map_iterator[[edge, road]]::init(&cstate.*.board.roads);
+            var iter = cstate.*.board.roads.iterator();
             for iter.advance() {
                 var road = iter.current().*.value.*;
                 remaining -= (:ssize)(road.player == cstate.*.player.value());
@@ -1968,7 +1968,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             cstate.*.ui.text(s.data());
 
             var remaining = 5s;
-            var iter = std::hash_map_iterator[[node, town]]::init(&cstate.*.board.towns);
+            var iter = cstate.*.board.towns.iterator();
             for iter.advance() {
                 var town = iter.current().*.value.*;
                 remaining -= (:ssize)(town.player == cstate.*.player.value() and town.kind == ::town::SETTLEMENT);
@@ -1981,7 +1981,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             cstate.*.ui.text(s.data());
 
             var remaining = 4s;
-            var iter = std::hash_map_iterator[[node, town]]::init(&cstate.*.board.towns);
+            var iter = cstate.*.board.towns.iterator();
             for iter.advance() {
                 var town = iter.current().*.value.*;
                 remaining -= (:ssize)(town.player == cstate.*.player.value() and town.kind == ::town::CITY);
@@ -2246,7 +2246,7 @@ func client_render(cstate: *client_state) void {
 
     BeginMode2D(camera);
 
-    var iter = std::hash_map_iterator[[hex, tile]]::init(&cstate.*.board.tiles);
+    var iter = cstate.*.board.tiles.iterator();
     for iter.advance() {
         var tile = iter.current().*.value;
         var point = pointy_hex_to_point(tile.*.hex, HEX_RADIUS);
@@ -2277,7 +2277,7 @@ func client_render(cstate: *client_state) void {
         }
     }
 
-    var iter = std::hash_map_iterator[[hex, tile]]::init(&cstate.*.board.tiles);
+    var iter = cstate.*.board.tiles.iterator();
     for iter.advance() {
         var tile = iter.current().*.value;
         if tile.*.kind == ::tile::OCEAN {
@@ -2290,7 +2290,7 @@ func client_render(cstate: *client_state) void {
     # Draw outlines tiles corresponding to the current turn's dice roll.
     if cstate.*.turn.phase == phase::MAIN {
         var sum = cstate.*.board.d6_a + cstate.*.board.d6_b;
-        var iter = std::hash_map_iterator[[hex, tile]]::init(&cstate.*.board.tiles);
+        var iter = cstate.*.board.tiles.iterator();
         for iter.advance() {
             if iter.current().*.value.*.number == sum {
                 var center = pointy_hex_to_point(iter.current().*.key.*, HEX_RADIUS);
@@ -2312,13 +2312,13 @@ func client_render(cstate: *client_state) void {
         }
     }
 
-    var iter = std::hash_set_iterator[[port]]::init(&cstate.*.board.ports);
+    var iter = cstate.*.board.ports.iterator();
     for iter.advance() {
         var port = iter.current();
         draw_port(*port, HEX_RADIUS, cstate.*.font, cstate.*.font_size / 2.0);
     }
 
-    var iter = std::hash_map_iterator[[edge, road]]::init(&cstate.*.board.roads);
+    var iter = cstate.*.board.roads.iterator();
     for iter.advance() {
         var road = iter.current().*.value;
         var points = edge_to_points(road.*.edge, HEX_RADIUS);
@@ -2353,7 +2353,7 @@ func client_render(cstate: *client_state) void {
         }
     }
 
-    var iter = std::hash_map_iterator[[node, town]]::init(&cstate.*.board.towns);
+    var iter = cstate.*.board.towns.iterator();
     for iter.advance() {
         var town = iter.current().*.value;
         switch town.*.kind {
