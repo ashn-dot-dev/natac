@@ -228,7 +228,7 @@ func draw_rect_outline(position: Vector2, w: f32, h: f32, thickness: f32, color:
         color);
 }
 
-func draw_number_token(center: Vector2, number: sint, radius: f32, font: Font) void {
+func draw_number_token(center: Vector2, number: sint, radius: f32, font: Font, font_size: f32) void {
     var CIRCLE_RADIUS = radius / 2.0;
     let TAN = (:Color){.r = 0xDD, .g = 0xBB, .b = 0x88, .a = 0xFF};
     draw_circle(center, CIRCLE_RADIUS, TAN);
@@ -238,7 +238,6 @@ func draw_number_token(center: Vector2, number: sint, radius: f32, font: Font) v
     var CIRCLE_OUTLINE_THICKNESS = CIRCLE_RADIUS / 8.0;
     draw_circle_outline(center, CIRCLE_OUTLINE_RADIUS, CIRCLE_OUTLINE_THICKNESS, BLACK);
 
-    var font_size = radius / 3.0;
     var size = measure_text_format(font, font_size,
         "{}",
         (:[]std::formatter)[
@@ -250,7 +249,7 @@ func draw_number_token(center: Vector2, number: sint, radius: f32, font: Font) v
     draw_text_format(font, font_size, color,
         (:Vector2){
             .x = center.x - size.x / 2.0,
-            .y = center.y - size.y / 2.0,
+            .y = center.y - size.y / 2.0 - CIRCLE_RADIUS / 16.0,
         },
         "{}",
         (:[]std::formatter)[
@@ -478,9 +477,8 @@ func draw_text_format(font: Font, size: f32, color: Color, position: Vector2, fo
     DrawTextEx(font, s.cstr(), position, size, SPACING, color);
 }
 
-func draw_d6(font: Font, font_size: f32, position: Vector2, number: sint, fg: Color, bg: Color) void {
+func draw_d6(font: Font, font_size: f32, position: Vector2, side: f32, number: sint, fg: Color, bg: Color) void {
     assert 1 <= number and number <= 6;
-    var side = font_size * 2.0;
     let BOARDER = 2.0f32;
     draw_rect(position, side, side, bg);
     draw_rect_outline(position, side, side, BOARDER, BLACK);
@@ -493,8 +491,8 @@ func draw_d6(font: Font, font_size: f32, position: Vector2, number: sint, fg: Co
         font_size,
         fg,
         (:Vector2){
-            .x = position.x + font_size - text_size.x / 2.0,
-            .y = position.y + font_size - text_size.y / 2.0,
+            .x = position.x + side / 2.0 - text_size.x / 2.0,
+            .y = position.y + side / 2.0 - text_size.y / 2.0,
         },
         "{}",
         (:[]std::formatter)[std::formatter::init[[sint]](&number)]);
@@ -627,24 +625,30 @@ struct client_state {
             (:sint)countof(WAV));
         var sound_winner = LoadSoundFromWave(wav_winner);
 
+        # Raylib internally renders fonts to a texture, which may look
+        # pixilated when scaled up to a higher resolution. For this font, we
+        # internally load it at a very large font size, and use bilinear
+        # filtering on the resulting texture, which together will make the font
+        # legible for a wider range of font sizes.
         let FONT_NUMCHARS: sint = '~' - ' ' + 1; # Printable ASCII
-        let BOARD_FONT_TTF = embed("assets/PublicPixel.ttf");
-        var board_font_size = 16.0f32;
+        let BOARD_FONT_DATA = embed("assets/MinSans-Bold.otf");
+        var board_font_size = 128.0f32;
         var board_font = LoadFontFromMemory(
             startof(".ttf"),
-            (:*u8)startof(BOARD_FONT_TTF),
-            (:sint)countof(BOARD_FONT_TTF),
+            (:*u8)startof(BOARD_FONT_DATA),
+            (:sint)countof(BOARD_FONT_DATA),
             (:sint)board_font_size,
             std::ptr[[sint]]::NULL,
             FONT_NUMCHARS);
+        SetTextureFilter(board_font.texture, TEXTURE_FILTER_BILINEAR);
 
-        let UI_FONT_TTF = embed("assets/RuneScapeUF.ttf");
+        let UI_FONT_DATA = embed("assets/RuneScapeUF.ttf");
         var ui_font_size = 16.0f32;
         var ui_font = std::new[[Font]]();
         *ui_font = LoadFontFromMemory(
             startof(".ttf"),
-            (:*u8)startof(UI_FONT_TTF),
-            (:sint)countof(UI_FONT_TTF),
+            (:*u8)startof(UI_FONT_DATA),
+            (:sint)countof(UI_FONT_DATA),
             (:sint)ui_font_size,
             std::ptr[[sint]]::NULL,
             FONT_NUMCHARS);
@@ -2123,7 +2127,7 @@ func client_render(cstate: *client_state) void {
         draw_pointy_hexagon(point, HEX_RADIUS, tile_color(*tile));
         var resource = tile.*.resource();
         if resource.is_value() {
-            draw_number_token(point, tile.*.number, HEX_RADIUS, cstate.*.board_font);
+            draw_number_token(point, tile.*.number, HEX_RADIUS, cstate.*.board_font, HEX_RADIUS / 1.8);
         }
     }
 
@@ -2185,7 +2189,7 @@ func client_render(cstate: *client_state) void {
     var iter = cstate.*.board.ports.iterator();
     for iter.advance() {
         var port = iter.current();
-        draw_port(*port, HEX_RADIUS, cstate.*.board_font, cstate.*.board_font_size / 2.0);
+        draw_port(*port, HEX_RADIUS, cstate.*.board_font, HEX_RADIUS / 2.2);
     }
 
     var iter = cstate.*.board.roads.iterator();
@@ -2285,59 +2289,62 @@ func client_render(cstate: *client_state) void {
     var square_ypos = screen_h - SQUARE_SIDE - SQUARE_OFFSET;
     draw_d6(
         cstate.*.board_font,
-        SQUARE_SIDE / 2.0,
+        SQUARE_SIDE / 1.2,
         (:Vector2){
             .x = square_xpos + SQUARE_SIDE * 0.0 + SQUARE_OFFSET * 0.0,
             .y = square_ypos,
         },
+        SQUARE_SIDE,
         cstate.*.board.d6_a,
         YELLOW,
         RED);
     draw_d6(
         cstate.*.board_font,
-        SQUARE_SIDE / 2.0,
+        SQUARE_SIDE / 1.2,
         (:Vector2){
             .x = square_xpos + SQUARE_SIDE * 1.0 + SQUARE_OFFSET * 1.0,
             .y = square_ypos,
         },
+        SQUARE_SIDE,
         cstate.*.board.d6_b,
         RED,
         YELLOW);
 
     smol::render(cstate.*.ui.context);
 
+    let FONT_SIZE = HEX_RADIUS / 2.0;
     if cstate.*.debug {
         var fps = GetFPS();
-        draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
+        draw_text_format(cstate.*.board_font, FONT_SIZE, BLACK,
             (:Vector2){.x = 2.0, .y = 0.0},
             "FPS {}",
             (:[]std::formatter)[
                 std::formatter::init[[typeof(fps)]](&fps)]);
 
-        draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
-            (:Vector2){.x = 2.0, .y = 1.0 * cstate.*.board_font_size},
+        draw_text_format(cstate.*.board_font, FONT_SIZE, BLACK,
+            (:Vector2){.x = 2.0, .y = 1.0 * FONT_SIZE},
             "MOUSE: x={.0}, y={.0}",
             (:[]std::formatter)[
                 std::formatter::init[[f32]](&cstate.*.mouse.x),
                 std::formatter::init[[f32]](&cstate.*.mouse.y)]);
 
-        draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
-            (:Vector2){.x = 2.0, .y = 2.0 * cstate.*.board_font_size},
+        draw_text_format(cstate.*.board_font, FONT_SIZE, BLACK,
+            (:Vector2){.x = 2.0, .y = 2.0 * FONT_SIZE},
             "WORLD: x={.0}, y={.0}",
             (:[]std::formatter)[
                 std::formatter::init[[f32]](&cstate.*.world.x),
                 std::formatter::init[[f32]](&cstate.*.world.y)]);
 
-        draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
-            (:Vector2){.x = 2.0, .y = 3.0 * cstate.*.board_font_size},
+        draw_text_format(cstate.*.board_font, FONT_SIZE, BLACK,
+            (:Vector2){.x = 2.0, .y = 3.0 * FONT_SIZE},
             "WORLD->HEX: q={}, r={}, s={}",
             (:[]std::formatter)[
                 std::formatter::init[[sint]](&cstate.*.world_hex.q),
                 std::formatter::init[[sint]](&cstate.*.world_hex.r),
                 std::formatter::init[[sint]](&cstate.*.world_hex.s)]);
 
-        draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
-            (:Vector2){.x = 2.0, .y = 4.0 * cstate.*.board_font_size},
+        draw_text_format(cstate.*.board_font, FONT_SIZE, BLACK,
+            (:Vector2){.x = 2.0, .y = 4.0 * FONT_SIZE},
             "WORLD->HEX->WORLD: x={.0}, y={.0}",
             (:[]std::formatter)[
                 std::formatter::init[[f32]](&world_hex_center.x),
@@ -2345,37 +2352,37 @@ func client_render(cstate: *client_state) void {
 
         if cstate.*.world_node.is_value() {
             var world_node = cstate.*.world_node.value();
-            draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
-                (:Vector2){.x = 2.0, .y = 5.0 * cstate.*.board_font_size},
+            draw_text_format(cstate.*.board_font, FONT_SIZE, BLACK,
+                (:Vector2){.x = 2.0, .y = 5.0 * FONT_SIZE},
                 "NODE: {}",
                 (:[]std::formatter)[
                     std::formatter::init[[node]](&world_node)]);
         }
         elif cstate.*.world_edge.is_value() {
             var world_edge = cstate.*.world_edge.value();
-            draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
-                (:Vector2){.x = 2.0, .y = 5.0 * cstate.*.board_font_size},
+            draw_text_format(cstate.*.board_font, FONT_SIZE, BLACK,
+                (:Vector2){.x = 2.0, .y = 5.0 * FONT_SIZE},
                 "EDGE: {}",
                 (:[]std::formatter)[
                     std::formatter::init[[edge]](&world_edge)]);
         }
         elif cstate.*.world_tile.is_value() {
             var world_tile = cstate.*.world_tile.value();
-            draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
-                (:Vector2){.x = 2.0, .y = 5.0 * cstate.*.board_font_size},
+            draw_text_format(cstate.*.board_font, FONT_SIZE, BLACK,
+                (:Vector2){.x = 2.0, .y = 5.0 * FONT_SIZE},
                 "TILE: {} {verbose}",
                 (:[]std::formatter)[
                     std::formatter::init[[hex]](&world_tile.hex),
                     std::formatter::init[[tile]](&world_tile)]);
         }
         else {
-            draw_text(cstate.*.board_font, cstate.*.board_font_size, BLACK,
-                (:Vector2){.x = 2.0, .y = 5.0 * cstate.*.board_font_size},
+            draw_text(cstate.*.board_font, FONT_SIZE, BLACK,
+                (:Vector2){.x = 2.0, .y = 5.0 * FONT_SIZE},
                 "NODE/EDGE/TILE: none");
         }
 
-        draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
-            (:Vector2){.x = 2.0, .y = 6.0 * cstate.*.board_font_size},
+        draw_text_format(cstate.*.board_font, FONT_SIZE, BLACK,
+            (:Vector2){.x = 2.0, .y = 6.0 * FONT_SIZE},
             "TURN: {}",
             (:[]std::formatter)[
                 std::formatter::init[[sint]](&cstate.*.turn.number)]);
@@ -2419,8 +2426,8 @@ func client_render(cstate: *client_state) void {
             phase_text = "trade";
         }
         }
-        draw_text_format(cstate.*.board_font, cstate.*.board_font_size, BLACK,
-            (:Vector2){.x = 2.0, .y = 7.0 * cstate.*.board_font_size},
+        draw_text_format(cstate.*.board_font, FONT_SIZE, BLACK,
+            (:Vector2){.x = 2.0, .y = 7.0 * FONT_SIZE},
             "PHASE: {}",
             (:[]std::formatter)[
                 std::formatter::init[[[]byte]](&phase_text)]);
@@ -2448,7 +2455,7 @@ func client_render(cstate: *client_state) void {
                         std::formatter::init[[tile]](&world_tile)]);
             }
             s.data()[0] = std::ascii::to_uppercase(s.data()[0]);
-            draw_text_cstr(cstate.*.board_font, cstate.*.board_font_size, BLACK, (:Vector2){.x = 2.0, .y = 0.0}, s.cstr());
+            draw_text_cstr(cstate.*.board_font, FONT_SIZE, BLACK, (:Vector2){.x = 2.0, .y = 0.0}, s.cstr());
         }
     }
 }

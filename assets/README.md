@@ -4,9 +4,9 @@ Asset Files
 ## FONTS
 
 ```
-PublicPixel.ttf: Public Pixel Font, version 1.1
-LICENSE: Creative Commons Zero v1.0 Universal
-SOURCES: https://ggbot.itch.io/public-pixel-font
+MinSans-Bold.otf: Min Sans
+LICENSE: Public domain / GPL / OFL
+SOURCES: https://www.dafont.com/min-sans.font, https://jinseong-kim.notion.site/Min-Sans-CJK-fonts-e62f0d97351a444f8e628758485b62c9
 ```
 
 ```
