@@ -94,17 +94,13 @@ smol_handle_mouse_buttons_input(mu_Context* ctx, int x, int y)
     static struct mouse_button_map {
         MouseButton rl;
         int mu;
-    } mouse_buttons[] = {
+    } const MOUSE_BUTTONS[] = {
         {MOUSE_BUTTON_LEFT,   MU_MOUSE_LEFT},
         {MOUSE_BUTTON_RIGHT,  MU_MOUSE_RIGHT},
         {MOUSE_BUTTON_MIDDLE, MU_MOUSE_MIDDLE},
-        {-1, -1},
     };
-    for (size_t index = 0;; ++index) {
-        struct mouse_button_map button = mouse_buttons[index];
-        if (button.rl == -1U) {
-            break;
-        }
+    for (size_t index = 0; index < sizeof(MOUSE_BUTTONS) / sizeof(*MOUSE_BUTTONS); ++index) {
+        struct mouse_button_map button = MOUSE_BUTTONS[index];
         if (IsMouseButtonPressed(button.rl)) {
             mu_input_mousedown(ctx, x, y, button.mu);
         }
@@ -120,7 +116,7 @@ smol_handle_keyboard_input(mu_Context* ctx)
     static struct key_map {
         KeyboardKey rl;
         int mu;
-    } keyboard_keys[] = {
+    } const KEYBOARD_KEYS[] = {
         {KEY_LEFT_SHIFT,    MU_KEY_SHIFT},
         {KEY_RIGHT_SHIFT,   MU_KEY_SHIFT},
         {KEY_LEFT_CONTROL,  MU_KEY_CTRL},
@@ -130,14 +126,10 @@ smol_handle_keyboard_input(mu_Context* ctx)
         {KEY_ENTER,         MU_KEY_RETURN},
         {KEY_KP_ENTER,      MU_KEY_RETURN},
         {KEY_BACKSPACE,     MU_KEY_BACKSPACE},
-        {-1, -1},
     };
-    for (size_t index = 0;; ++index) {
-        struct key_map key = keyboard_keys[index];
-        if (key.rl == -1U) {
-            break;
-        }
-        if (IsKeyPressed(key.rl)) {
+    for (size_t index = 0; index < sizeof(KEYBOARD_KEYS) / sizeof(*KEYBOARD_KEYS); ++index) {
+        struct key_map key = KEYBOARD_KEYS[index];
+        if (IsKeyPressed(key.rl) || IsKeyPressedRepeat(key.rl)) {
             mu_input_keydown(ctx, key.mu);
         }
         else if (IsKeyReleased(key.rl)) {
