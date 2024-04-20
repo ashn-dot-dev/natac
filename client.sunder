@@ -1125,12 +1125,17 @@ func client_pre_connect_render(cstate: *client_state) void {
     BeginDrawing();
     ClearBackground((:Color){.r = 0x66, .g = 0xBB, .b = 0xFF, .a = 0xFF});
     let text = startof("NATAC!");
-    var font_size = (:sint)(cstate.*.board_font_size * 8.0);
-    var text_w = MeasureText(text, font_size);
-    var text_h = GetFontDefault().baseSize;
-    var text_x = (:sint)screen_w / 2 - text_w / 2;
-    var text_y = (:sint)screen_h / 8 - text_h;
-    DrawText(text, text_x, text_y, font_size, (:Color){.r = 0xA1, .g = 0x21, .b = 0x21, .a = 0xFF});
+    var font_size = cstate.*.board_font_size;
+    var text_w = measure_text_cstr(cstate.*.board_font, font_size, text).x;
+    var text_h = measure_text_cstr(cstate.*.board_font, font_size, text).y;
+    var text_x = screen_w / 2.0 - text_w / 2.0;
+    var text_y = screen_h / 3.0 - text_h;
+    draw_text_cstr(
+        cstate.*.board_font,
+        font_size,
+        (:Color){.r = 0xA1, .g = 0x21, .b = 0x21, .a = 0xFF},
+        (:Vector2){.x = text_x, .y = text_y},
+        text);
     smol::render(cstate.*.ui.context);
     EndDrawing();
 }
