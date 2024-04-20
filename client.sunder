@@ -886,6 +886,13 @@ struct client_state {
     }
 }
 
+func ui_reset_cached_container_size(container: *smol::container, x: sint, y: sint, w: sint, h: sint) void {
+    container.*.rect.x = x;
+    container.*.rect.y = y;
+    container.*.rect.w = w;
+    container.*.rect.h = h;
+}
+
 func ui_labled_number(ui: *smol::ui, label: []byte, value: sint, layout: []sint) void {
     assert countof(layout) == 2;
     ui.*.push_id(startof(label), countof(label));
@@ -946,14 +953,8 @@ func ui_window_play_dev_card(cstate: *client_state, sender: *message_sender[[cli
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
 
     if cstate.*.ui.begin_window_ex("Play a Development Card", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-        # Window Content
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         if cstate.*.ui.button("Play Knight") {
             sender.*.sendc(client_message::init_use_dev_card_knight());
@@ -989,14 +990,8 @@ func ui_window_play_dev_card_year_of_plenty(cstate: *client_state, sender: *mess
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
 
     if cstate.*.ui.begin_window_ex("Select Resources (Year of Plenty)", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-        # Window Content
         cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
         cstate.*.ui.label("Brick:");
         var max = 2 - cstate.*.ui_resources_select.count() + cstate.*.ui_resources_select.brick;
@@ -1040,14 +1035,8 @@ func ui_window_play_dev_card_monopoly(cstate: *client_state, sender: *message_se
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
 
     if cstate.*.ui.begin_window_ex("Select Resource (Monopoly)", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-        # Window Content
         cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         if cstate.*.ui.button("Brick") {
@@ -1101,14 +1090,8 @@ func client_pre_connect_update(cstate: *client_state, address: *std::optional[[*
             ToggleFullscreen();
         }
 
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-        # Window Content
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         cstate.*.ui.text("Enter the IP address (IPv4) of the Natac server (e.g. 192.0.2.0).");
         cstate.*.ui.text("");
@@ -1254,14 +1237,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         ((cstate.*.turn.phase == phase::GAME_INIT and not cstate.*.p_info(player::ORANGE).*.live) or not cstate.*.p_info(player::ORANGE).*.connected);
     var show_ui = cstate.*.player.is_empty() and is_open_seat;
     if show_ui and cstate.*.ui.begin_window_ex("Select Color", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-        # Window Content
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         if cstate.*.ui.button("Red") {
             sender.*.sendc(client_message::init_select_player(player::RED));
@@ -1286,14 +1263,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
     var show_ui = cstate.*.turn.phase == phase::GAME_INIT and cstate.*.player.is_value();
     if show_ui and cstate.*.ui.begin_window_ex("Start-of-Game Lobby", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-        # Window Content
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         cstate.*.ui.text("Click the \"Begin the Game\" button below once all players have joined.");
         cstate.*.ui.text("");
@@ -1313,14 +1284,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         cstate.*.player.is_value() and
         cstate.*.player.value() == cstate.*.turn.player;
     if show_ui and cstate.*.ui.begin_window_ex("Initial Setup", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-        # Window Content
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         cstate.*.ui.text("Place a settlement.");
 
@@ -1330,14 +1295,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         cstate.*.player.is_value() and
         cstate.*.player.value() == cstate.*.turn.player;
     if show_ui and cstate.*.ui.begin_window_ex("Initial Setup", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-        # Window Content
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         cstate.*.ui.text("Place a road next to your settlement.");
 
@@ -1396,14 +1355,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         var ui_x = ui_player_x;
         var ui_y = ui_player_y;
         if cstate.*.ui.begin_window_ex(player_to_name(player), smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
-            # Re-set cached window rect in case the screen was resized.
-            var win = cstate.*.ui.get_current_container();
-            win.*.rect.w = ui_w;
-            win.*.rect.h = ui_h;
-            win.*.rect.x = ui_x;
-            win.*.rect.y = ui_y;
+            ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-            # Window Content
             var victory_points: sint = uninit;
             var resources: sint = uninit;
             var dev_cards: sint = uninit;
@@ -1560,14 +1513,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var ui_y = ui_player_y;
     var ui_h = (:sint)screen_h - ui_y - UI_BORDER;
     if cstate.*.ui.begin_window_ex("LOG", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-        # Window Content
         cstate.*.ui.layout_row((:[]sint)[-1], -25);
         cstate.*.ui.begin_panel("Log Output");
         var panel = cstate.*.ui.get_current_container();
@@ -1616,14 +1563,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         ui_window_play_dev_card_monopoly(cstate, sender);
     }
     elif show_ui and cstate.*.ui.begin_window_ex("Your Turn (resource production)", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-        # Window Content
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         if cstate.*.ui.button("Roll") {
             sender.*.sendc(client_message::init_roll());
@@ -1644,14 +1585,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         cstate.*.player.is_value() and
         not *cstate.*.p_discarded(cstate.*.player.value());
     if show_ui and cstate.*.ui.begin_window_ex("Select Resources", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-        # Window Content
         cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
         cstate.*.ui.label("Brick:");
         ui_number_select(&cstate.*.ui, &cstate.*.ui_resources_select.brick, 0, cstate.*.pinfo.brick);
@@ -1690,14 +1625,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         cstate.*.player.is_value() and
         cstate.*.player.value() == cstate.*.turn.player;
     if show_ui and cstate.*.ui.begin_window_ex("Select Player", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-        # Window Content
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         if cstate.*.ui.button("RED") {
             sender.*.sendc(client_message::init_submit_player(player::RED));
@@ -1726,14 +1655,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     if show_ui
     and cstate.*.ui_main_build_road_selected
     and cstate.*.ui.begin_window_ex("Build Road", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-        # Window Content
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         if cstate.*.ui.button("Back") {
             cstate.*.ui_main_build_road_selected = false;
@@ -1744,14 +1667,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     elif show_ui
     and cstate.*.ui_main_build_town_selected
     and cstate.*.ui.begin_window_ex("Build Town", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-        # Window Content
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         if cstate.*.ui.button("Back") {
             cstate.*.ui_main_build_town_selected = false;
@@ -1774,14 +1691,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     elif show_ui
     and cstate.*.ui_main_trade_with_bank_selected
     and cstate.*.ui.begin_window_ex("Trade with Bank", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-        # Re-set cached window rect in case the screen was resized.
-        var win = cstate.*.ui.get_current_container();
-        win.*.rect.w = ui_w;
-        win.*.rect.h = ui_h;
-        win.*.rect.x = ui_x;
-        win.*.rect.y = ui_y;
+        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-        # Window Content
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         if cstate.*.ui_main_trade_with_bank_resource.is_value() {
             for i in countof(RESOURCES) {
@@ -1840,14 +1751,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
         # Give Window
         if cstate.*.ui.begin_window_ex("Resources to Give", smol::rect::init(ui_give_x, ui_give_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-            # Re-set cached window rect in case the screen was resized.
-            var win = cstate.*.ui.get_current_container();
-            win.*.rect.w = ui_w;
-            win.*.rect.h = ui_h;
-            win.*.rect.x = ui_give_x;
-            win.*.rect.y = ui_give_y;
+            ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_give_x, ui_give_y, ui_w, ui_h);
 
-            # Window Content
             cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
             cstate.*.ui.label("Brick:");
             ui_number_select(&cstate.*.ui, &cstate.*.ui_main_trade_with_players_give.brick, 0, cstate.*.pinfo.brick);
@@ -1865,14 +1770,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
         # Recv Window
         if cstate.*.ui.begin_window_ex("Resources to Receive", smol::rect::init(ui_recv_x, ui_recv_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-            # Re-set cached window rect in case the screen was resized.
-            var win = cstate.*.ui.get_current_container();
-            win.*.rect.w = ui_w;
-            win.*.rect.h = ui_h;
-            win.*.rect.x = ui_recv_x;
-            win.*.rect.y = ui_recv_y;
+            ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_recv_x, ui_recv_y, ui_w, ui_h);
 
-            # Window Content
             cstate.*.ui.layout_row((:[]sint)[-1], 0);
             cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
             cstate.*.ui.label("Brick:");
@@ -1891,14 +1790,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
         # Menu Buttons Window
         if cstate.*.ui.begin_window_ex("Trade with Players", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-            # Re-set cached window rect in case the screen was resized.
-            var win = cstate.*.ui.get_current_container();
-            win.*.rect.w = ui_w;
-            win.*.rect.h = ui_h;
-            win.*.rect.x = ui_x;
-            win.*.rect.y = ui_y;
+            ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-            # Window Content
             cstate.*.ui.layout_row((:[]sint)[-1], 0);
             if cstate.*.ui.button("Propose Trade") {
                 var cmessage = client_message::init_trade_players(cstate.*.ui_main_trade_with_players_give, cstate.*.ui_main_trade_with_players_recv);
@@ -1918,14 +1811,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     }
     elif show_ui {
         if cstate.*.ui.begin_window_ex("Your Turn", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-            # Re-set cached window rect in case the screen was resized.
-            var win = cstate.*.ui.get_current_container();
-            win.*.rect.w = ui_w;
-            win.*.rect.h = ui_h;
-            win.*.rect.x = ui_x;
-            win.*.rect.y = ui_y;
+            ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-            # Window Content
             cstate.*.ui.layout_row((:[]sint)[-1], 0);
             if cstate.*.ui.button("Build a Road") {
                 cstate.*.ui_main_build_road_selected = true;
@@ -1957,14 +1844,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
         var ui_x = ui_x - ui_w - UI_BORDER;
         if cstate.*.ui.begin_window_ex("Building Costs", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-            # Re-set cached window rect in case the screen was resized.
-            var win = cstate.*.ui.get_current_container();
-            win.*.rect.w = ui_w;
-            win.*.rect.h = ui_h;
-            win.*.rect.x = ui_x;
-            win.*.rect.y = ui_y;
+            ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-            # Window Content
             cstate.*.ui.layout_row((:[]sint)[-1], 0);
 
             var remaining = 15s;
@@ -2033,14 +1914,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
         # Give Window
         if cstate.*.ui.begin_window_ex("Resources to Give", smol::rect::init(ui_give_x, ui_give_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-            # Re-set cached window rect in case the screen was resized.
-            var win = cstate.*.ui.get_current_container();
-            win.*.rect.w = ui_w;
-            win.*.rect.h = ui_h;
-            win.*.rect.x = ui_give_x;
-            win.*.rect.y = ui_give_y;
+            ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_give_x, ui_give_y, ui_w, ui_h);
 
-            # Window Content
             cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
             var resources: resources = uninit;
             if cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player {
@@ -2075,14 +1950,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
         # Recv Window
         if cstate.*.ui.begin_window_ex("Resources to Receive", smol::rect::init(ui_recv_x, ui_recv_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-            # Re-set cached window rect in case the screen was resized.
-            var win = cstate.*.ui.get_current_container();
-            win.*.rect.w = ui_w;
-            win.*.rect.h = ui_h;
-            win.*.rect.x = ui_recv_x;
-            win.*.rect.y = ui_recv_y;
+            ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_recv_x, ui_recv_y, ui_w, ui_h);
 
-            # Window Content
             cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
             var resources: resources = uninit;
             if cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player {
@@ -2118,14 +1987,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         # Menu Buttons Window
         if cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player
         and cstate.*.ui.begin_window_ex("Trade with Players", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-            # Re-set cached window rect in case the screen was resized.
-            var win = cstate.*.ui.get_current_container();
-            win.*.rect.w = ui_w;
-            win.*.rect.h = ui_h;
-            win.*.rect.x = ui_x;
-            win.*.rect.y = ui_y;
+            ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-            # Window Content
             cstate.*.ui.layout_row((:[]sint)[-1], 0);
             if cstate.*.ui.button("Withdraw Trade") {
                 sender.*.sendc(client_message::init_trade_withdraw());
@@ -2135,14 +1998,8 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         }
         elif cstate.*.player.is_value() and not *cstate.*.p_trade_submitted(cstate.*.player.value())
         and cstate.*.ui.begin_window_ex("Trade with Players", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-            # Re-set cached window rect in case the screen was resized.
-            var win = cstate.*.ui.get_current_container();
-            win.*.rect.w = ui_w;
-            win.*.rect.h = ui_h;
-            win.*.rect.x = ui_x;
-            win.*.rect.y = ui_y;
+            ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
-            # Window Content
             cstate.*.ui.layout_row((:[]sint)[-1], 0);
             if cstate.*.ui.button("Accept") {
                 sender.*.sendc(client_message::init_trade_accept(cstate.*.trade));
