@@ -1,4 +1,0 @@
-import "c";
-
-extern func sleep_sec(sec: double) void;
-extern func unix_time_now() uint64_t;

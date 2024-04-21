@@ -1,13 +1,25 @@
-natac
-natac.app/
-natac.app.zip
-macos/Natac.png
-macos/Natac.iconset
-macos/Natac.icns
+sunder-compile
 
-.sunder/
-vendor/raylib/parser/raylib_api.json
+examples/big-integer-calculator
+examples/brainfuck
+examples/cat
+examples/fizzbuzz
+examples/greet
+examples/hello
+examples/ls
+examples/ffi/calling-c-from-sunder
+examples/ffi/calling-sunder-from-c
 
+*.tmp*
+a.out*
 *.out
-*.tmp.o
-*.tmp.c
+*.o
+*.asm
+*.tmp
+*.log
+*.html
+*.wasm
+
+emsdk/
+
+!lib/sys/sys.wasm32-emscripten.html
