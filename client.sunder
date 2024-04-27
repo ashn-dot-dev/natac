@@ -1668,7 +1668,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         cstate.*.player.value() == cstate.*.turn.player;
     if show_ui
     and cstate.*.ui_build_road_selected
-    and cstate.*.ui.begin_window_ex("Build Road", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+    and cstate.*.ui.begin_window_ex("Build a Road", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
@@ -1680,7 +1680,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     }
     elif show_ui
     and cstate.*.ui_build_town_selected
-    and cstate.*.ui.begin_window_ex("Build Town", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+    and cstate.*.ui.begin_window_ex("Build a Settlement/City", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
