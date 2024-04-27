@@ -1441,11 +1441,16 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             defer s.fini();
             if knights_played != 0 {
                 var w = std::writer::init[[typeof(s)]](&s);
+                var plural = "";
+                if knights_played > 1 {
+                    plural = "s";
+                }
                 std::print_format(
                     w,
-                    " ({} knights played)",
+                    " ({} knight{} played)",
                     (:[]std::formatter)[
-                        std::formatter::init[[sint]](&knights_played)]);
+                        std::formatter::init[[sint]](&knights_played),
+                        std::formatter::init[[[]byte]](&plural)]);
             }
             cstate.*.ui.text(s.data());
 
