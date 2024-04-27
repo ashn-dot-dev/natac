@@ -60,6 +60,8 @@ struct server_state {
     var turn_order: [4]player;
     # The current turn.
     var turn: turn;
+    # True if the active player has rolled this turn.
+    var player_rolled: bool;
     # The phase a development card was played this turn. Used for restoring the
     # turn state after a development card has resolved. An empty optional
     # indicates that a development card has not been played this turn.
@@ -188,6 +190,7 @@ struct server_state {
             .trade = uninit,
             .turn_order = turn_order,
             .turn = turn,
+            .player_rolled = false,
             .dev_card_used = std::optional[[phase]]::EMPTY,
             .longest_road = std::optional[[player]]::EMPTY,
             .largest_army = std::optional[[player]]::EMPTY,
@@ -499,6 +502,7 @@ struct server_state {
 
     func change_turn(self: *server_state, player: player) void {
         self.*.turn = turn::init(self.*.turn.number + 1, player);
+        self.*.player_rolled = false;
         self.*.dev_card_used = std::optional[[phase]]::EMPTY;
         var name = player_to_name(player);
         self.*.sendc_all(server_message::init_log_format(
@@ -535,6 +539,7 @@ struct server_state {
         var roll = roll_a + roll_b;
         self.*.board.d6_a = roll_a;
         self.*.board.d6_b = roll_b;
+        self.*.player_rolled = true;
 
         var name = player_to_name(connection.*.player.value());
         self.*.sendc_all(server_message::init_log_format(
@@ -1431,7 +1436,15 @@ struct server_state {
             }
         }
 
-        if self.*.dev_card_used.is_value() {
+        if self.*.dev_card_used.is_value() and self.*.player_rolled {
+            # Handles the case where a knight was played during resource
+            # production followed by a seven being rolled, in which case the
+            # turn should continue to the main phase instead of returning to
+            # the resource production phase where the development card was last
+            # played.
+            self.*.turn.phase = phase::MAIN;
+        }
+        elif self.*.dev_card_used.is_value() {
             self.*.turn.phase = self.*.dev_card_used.value();
         }
         else {
