@@ -413,6 +413,19 @@ struct server_state {
         return victory_points;
     }
 
+    func hidden_victory_points(self: *server_state, player: player) sint {
+        var victory_points: sint = self.*.public_victory_points(player);
+
+        var info = self.*.p_info(player);
+        for i in info.*.dev_card_count {
+            if info.*.dev_card_array[i].kind == dev_card::VICTORY_POINT {
+                victory_points += 1;
+            }
+        }
+
+        return victory_points;
+    }
+
     func prev_player(self: *server_state, player: player) player {
         var idx = usize::MAX;
         for i in countof(self.*.turn_order) {
@@ -455,19 +468,6 @@ struct server_state {
         }
 
         return self.*.turn_order[idx];
-    }
-
-    func hidden_victory_points(self: *server_state, player: player) sint {
-        var victory_points: sint = self.*.public_victory_points(player);
-
-        var info = self.*.p_info(player);
-        for i in info.*.dev_card_count {
-            if info.*.dev_card_array[i].kind == dev_card::VICTORY_POINT {
-                victory_points += 1;
-            }
-        }
-
-        return victory_points;
     }
 
     func game_init_advance(self: *server_state) void {
@@ -2155,10 +2155,18 @@ func server_update(sstate: *server_state) void {
         }
     }
 
+    var victory_points = server_state::public_victory_points;
+    if sstate.*.winner.is_value() {
+        # Once the game is over, the number of hidden victory point cards no
+        # longer needs to private information, and it would be nice to show the
+        # true number of points that each player has.
+        victory_points = server_state::hidden_victory_points;
+    }
+
     var r = (:public_player_info){
         .live = sstate.*.r_live,
         .connected = r_connected,
-        .victory_points = sstate.*.public_victory_points(player::RED),
+        .victory_points = victory_points(sstate, player::RED),
         .resources = sstate.*.r_info.resource_count(),
         .dev_cards = sstate.*.r_info.unused_dev_card_count(),
         .knights_played = sstate.*.r_info.knights_played_count(),
@@ -2168,7 +2176,7 @@ func server_update(sstate: *server_state) void {
     var b = (:public_player_info){
         .live = sstate.*.b_live,
         .connected = b_connected,
-        .victory_points = sstate.*.public_victory_points(player::BLUE),
+        .victory_points = victory_points(sstate, player::BLUE),
         .resources = sstate.*.b_info.resource_count(),
         .dev_cards = sstate.*.b_info.unused_dev_card_count(),
         .knights_played = sstate.*.b_info.knights_played_count(),
@@ -2178,7 +2186,7 @@ func server_update(sstate: *server_state) void {
     var w = (:public_player_info){
         .live = sstate.*.w_live,
         .connected = w_connected,
-        .victory_points = sstate.*.public_victory_points(player::WHITE),
+        .victory_points = victory_points(sstate, player::WHITE),
         .resources = sstate.*.w_info.resource_count(),
         .dev_cards = sstate.*.w_info.unused_dev_card_count(),
         .knights_played = sstate.*.w_info.knights_played_count(),
@@ -2188,7 +2196,7 @@ func server_update(sstate: *server_state) void {
     var o = (:public_player_info){
         .live = sstate.*.o_live,
         .connected = o_connected,
-        .victory_points = sstate.*.public_victory_points(player::ORANGE),
+        .victory_points = victory_points(sstate, player::ORANGE),
         .resources = sstate.*.o_info.resource_count(),
         .dev_cards = sstate.*.o_info.unused_dev_card_count(),
         .knights_played = sstate.*.o_info.knights_played_count(),
