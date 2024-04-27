@@ -1,6 +1,6 @@
 /*
 
-Copyright (C) 2023 BIAGINI Nathan
+Copyright (C) 2024 BIAGINI Nathan
 
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
@@ -25,6 +25,7 @@ freely, subject to the following restrictions:
 mergeInto(LibraryManager.library, {
     __js_game_server_send_packet_to__proxy: 'sync',
     __js_game_server_dequeue_packet__proxy: 'sync', 
+    __js_game_server_dequeue_packet__deps: ['$writeArrayToMemory'],
 
     __js_game_server_init: function (protocol_id, use_https, key_pem, cert_pem) {
         const nbnet = require('nbnet')
@@ -84,6 +85,7 @@ mergeInto(LibraryManager.library, {
 mergeInto(LibraryManager.library, {
     __js_game_client_send_packet__proxy: 'sync',
     __js_game_client_dequeue_packet__proxy: 'sync',
+    __js_game_client_dequeue_packet__deps: ['$writeArrayToMemory'],
 
     __js_game_client_init: function(protocol_id, use_https) {
         let nbnet

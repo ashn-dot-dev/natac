@@ -1,6 +1,6 @@
 /*
 
-   Copyright (C) 2023 BIAGINI Nathan
+   Copyright (C) 2024 BIAGINI Nathan
 
    This software is provided 'as-is', without any express or implied
    warranty.  In no event will the authors be held liable for any damages
@@ -69,6 +69,7 @@ typedef struct
     float packet_duplication; /* 0 - 1 */
     float ping; /* in seconds */
     float jitter; /* in seconds */
+    bool webrtc; /* use native WebRTC driver */
 } SoakOptions;
 
 typedef struct

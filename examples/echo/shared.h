@@ -1,6 +1,6 @@
 /*
 
-   Copyright (C) 2023 BIAGINI Nathan
+   Copyright (C) 2024 BIAGINI Nathan
 
    This software is provided 'as-is', without any express or implied
    warranty.  In no event will the authors be held liable for any damages
@@ -54,10 +54,20 @@ void Log(int, const char *, ...);
 #include "../../nbnet.h"
 
 #ifdef __EMSCRIPTEN__
+
 #include "../../net_drivers/webrtc.h"
+
 #else
+
 #include "../../net_drivers/udp.h"
-#endif
+
+#ifdef NBN_WEBRTC_NATIVE
+
+#include "../../net_drivers/webrtc_c.h"
+
+#endif // NBN_WEBRTC_NATIVE
+
+#endif // __EMSCRIPTEN__
 
 typedef struct
 {
