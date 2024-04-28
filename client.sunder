@@ -498,24 +498,11 @@ func draw_d6(font: Font, font_size: f32, position: Vector2, side: f32, number: s
         (:[]std::formatter)[std::formatter::init[[sint]](&number)]);
 }
 
-# NOTE: It appears that raylib 5.0 seems to have changed the behavior the
-# Get(Screen|Render)(Width|Height) functions on MacOS from version 4.5,
-# requiring the `screen_w` and `screen_h` helper functions to make Camera2D
-# work properly in both non-fullscreen and fullscreen modes. At the time of
-# writing (2023-12-03) I am not sure whether the current raylib 5.0 behavior is
-# intended or whether the 4.5->5.0 behavior change is a bug.
-
 func screen_w() f32 {
-    if IsWindowFullscreen() {
-        return (:f32)GetRenderWidth();
-    }
     return (:f32)GetScreenWidth();
 }
 
 func screen_h() f32 {
-    if IsWindowFullscreen() {
-        return (:f32)GetRenderHeight();
-    }
     return (:f32)GetScreenHeight();
 }
 
@@ -1090,10 +1077,6 @@ func client_pre_connect_update(cstate: *client_state, address: *std::optional[[*
     var ui_x = (:sint)screen_w / 2 - ui_w / 2;
     var ui_y = (:sint)screen_h / 2 - ui_h / 2;
     if cstate.*.ui.begin_window_ex("Enter Server Address", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NODRAG | smol::OPT_NOCLOSE) {
-        if IsKeyPressed(KEY_F4) {
-            ToggleFullscreen();
-        }
-
         ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
@@ -1211,9 +1194,6 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     # Actions processed regardless of the client's current player state.
     if IsKeyPressed(KEY_F3) {
         cstate.*.debug = not cstate.*.debug;
-    }
-    if IsKeyPressed(KEY_F4) {
-        ToggleFullscreen();
     }
     if cstate.*.debug and IsKeyPressed(KEY_ONE) {
         sender.*.sendc(client_message::init_select_player(cstate.*.turn_order[0]));

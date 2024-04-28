@@ -148,15 +148,12 @@ enum network {
     SERVER;
 }
 
-func raylib_init(fullscreen: bool) void {
+func raylib_init() void {
     SetTraceLogLevel(LOG_WARNING);
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(960, 720, startof("NATAC"));
     InitAudioDevice();
     SetTargetFPS(60);
-    if fullscreen {
-        ToggleFullscreen();
-    }
 }
 
 func raylib_fini() void {
@@ -164,8 +161,8 @@ func raylib_fini() void {
     CloseWindow();
 }
 
-func run_local(debug: bool, fullscreen: bool) void {
-    raylib_init(fullscreen);
+func run_local(debug: bool) void {
+    raylib_init();
     defer raylib_fini();
 
     var sstate = server_state::init();
@@ -198,8 +195,8 @@ func run_local(debug: bool, fullscreen: bool) void {
     }
 }
 
-func run_client(debug: bool, fullscreen: bool, address: std::optional[[*byte]]) void {
-    raylib_init(fullscreen);
+func run_client(debug: bool, address: std::optional[[*byte]]) void {
+    raylib_init();
     defer raylib_fini();
 
     var cstate = client_state::init();
@@ -434,7 +431,6 @@ func usage() void {
     std::print_line(std::err(), "  -client IPADDR   Join a game hosted on a server with IP address IPADDR.");
     std::print_line(std::err(), "  -server          Start the game server.");
     std::print_line(std::err(), "  -seed SEED       Initialize the random number generator with a the specified seed.");
-    std::print_line(std::err(), "  -fullscreen      Run the game in fullscreen mode (default is 960x720).");
     std::print_line(std::err(), "  -h, -help        Display usage information and exit.");
 }
 
@@ -463,7 +459,6 @@ func main() void {
 
     # Argument Parsing.
     var argparser = std::argument_parser::init((:[][]byte)[
-        "fullscreen",
         "seed:",
         "debug",
 
@@ -476,14 +471,9 @@ func main() void {
 
     ]);
     var opt_debug = false;
-    var opt_fullscreen = false;
     var opt_network = std::optional[[network]]::EMPTY;
     var opt_address = std::optional[[*byte]]::EMPTY;
     for argparser.advance() {
-        if argparser.check_option("fullscreen") {
-            opt_fullscreen = true;
-            continue;
-        }
         if argparser.check_option("seed") {
             random_init(argparser.argument_value());
             continue;
@@ -515,13 +505,13 @@ func main() void {
 
     # Start the Application Main Loop.
     if opt_network.is_empty() or opt_network.value() == ::network::CLIENT {
-        return run_client(opt_debug, opt_fullscreen, opt_address);
+        return run_client(opt_debug, opt_address);
     }
     if opt_network.value() == ::network::SERVER {
         return run_server();
     }
     if opt_network.value() == ::network::LOCAL {
-        return run_local(opt_debug, opt_fullscreen);
+        return run_local(opt_debug);
     }
     std::unreachable(fileof(), lineof());
 }
