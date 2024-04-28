@@ -7,7 +7,7 @@ import "smolui";
 import "shared.sunder";
 
 # The radius of the outer circle touching the corners of the hexagon.
-let HEX_RADIUS = 48.0f32;
+let HEX_RADIUS = 56.0f32;
 
 func feq(a: f32, b: f32) bool {
     let THRESHOLD: f32 = 0.0001;
@@ -506,15 +506,7 @@ func screen_h() f32 {
     return (:f32)GetScreenHeight();
 }
 
-func camera_zoom(radius: f32) f32 {
-    # Return a camera zoom such that the board and board-adjacent ocean tiles
-    # fit on the screen. Approximate the length of the board and board-adjacent
-    # ocean tiles as six tile diameters (five board tiles plus two ocean tiles
-    # on either side minus half a tile to somewhat account for radius overlap).
-    return screen_h() / (6.5 * 2.0 * radius);
-}
-
-func camera(radius: f32) Camera2D {
+func camera() Camera2D {
     return (:Camera2D){
         .target = (:Vector2){
             .x = 0.0f32,
@@ -525,7 +517,7 @@ func camera(radius: f32) Camera2D {
             .y = screen_h() / 2.0 - screen_h() / 8.0,
         },
         .rotation = 0.0f32,
-        .zoom = camera_zoom(radius),
+        .zoom = 1.0f32,
     };
 }
 
@@ -1131,7 +1123,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     # Collect basic information about the state of the window/camera, position
     # of the mouse in screen space & world space, and objects that the mouse is
     # currently hovering over.
-    var camera = camera(HEX_RADIUS);
+    var camera = camera();
 
     var mouse = GetMousePosition();
     var world = GetScreenToWorld2D(mouse, camera);
@@ -2095,7 +2087,7 @@ func client_render(cstate: *client_state) void {
 
     var screen_w = screen_w();
     var screen_h = screen_h();
-    var camera = camera(HEX_RADIUS);
+    var camera = camera();
 
     if not cstate.*.connected or cstate.*.board.tiles.count() == 0 {
         var text = "Connecting...";
