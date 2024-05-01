@@ -800,6 +800,13 @@ struct client_state {
             self.*.pinfo = message.*.data.info;
         }
         server_message::STATE {
+            var is_new_turn = self.*.turn.number < message.*.data.state.turn.number;
+            if is_new_turn {
+                # Reset the UI dynamic state every turn so that all menus and
+                # menu data appear uniform at the start of every new turn.
+                self.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
+            }
+
             # We purposefully check that the player of the turn has changed
             # rather than the turn number changing in combination with it being
             # the current players turn so that one player games are not
