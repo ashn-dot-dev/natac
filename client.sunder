@@ -521,6 +521,35 @@ func camera() Camera2D {
     };
 }
 
+struct ui_dynamic_state {
+    var kind: enum {
+        ROOT;
+        BUILD_ROAD;
+        BUILD_TOWN;
+        PLAY_DEV_CARD;
+        PLAY_DEV_CARD_YEAR_OF_PLENTY;
+        PLAY_DEV_CARD_MONOPOLY;
+        TRADE_WITH_BANK;
+        TRADE_WITH_PLAYERS;
+    };
+    var data: union {
+        var trade_with_bank_resource: std::optional[[resource]]; # x:1 resource->...
+        var trade_with_players: struct {
+            var give: resources;
+            var recv: resources;
+        };
+    };
+
+    let SELF: ui_dynamic_state = uninit;
+
+    func init(kind: typeof(SELF.kind)) ui_dynamic_state {
+        return (:ui_dynamic_state){
+            .kind = kind,
+            .data = uninit,
+        };
+    }
+}
+
 struct client_state {
     var debug: bool;
     var connected: bool;
@@ -540,17 +569,8 @@ struct client_state {
     var ui_log: std::string;
     var ui_log_updated: bool;
     var ui_textbox_buf: [256]char;
+    var ui_dynamic_state: ui_dynamic_state;
     var ui_resources_select: resources;
-    var ui_play_dev_card_selected: bool;
-    var ui_play_dev_card_year_of_plenty_selected: bool;
-    var ui_play_dev_card_monopoly_selected: bool;
-    var ui_build_road_selected: bool;
-    var ui_build_town_selected: bool;
-    var ui_trade_with_bank_selected: bool;
-    var ui_trade_with_bank_resource: std::optional[[resource]]; # x:1 resource->...
-    var ui_trade_with_players_selected: bool;
-    var ui_trade_with_players_give: resources;
-    var ui_trade_with_players_recv: resources;
     var ui_trade_submitted: bool;
     var ui: smol::ui;
 
@@ -662,17 +682,8 @@ struct client_state {
             .ui_log = ui_log,
             .ui_log_updated = ui_log_updated,
             .ui_textbox_buf = uninit,
+            .ui_dynamic_state = uninit,
             .ui_resources_select = uninit,
-            .ui_play_dev_card_selected = false,
-            .ui_play_dev_card_year_of_plenty_selected = false,
-            .ui_play_dev_card_monopoly_selected = false,
-            .ui_build_road_selected = false,
-            .ui_build_town_selected = false,
-            .ui_trade_with_bank_selected = false,
-            .ui_trade_with_bank_resource = uninit,
-            .ui_trade_with_players_selected = false,
-            .ui_trade_with_players_give = uninit,
-            .ui_trade_with_players_recv = uninit,
             .ui_trade_submitted = false,
             .ui = ui,
 
@@ -941,22 +952,20 @@ func ui_window_play_dev_card(cstate: *client_state, sender: *message_sender[[cli
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         if cstate.*.ui.button("Play Knight") {
             sender.*.sendc(client_message::init_use_dev_card_knight());
-            cstate.*.ui_play_dev_card_selected = false;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
         }
         if cstate.*.ui.button("Play Road Building") {
             sender.*.sendc(client_message::init_use_dev_card_road_building());
-            cstate.*.ui_play_dev_card_selected = false;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
         }
         if cstate.*.ui.button("Play Year of Plenty") {
-            cstate.*.ui_play_dev_card_selected = false;
-            cstate.*.ui_play_dev_card_year_of_plenty_selected = true;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::PLAY_DEV_CARD_YEAR_OF_PLENTY);
         }
         if cstate.*.ui.button("Play Monopoly") {
-            cstate.*.ui_play_dev_card_selected = false;
-            cstate.*.ui_play_dev_card_monopoly_selected = true;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::PLAY_DEV_CARD_MONOPOLY);
         }
         if cstate.*.ui.button("Back") {
-            cstate.*.ui_play_dev_card_selected = false;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
         }
 
         cstate.*.ui.end_window();
@@ -994,13 +1003,11 @@ func ui_window_play_dev_card_year_of_plenty(cstate: *client_state, sender: *mess
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         if cstate.*.ui.button("Submit") {
             sender.*.sendc(client_message::init_use_dev_card_year_of_plenty(cstate.*.ui_resources_select));
-            cstate.*.ui_play_dev_card_selected = false;
-            cstate.*.ui_play_dev_card_year_of_plenty_selected = false;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
             cstate.*.ui_resources_select = std::zeroed[[resources]]();
         }
         if cstate.*.ui.button("Back") {
-            cstate.*.ui_play_dev_card_selected = true;
-            cstate.*.ui_play_dev_card_year_of_plenty_selected = false;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::PLAY_DEV_CARD);
             cstate.*.ui_resources_select = std::zeroed[[resources]]();
         }
 
@@ -1024,32 +1031,26 @@ func ui_window_play_dev_card_monopoly(cstate: *client_state, sender: *message_se
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         if cstate.*.ui.button("Brick") {
             sender.*.sendc(client_message::init_use_dev_card_monopoly(resource::BRICK));
-            cstate.*.ui_play_dev_card_selected = false;
-            cstate.*.ui_play_dev_card_monopoly_selected = false;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
         }
         if cstate.*.ui.button("Ore") {
             sender.*.sendc(client_message::init_use_dev_card_monopoly(resource::ORE));
-            cstate.*.ui_play_dev_card_selected = false;
-            cstate.*.ui_play_dev_card_monopoly_selected = false;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
         }
         if cstate.*.ui.button("Sheep") {
             sender.*.sendc(client_message::init_use_dev_card_monopoly(resource::SHEEP));
-            cstate.*.ui_play_dev_card_selected = false;
-            cstate.*.ui_play_dev_card_monopoly_selected = false;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
         }
         if cstate.*.ui.button("Wheat") {
             sender.*.sendc(client_message::init_use_dev_card_monopoly(resource::WHEAT));
-            cstate.*.ui_play_dev_card_selected = false;
-            cstate.*.ui_play_dev_card_monopoly_selected = false;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
         }
         if cstate.*.ui.button("Wood") {
             sender.*.sendc(client_message::init_use_dev_card_monopoly(resource::WOOD));
-            cstate.*.ui_play_dev_card_selected = false;
-            cstate.*.ui_play_dev_card_monopoly_selected = false;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
         }
         if cstate.*.ui.button("Back") {
-            cstate.*.ui_play_dev_card_selected = true;
-            cstate.*.ui_play_dev_card_monopoly_selected = false;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::PLAY_DEV_CARD);
         }
 
         cstate.*.ui.end_window();
@@ -1539,13 +1540,13 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     var show_ui = cstate.*.turn.phase == phase::RESOURCE_PRODUCTION and
         cstate.*.player.is_value() and
         cstate.*.player.value() == cstate.*.turn.player;
-    if show_ui and cstate.*.ui_play_dev_card_selected {
+    if show_ui and cstate.*.ui_dynamic_state.kind == ui_dynamic_state::PLAY_DEV_CARD {
         ui_window_play_dev_card(cstate, sender);
     }
-    elif show_ui and cstate.*.ui_play_dev_card_year_of_plenty_selected {
+    if show_ui and cstate.*.ui_dynamic_state.kind == ui_dynamic_state::PLAY_DEV_CARD_YEAR_OF_PLENTY {
         ui_window_play_dev_card_year_of_plenty(cstate, sender);
     }
-    elif show_ui and cstate.*.ui_play_dev_card_monopoly_selected {
+    if show_ui and cstate.*.ui_dynamic_state.kind == ui_dynamic_state::PLAY_DEV_CARD_MONOPOLY {
         ui_window_play_dev_card_monopoly(cstate, sender);
     }
     elif show_ui and cstate.*.ui.begin_window_ex("Your Turn (resource production)", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
@@ -1556,7 +1557,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             sender.*.sendc(client_message::init_roll());
         }
         if cstate.*.ui.button("Play a Development Card") {
-            cstate.*.ui_play_dev_card_selected = true;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::PLAY_DEV_CARD);
         }
 
         cstate.*.ui.end_window();
@@ -1639,48 +1640,48 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         cstate.*.player.is_value() and
         cstate.*.player.value() == cstate.*.turn.player;
     if show_ui
-    and cstate.*.ui_build_road_selected
+    and cstate.*.ui_dynamic_state.kind == ui_dynamic_state::BUILD_ROAD
     and cstate.*.ui.begin_window_ex("Build a Road", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         if cstate.*.ui.button("Back") {
-            cstate.*.ui_build_road_selected = false;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
         }
 
         cstate.*.ui.end_window();
     }
     elif show_ui
-    and cstate.*.ui_build_town_selected
+    and cstate.*.ui_dynamic_state.kind == ui_dynamic_state::BUILD_TOWN
     and cstate.*.ui.begin_window_ex("Build a Settlement/City", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
         if cstate.*.ui.button("Back") {
-            cstate.*.ui_build_town_selected = false;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
         }
 
         cstate.*.ui.end_window();
     }
     elif show_ui
-    and cstate.*.ui_play_dev_card_selected {
+    and cstate.*.ui_dynamic_state.kind == ui_dynamic_state::PLAY_DEV_CARD {
         ui_window_play_dev_card(cstate, sender);
     }
     elif show_ui
-    and cstate.*.ui_play_dev_card_year_of_plenty_selected {
+    and cstate.*.ui_dynamic_state.kind == ui_dynamic_state::PLAY_DEV_CARD_YEAR_OF_PLENTY {
         ui_window_play_dev_card_year_of_plenty(cstate, sender);
     }
     elif show_ui
-    and cstate.*.ui_play_dev_card_monopoly_selected {
+    and cstate.*.ui_dynamic_state.kind == ui_dynamic_state::PLAY_DEV_CARD_MONOPOLY {
         ui_window_play_dev_card_monopoly(cstate, sender);
     }
     elif show_ui
-    and cstate.*.ui_trade_with_bank_selected
+    and cstate.*.ui_dynamic_state.kind == ui_dynamic_state::TRADE_WITH_BANK
     and cstate.*.ui.begin_window_ex("Trade with Bank", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
-        if cstate.*.ui_trade_with_bank_resource.is_value() {
+        if cstate.*.ui_dynamic_state.data.trade_with_bank_resource.is_value() {
             for i in countof(RESOURCES) {
                 var name = RESOURCES[i].data();
                 var s = std::string::init_from_format(
@@ -1691,16 +1692,14 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                 var id = mu_get_id(cstate.*.ui.context, s.start(), (:sint)s.count());
                 var r = mu_layout_next(cstate.*.ui.context);
                 if mu_button_raw(cstate.*.ui.context, s.start(), (:sint)s.count(), 0, id, r, MU_OPT_ALIGNCENTER) != 0 {
-                    var n_to_1 = n_to_1(&cstate.*.board, cstate.*.player.value(), cstate.*.ui_trade_with_bank_resource.value());
-                    var cmessage = client_message::init_trade_n_for_1(cstate.*.ui_trade_with_bank_resource.value(), RESOURCES[i], n_to_1);
+                    var n_to_1 = n_to_1(&cstate.*.board, cstate.*.player.value(), cstate.*.ui_dynamic_state.data.trade_with_bank_resource.value());
+                    var cmessage = client_message::init_trade_n_for_1(cstate.*.ui_dynamic_state.data.trade_with_bank_resource.value(), RESOURCES[i], n_to_1);
                     sender.*.sendc(cmessage);
-                    cstate.*.ui_trade_with_bank_selected = false;
-                    cstate.*.ui_trade_with_bank_resource = std::optional[[resource]]::EMPTY;
+                    cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
                 }
             }
             if cstate.*.ui.button("Back") {
-                cstate.*.ui_trade_with_bank_selected = true;
-                cstate.*.ui_trade_with_bank_resource = std::optional[[resource]]::EMPTY;
+                cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::TRADE_WITH_BANK);
             }
         }
         else {
@@ -1716,19 +1715,18 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                 var id = mu_get_id(cstate.*.ui.context, s.start(), (:sint)s.count());
                 var r = mu_layout_next(cstate.*.ui.context);
                 if mu_button_raw(cstate.*.ui.context, s.start(), (:sint)s.count(), 0, id, r, MU_OPT_ALIGNCENTER) != 0 {
-                    cstate.*.ui_trade_with_bank_resource = std::optional[[resource]]::init_value(RESOURCES[i]);
+                    cstate.*.ui_dynamic_state.data.trade_with_bank_resource = std::optional[[resource]]::init_value(RESOURCES[i]);
                 }
             }
             if cstate.*.ui.button("Back") {
-                cstate.*.ui_trade_with_bank_selected = false;
-                cstate.*.ui_trade_with_bank_resource = std::optional[[resource]]::EMPTY;
+                cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
             }
         }
 
         cstate.*.ui.end_window();
     }
     elif show_ui
-    and cstate.*.ui_trade_with_players_selected {
+    and cstate.*.ui_dynamic_state.kind == ui_dynamic_state::TRADE_WITH_PLAYERS {
         var ui_recv_x = ui_x;
         var ui_recv_y = ui_y - ui_h - UI_BORDER;
 
@@ -1741,15 +1739,15 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
             cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
             cstate.*.ui.label("Brick:");
-            ui_number_select(&cstate.*.ui, &cstate.*.ui_trade_with_players_give.brick, 0, cstate.*.pinfo.brick);
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_dynamic_state.data.trade_with_players.give.brick, 0, cstate.*.pinfo.brick);
             cstate.*.ui.label("Ore:");
-            ui_number_select(&cstate.*.ui, &cstate.*.ui_trade_with_players_give.ore, 0,  cstate.*.pinfo.ore);
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_dynamic_state.data.trade_with_players.give.ore, 0,  cstate.*.pinfo.ore);
             cstate.*.ui.label("Sheep:");
-            ui_number_select(&cstate.*.ui, &cstate.*.ui_trade_with_players_give.sheep, 0, cstate.*.pinfo.sheep);
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_dynamic_state.data.trade_with_players.give.sheep, 0, cstate.*.pinfo.sheep);
             cstate.*.ui.label("Wheat:");
-            ui_number_select(&cstate.*.ui, &cstate.*.ui_trade_with_players_give.wheat, 0, cstate.*.pinfo.wheat);
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_dynamic_state.data.trade_with_players.give.wheat, 0, cstate.*.pinfo.wheat);
             cstate.*.ui.label("Wood:");
-            ui_number_select(&cstate.*.ui, &cstate.*.ui_trade_with_players_give.wood, 0, cstate.*.pinfo.wood);
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_dynamic_state.data.trade_with_players.give.wood, 0, cstate.*.pinfo.wood);
 
             cstate.*.ui.end_window();
         }
@@ -1761,15 +1759,15 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             cstate.*.ui.layout_row((:[]sint)[-1], 0);
             cstate.*.ui.layout_row((:[]sint)[64, -1], 0);
             cstate.*.ui.label("Brick:");
-            ui_number_select(&cstate.*.ui, &cstate.*.ui_trade_with_players_recv.brick, 0, sint::MAX);
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_dynamic_state.data.trade_with_players.recv.brick, 0, sint::MAX);
             cstate.*.ui.label("Ore:");
-            ui_number_select(&cstate.*.ui, &cstate.*.ui_trade_with_players_recv.ore, 0,  sint::MAX);
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_dynamic_state.data.trade_with_players.recv.ore, 0,  sint::MAX);
             cstate.*.ui.label("Sheep:");
-            ui_number_select(&cstate.*.ui, &cstate.*.ui_trade_with_players_recv.sheep, 0, sint::MAX);
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_dynamic_state.data.trade_with_players.recv.sheep, 0, sint::MAX);
             cstate.*.ui.label("Wheat:");
-            ui_number_select(&cstate.*.ui, &cstate.*.ui_trade_with_players_recv.wheat, 0, sint::MAX);
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_dynamic_state.data.trade_with_players.recv.wheat, 0, sint::MAX);
             cstate.*.ui.label("Wood:");
-            ui_number_select(&cstate.*.ui, &cstate.*.ui_trade_with_players_recv.wood, 0, sint::MAX);
+            ui_number_select(&cstate.*.ui, &cstate.*.ui_dynamic_state.data.trade_with_players.recv.wood, 0, sint::MAX);
 
             cstate.*.ui.end_window();
         }
@@ -1780,16 +1778,14 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
             cstate.*.ui.layout_row((:[]sint)[-1], 0);
             if cstate.*.ui.button("Propose Trade") {
-                var cmessage = client_message::init_trade_players(cstate.*.ui_trade_with_players_give, cstate.*.ui_trade_with_players_recv);
+                var cmessage = client_message::init_trade_players(
+                    cstate.*.ui_dynamic_state.data.trade_with_players.give,
+                    cstate.*.ui_dynamic_state.data.trade_with_players.recv);
                 sender.*.sendc(cmessage);
-                cstate.*.ui_trade_with_players_selected = false;
-                cstate.*.ui_trade_with_players_give = std::zeroed[[resources]]();
-                cstate.*.ui_trade_with_players_recv = std::zeroed[[resources]]();
+                cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
             }
             if cstate.*.ui.button("Back") {
-                cstate.*.ui_trade_with_players_selected = false;
-                cstate.*.ui_trade_with_players_give = std::zeroed[[resources]]();
-                cstate.*.ui_trade_with_players_recv = std::zeroed[[resources]]();
+                cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
             }
 
             cstate.*.ui.end_window();
@@ -1801,25 +1797,22 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
 
             cstate.*.ui.layout_row((:[]sint)[-1], 0);
             if cstate.*.ui.button("Build a Road") {
-                cstate.*.ui_build_road_selected = true;
+                cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::BUILD_ROAD);
             }
             if cstate.*.ui.button("Build a Settlement/City") {
-                cstate.*.ui_build_town_selected = true;
+                cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::BUILD_TOWN);
             }
             if cstate.*.ui.button("Buy a Development Card") {
                 sender.*.sendc(client_message::init_buy_dev_card());
             }
             if cstate.*.ui.button("Play a Development Card") {
-                cstate.*.ui_play_dev_card_selected = true;
+                cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::PLAY_DEV_CARD);
             }
             if cstate.*.ui.button("Trade with the Bank") {
-                cstate.*.ui_trade_with_bank_selected = true;
-                cstate.*.ui_trade_with_bank_resource = std::optional[[resource]]::EMPTY;
+                cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::TRADE_WITH_BANK);
             }
             if cstate.*.ui.button("Trade with Players") {
-                cstate.*.ui_trade_with_players_selected = true;
-                cstate.*.ui_trade_with_players_give = std::zeroed[[resources]]();
-                cstate.*.ui_trade_with_players_recv = std::zeroed[[resources]]();
+                cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::TRADE_WITH_PLAYERS);
             }
             if cstate.*.ui.button("End Turn") {
                 sender.*.sendc(client_message::init_end_turn());
@@ -2029,7 +2022,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         return;
     }
     elif (
-        cstate.*.ui_build_road_selected or
+        cstate.*.ui_dynamic_state.kind == ui_dynamic_state::BUILD_ROAD or
         cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player and cstate.*.turn.phase == phase::GAME_INIT_BUILD_ROAD or
         cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player and cstate.*.turn.phase == phase::ROAD_BUILDING_1 or
         cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player and cstate.*.turn.phase == phase::ROAD_BUILDING_2
@@ -2047,12 +2040,12 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                 road::init(
                     cstate.*.player.value(),
                     cstate.*.world_edge.value())));
-            cstate.*.ui_build_road_selected = false;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
         }
         return;
     }
     elif (
-        cstate.*.ui_build_town_selected or
+        cstate.*.ui_dynamic_state.kind == ui_dynamic_state::BUILD_TOWN or
         cstate.*.player.is_value() and cstate.*.player.value() == cstate.*.turn.player and cstate.*.turn.phase == phase::GAME_INIT_BUILD_TOWN
     )
     and IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
@@ -2065,7 +2058,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                     cstate.*.world_node.value(),
                     town::CITY));
             sender.*.sendc(cmessage);
-            cstate.*.ui_build_town_selected = false;
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
             return;
         }
 
@@ -2075,7 +2068,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
                 cstate.*.world_node.value(),
                 town::SETTLEMENT));
         sender.*.sendc(cmessage);
-        cstate.*.ui_build_town_selected = false;
+        cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::ROOT);
         return;
     }
 }
@@ -2184,7 +2177,7 @@ func client_render(cstate: *client_state) void {
     var show_world_edge_road_valid =
         cstate.*.turn.phase == phase::ROAD_BUILDING_1 or
         cstate.*.turn.phase == phase::ROAD_BUILDING_2 or
-        (cstate.*.turn.phase == phase::MAIN and cstate.*.ui_build_road_selected);
+        (cstate.*.turn.phase == phase::MAIN and cstate.*.ui_dynamic_state.kind == ui_dynamic_state::BUILD_ROAD);
     var show_world_edge_road =
         show_world_edge_road_valid and
         cstate.*.world_edge.is_value() and
@@ -2224,7 +2217,7 @@ func client_render(cstate: *client_state) void {
 
     var show_world_node_town =
         cstate.*.turn.phase == phase::MAIN and
-        cstate.*.ui_build_town_selected and
+        cstate.*.ui_dynamic_state.kind == ui_dynamic_state::BUILD_TOWN and
         cstate.*.world_node.is_value();
     var show_world_node_town =
         show_world_node_town or
