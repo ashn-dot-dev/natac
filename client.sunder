@@ -979,6 +979,30 @@ func ui_window_play_dev_card(cstate: *client_state, sender: *message_sender[[cli
     }
 }
 
+func ui_window_resource_production(cstate: *client_state, sender: *message_sender[[client_message]]) void {
+    var screen_w = screen_w();
+    var screen_h = screen_h();
+
+    var ui_w = (:sint)screen_w / 4;
+    var ui_h = (:sint)screen_h / 4;
+    var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
+    var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
+
+    if cstate.*.ui.begin_window_ex("Your Turn (resource production)", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
+
+        cstate.*.ui.layout_row((:[]sint)[-1], 0);
+        if cstate.*.ui.button("Roll") {
+            sender.*.sendc(client_message::init_roll());
+        }
+        if cstate.*.ui.button("Play a Development Card") {
+            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::PLAY_DEV_CARD);
+        }
+
+        cstate.*.ui.end_window();
+    }
+}
+
 func ui_window_play_dev_card_year_of_plenty(cstate: *client_state, sender: *message_sender[[client_message]]) void {
     var screen_w = screen_w();
     var screen_h = screen_h();
@@ -1540,34 +1564,27 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
     }
 
     # Resource Production Roll UI Window
-    var ui_w = (:sint)screen_w / 4;
-    var ui_h = (:sint)screen_h / 4;
-    var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
-    var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
     var show_ui = cstate.*.turn.phase == phase::RESOURCE_PRODUCTION and
         cstate.*.player.is_value() and
         cstate.*.player.value() == cstate.*.turn.player;
-    if show_ui and cstate.*.ui_dynamic_state.kind == ui_dynamic_state::PLAY_DEV_CARD {
-        ui_window_play_dev_card(cstate, sender);
-    }
-    if show_ui and cstate.*.ui_dynamic_state.kind == ui_dynamic_state::PLAY_DEV_CARD_YEAR_OF_PLENTY {
-        ui_window_play_dev_card_year_of_plenty(cstate, sender);
-    }
-    if show_ui and cstate.*.ui_dynamic_state.kind == ui_dynamic_state::PLAY_DEV_CARD_MONOPOLY {
-        ui_window_play_dev_card_monopoly(cstate, sender);
-    }
-    elif show_ui and cstate.*.ui.begin_window_ex("Your Turn (resource production)", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
-        ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
-
-        cstate.*.ui.layout_row((:[]sint)[-1], 0);
-        if cstate.*.ui.button("Roll") {
-            sender.*.sendc(client_message::init_roll());
+    if show_ui {
+        switch cstate.*.ui_dynamic_state.kind {
+        ui_dynamic_state::ROOT {
+            ui_window_resource_production(cstate, sender);
         }
-        if cstate.*.ui.button("Play a Development Card") {
-            cstate.*.ui_dynamic_state = ui_dynamic_state::init(ui_dynamic_state::PLAY_DEV_CARD);
+        ui_dynamic_state::PLAY_DEV_CARD {
+            ui_window_play_dev_card(cstate, sender);
         }
-
-        cstate.*.ui.end_window();
+        ui_dynamic_state::PLAY_DEV_CARD_YEAR_OF_PLENTY {
+            ui_window_play_dev_card_year_of_plenty(cstate, sender);
+        }
+        ui_dynamic_state::PLAY_DEV_CARD_MONOPOLY {
+            ui_window_play_dev_card_monopoly(cstate, sender);
+        }
+        else {
+            # nothing
+        }
+        }
     }
 
     # Discard Resources UI Window
