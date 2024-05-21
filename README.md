@@ -19,19 +19,19 @@ $ sudo pacman -S alsa-lib mesa libx11 libxrandr libxi libxcursor libxinerama
 ```
 
 ## Build and Install
-Build the `raylib.sunder` bindings as well as the `PLATFORM=PLATFORM_DESKTOP`
-library (`libraylib.a`) and the `PLATFORM=PLATFORM_WEB` library
-(`libraylib-web.a`):
+Build the `raylib.sunder` and `raymath.sunder` bindings as well as the
+`PLATFORM=PLATFORM_DESKTOP` library (`libraylib.a`) and the
+`PLATFORM=PLATFORM_WEB` library (`libraylib-web.a`):
 
 ```sh
-$ make
+$ make build build-web
 ```
 
-Install the `raylib.sunder` bindings, `libraylib*.a` libraries, and the
-`raylib-config` utility to `$(SUNDER_HOME)/lib/raylib`:
+Install the raylib sunder bindings, raylib libraries, and the `raylib-config`
+utility to `$(SUNDER_HOME)/lib/raylib`:
 
 ```sh
-$ make install
+$ make install install-web
 ```
 
 ## Building the Example Program (Linux)
@@ -44,17 +44,18 @@ $ cc -o example examples/example.c -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 the equivalent Sunder program (in this case `examples/example.sunder`) would be built with:
 
 ```sh
-$ sunder-compile -o example $(${SUNDER_HOME}/lib/raylib/raylib-config desktop --libs) examples/example.sunder
+$ SUNDER_CFLAGS=$(${SUNDER_HOME}/lib/raylib/raylib-config desktop) \
+    sunder-compile -o example examples/example.sunder
 ```
 
 ## Building the Example Program (HTML 5)
 Compiling for the web (HTML 5) requires the Emscripten toolchain
 ([wiki entry](https://github.com/raysan5/raylib/wiki/Working-for-Web-(HTML5))).
-The example shown here is built with Emscripten's
-[`ASYNCIFY`](https://emscripten.org/docs/porting/asyncify.html) enabled.
 
 ```sh
-$ SUNDER_ARCH=wasm32 SUNDER_HOST=emscripten SUNDER_CC=emcc SUNDER_CFLAGS="$(${SUNDER_HOME}/lib/raylib/raylib-config web --cflags) -sSINGLE_FILE=1 --shell-file emscripten-shell.html" sunder-compile -o example.html $(${SUNDER_HOME}/lib/raylib/raylib-config web --libs) examples/example.sunder
+$ SUNDER_ARCH=wasm32 SUNDER_HOST=emscripten SUNDER_CC=emcc \
+    SUNDER_CFLAGS="$(${SUNDER_HOME}/lib/raylib/raylib-config web) -sSINGLE_FILE=1 --shell-file emscripten-shell.html" \
+    sunder-compile -o example.html examples/example.sunder
 ```
 
 ## Additional Notes

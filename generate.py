@@ -98,7 +98,8 @@ def generate_enum(j):
     }
     type = "uint" if name in USE_UINT else "sint"
 
-    lines.append(f"# {desc}")
+    if desc:
+        lines.append(f"# {desc}")
     lines.append(f"type {name} = {type}; # (enum) {desc}")
     for value in j["values"]:
         value_name = value["name"]
@@ -111,13 +112,15 @@ def generate_struct(j):
     lines = list()
     name = j["name"]
     desc = j["description"]
-    lines.append(f"# {desc}")
+    if desc:
+        lines.append(f"# {desc}")
     lines.append(f"struct {name} {{")
     for field in j["fields"]:
         field_name = field["name"]
         field_type = generate_type(field["type"])
         field_desc = field["description"]
-        lines.append(f"    var {identifier(field_name)}: {field_type}; # {field_desc}")
+        field_comment = f" # {field_desc}" if field_desc else ""
+        lines.append(f"    var {identifier(field_name)}: {field_type};{field_comment}")
     lines.append(f"}}")
     return "\n".join(lines)
 
@@ -134,41 +137,67 @@ def generate_function(j):
             param_type = generate_type(param["type"])
             func_params.append(f"{param_name}: {param_type}")
     func_return = generate_type(j["returnType"])
+
+    comment = f" # {desc}" if desc else ""
     if is_variadic:
         return "\n".join([
             f"# [SKIPPED] {name}: Function of type `func({', '.join(func_params)}) {func_return}` is variadic.",
-            f"type {name} = *any; # {desc}"
+            f"type {name} = *any;{comment}"
         ])
-    return f"extern func {name}({', '.join(func_params)}) {func_return}; # {desc}"
+    return f"extern func {name}({', '.join(func_params)}) {func_return};{comment}"
 
 def main(args):
     with open(args.json) as f:
         api = json.loads(f.read())
-    version = list(filter(lambda x: x is not None, map(generate_version, api["defines"])))
-    colors = list(filter(lambda x: x is not None, map(generate_color, api["defines"])))
-    aliases = list(map(generate_alias, api["aliases"]))
-    # XXX: Opaque types discovered by a Sunder parse error.
-    opaque = [
-        "extern type rAudioBuffer; # opaque struct",
-        "extern type rAudioProcessor; # opaque struct",
-    ]
-    callbacks = list(map(generate_callback, api["callbacks"]))
-    enums = list(map(generate_enum, api["enums"]))
-    structs = list(map(generate_struct, api["structs"]))
-    functions = list(map(generate_function, api["functions"]))
-    print("\n\n".join([
-        "import \"c\";",
-        "\n".join(version),
-        "\n".join(colors),
-        "\n".join(aliases),
-        "\n".join(opaque),
-        "\n".join(callbacks),
-        "\n\n".join(enums),
-        "\n\n".join(structs),
-        "\n".join(functions),
-    ]))
+
+    # raylib.h
+    if args.kind == "raylib":
+        version = list(filter(lambda x: x is not None, map(generate_version, api["defines"])))
+        colors = list(filter(lambda x: x is not None, map(generate_color, api["defines"])))
+        aliases = list(map(generate_alias, api["aliases"]))
+        # XXX: Opaque types discovered by a Sunder parse error.
+        opaque = [
+            "extern type rAudioBuffer; # opaque struct",
+            "extern type rAudioProcessor; # opaque struct",
+        ]
+        callbacks = list(map(generate_callback, api["callbacks"]))
+        enums = list(map(generate_enum, api["enums"]))
+        structs = list(map(generate_struct, api["structs"]))
+        functions = list(map(generate_function, api["functions"]))
+        print("\n\n".join([
+            "import \"c\";",
+            "\n".join(version),
+            "\n".join(colors),
+            "\n".join(aliases),
+            "\n".join(opaque),
+            "\n".join(callbacks),
+            "\n\n".join(enums),
+            "\n\n".join(structs),
+            "\n".join(functions),
+        ]))
+        return
+
+    # raymath.h
+    if args.kind == "raymath":
+        # Skip generating struct declarations, since structs with the same name
+        # and layout are declared in raylib.sunder. The exceptions to struct
+        # generation are the float3 and float16 types unique to raymath.h.
+        structs = [
+            generate_struct(j) for j in api["structs"]
+            if j["name"] == "float3" or j["name"] == "float16"
+        ]
+        functions = list(map(generate_function, api["functions"]))
+        print("\n\n".join([
+            "import \"c\";" + "\n" + "import \"raylib.sunder\";",
+            "\n\n".join(structs),
+            "\n".join(functions),
+        ]))
+        return
+
+    raise Exception(f"unknown binding generation kind `{args.kind}`")
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="Generate bindings from the raylib API JSON")
+    parser.add_argument("kind")
     parser.add_argument("json")
     main(parser.parse_args())

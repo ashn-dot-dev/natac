@@ -1,12 +1,9 @@
-import "c";
 import "raylib";
 
-var x: sint = 0;
-var y: sint = 20;
-let w: sint = 32;
-let h: sint = 32;
-var dx: sint = 4;
-var dy: sint = 4;
+let w = 32.0f32;
+let h = 32.0f32;
+var position = (:Vector2){.x = 0.0, .y = 20.0};
+var velocity = (:Vector2){.x = 4.0, .y = 4.0};
 
 func main() void {
     InitWindow(640, 480, startof("EXAMPLE"));
@@ -20,22 +17,23 @@ func main() void {
         DrawFPS(2, 2);
 
         let text = startof("RAYLIB WINDOW IN SUNDER");
-        let font_size: sint = 20;
-        var text_width = MeasureText(text, font_size);
-        var text_height = GetFontDefault().baseSize;
-        var text_x = GetScreenWidth() / 2 - text_width / 2;
-        var text_y = GetScreenHeight() / 2 - text_height;
-        DrawText(text, text_x, text_y, font_size, LIGHTGRAY);
+        let font_size = 20.0f32;
+        let font_spacing = 2.0f32;
+        var text_size = MeasureTextEx(GetFontDefault(), text, font_size, font_spacing);
+        var text_position = (:Vector2){
+            .x = (:f32)GetScreenWidth() / 2.0 - text_size.x / 2.0,
+            .y = (:f32)GetScreenHeight() / 2.0 - text_size.y,
+        };
+        DrawTextEx(GetFontDefault(), text, text_position, font_size, font_spacing, LIGHTGRAY);
 
-        x = x + dx;
-        y = y + dy;
-        if x <= 0 or (x + w) >= GetScreenWidth() {
-            dx = dx * -1;
+        position = Vector2Add(position, velocity);
+        if position.x <= 0.0 or (position.x + w) >= (:f32)GetScreenWidth() {
+            velocity.x *= -1.0;
         }
-        if y <= 0 or (y + h) >= GetScreenHeight() {
-            dy = dy * -1;
+        if position.y <= 0.0 or (position.y + h) >= (:f32)GetScreenHeight() {
+            velocity.y *= -1.0;
         }
-        DrawRectangle(x, y, w, h, DARKGRAY);
+        DrawRectangleV(position, (:Vector2){.x = w, .y = h}, DARKGRAY);
 
         EndDrawing();
     }

@@ -1,11 +1,10 @@
 #include <raylib.h>
+#include <raymath.h>
 
-int x = 0;
-int y = 20;
-int const w = 32;
-int const h = 32;
-int dx = 4;
-int dy = 4;
+float const w = 32.0f;
+float const h = 32.0f;
+Vector2 position = {.x = 0.0, .y = 20.0};
+Vector2 velocity = {.x = 4.0, .y = 4.0};
 
 int
 main(void)
@@ -20,22 +19,23 @@ main(void)
         DrawFPS(2, 2);
 
         char const* const text = "RAYLIB WINDOW IN C";
-        int const font_size = 20;
-        int text_width = MeasureText(text, font_size);
-        int text_height = GetFontDefault().baseSize;
-        int text_x = GetScreenWidth() / 2 - text_width / 2;
-        int text_y = GetScreenHeight() / 2 - text_height;
-        DrawText(text, text_x, text_y, font_size, LIGHTGRAY);
+        float const font_size = 20.0f;
+        float const font_spacing = 2.0f;
+        Vector2 text_size = MeasureTextEx(GetFontDefault(), text, font_size, font_spacing);
+        Vector2 text_position = {
+            .x = GetScreenWidth() / 2.0f - text_size.x / 2.0f,
+            .y = GetScreenHeight() / 2.0f - text_size.y,
+        };
+        DrawTextEx(GetFontDefault(), text, text_position, font_size, font_spacing, LIGHTGRAY);
 
-        x += dx;
-        y += dy;
-        if (x <= 0 || (x + w) >= GetScreenWidth()) {
-            dx *= -1;
+        position = Vector2Add(position, velocity);
+        if (position.x <= 0.0 || (position.x + w) >= GetScreenWidth()) {
+            velocity.x *= -1.0;
         }
-        if (y <= 0 || (y + h) >= GetScreenHeight()) {
-            dy *= -1;
+        if (position.y <= 0.0 || (position.y + h) >= GetScreenHeight()) {
+            velocity.y *= -1.0;
         }
-        DrawRectangle(x, y, w, h, DARKGRAY);
+        DrawRectangleV(position, (Vector2){.x = w, .y = h}, DARKGRAY);
 
         EndDrawing();
     }
