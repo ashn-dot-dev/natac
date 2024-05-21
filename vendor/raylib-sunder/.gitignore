@@ -3,6 +3,7 @@ example.html
 example.wasm
 
 raylib.sunder
+raymath.sunder
 libraylib.a
 libraylib-web.a
 

@@ -4,7 +4,7 @@ set -eu
 PROGNAME=$(basename "$0")
 usage() {
     cat <<EOF
-Usage: ${PROGNAME} [desktop|web] [--libs]
+Usage: ${PROGNAME} [desktop|web]
 EOF
 }
 
@@ -30,32 +30,6 @@ case "${arg}" in
         usage
         exit 0
         ;;
-    --cflags)
-        if [ "$PLATFORM" = 'desktop' ]; then
-            if [ $(uname -s) = 'Darwin' ]; then
-                # Frameworks are added as CFLAGS since sunder-compile does not
-                # support `-framework` as a command line argument.
-                echo "-framework CoreVideo -framework IOKit -framework Cocoa -framework GLUT -framework OpenGL"
-            fi
-        fi
-        if [ "$PLATFORM" = 'web' ]; then
-            echo "-sASSERTIONS -sASYNCIFY -sUSE_GLFW=3"
-        fi
-        shift
-        ;;
-    --libs)
-        if [ "$PLATFORM" = 'desktop' ]; then
-            if [ $(uname -s) = 'Darwin' ]; then
-                echo "-L$(realpath $(dirname $0)) -lraylib"
-            else
-                echo "-L$(realpath $(dirname $0)) -lraylib -lGL -lm -lpthread -ldl -lrt -lX11"
-            fi
-        fi
-        if [ "$PLATFORM" = 'web' ]; then
-            echo "-L$(realpath $(dirname $0)) -lraylib-web"
-        fi
-        shift
-        ;;
     *)
         echo "unknown option: ${arg}" 2>&1
         exit 1
@@ -63,3 +37,17 @@ case "${arg}" in
 esac
 done
 
+if [ "$PLATFORM" = 'desktop' ]; then
+    if [ $(uname -s) = 'Darwin' ]; then
+        # Frameworks are added as CFLAGS since sunder-compile does not
+        # support `-framework` as a command line argument.
+        echo "-L$(realpath $(dirname $0)) -lraylib -framework CoreVideo -framework IOKit -framework Cocoa -framework GLUT -framework OpenGL"
+    else
+        echo "-L$(realpath $(dirname $0)) -lraylib -lGL -lm -lpthread -ldl -lrt -lX11"
+    fi
+elif [ "$PLATFORM" = 'web' ]; then
+    echo "-L$(realpath $(dirname $0)) -lraylib-web -sASSERTIONS -sASYNCIFY -sUSE_GLFW=3"
+else
+    echo "unknown platform: ${PLATFORM}" 2>&1
+    exit 1
+fi
