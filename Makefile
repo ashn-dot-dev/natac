@@ -43,11 +43,10 @@ $(TARGET): \
 	util.c shared.sunder server.sunder client.sunder main.sunder
 	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
 	SUNDER_CC=clang \
-	SUNDER_CFLAGS="$(CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --cflags)" \
+	SUNDER_CFLAGS="$(CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop)" \
 	sunder-compile \
 		$(SUNDER_FLAGS) \
 		-o $(TARGET) \
-		$$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --libs) \
 		-L$(SUNDER_HOME)/lib/nbnet -lnbnet \
 		-L$(SUNDER_HOME)/lib/smolui -lsmolui \
 		util.c \
@@ -103,10 +102,9 @@ macos/Natac.icns: macos/Natac.png
 macos/Natac.png: macos/icon.sunder .sunder/lib/raylib
 	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
 	SUNDER_CC=clang \
-	SUNDER_CFLAGS="$(CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --cflags)" \
+	SUNDER_CFLAGS="$(CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop)" \
 	sunder-compile \
 		-o macos/icon.out \
-		$$($(SUNDER_HOME)/lib/raylib/raylib-config desktop --libs) \
 		macos/icon.sunder
 	cd macos && ./icon.out
 
