@@ -9,13 +9,13 @@ import "shared.sunder";
 # The radius of the outer circle touching the corners of the hexagon.
 let HEX_RADIUS = 56.0f32;
 
-func feq(a: f32, b: f32) bool {
-    let THRESHOLD: f32 = 0.0001;
-    return f32::abs(a - b) < THRESHOLD;
-}
-
+# By default, raylib uses an EPSILON value of 0.000001f, which is more precise
+# than we would like. Check float equivalence using our own custom EPSILON.
 func vec2_feq(a: Vector2, b: Vector2) bool {
-    return feq(a.x, b.x) and feq(a.y, b.y);
+    let EPSILON = 0.0001f32;
+    var x_feq = f32::abs(a.x - b.x) < EPSILON;
+    var y_feq = f32::abs(a.y - b.y) < EPSILON;
+    return x_feq and y_feq;
 }
 
 func vec2_distance(a: Vector2, b: Vector2) f32 {
