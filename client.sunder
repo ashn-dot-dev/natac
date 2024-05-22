@@ -18,12 +18,6 @@ func vec2_feq(a: Vector2, b: Vector2) bool {
     return x_feq and y_feq;
 }
 
-func vec2_distance(a: Vector2, b: Vector2) f32 {
-    var x_dist = a.x - b.x;
-    var y_dist = a.y - b.y;
-    return f32::sqrt(x_dist * x_dist + y_dist * y_dist);
-}
-
 func tile_color(tile: tile) Color {
     var out: Color = uninit;
     switch tile.kind {
@@ -1438,7 +1432,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         for i in countof(iter.current().*.hexes) {
             let DISTANCE = HEX_RADIUS * 1.15;
             var hex = iter.current().*.hexes[i];
-            if vec2_distance(world, pointy_hex_to_point(hex, HEX_RADIUS)) > DISTANCE {
+            if Vector2Distance(world, pointy_hex_to_point(hex, HEX_RADIUS)) > DISTANCE {
                 found = false;
                 break;
             }
@@ -1457,7 +1451,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
         for i in countof(iter.current().*.hexes) {
             let DISTANCE = HEX_RADIUS * 1.15;
             var hex = iter.current().*.hexes[i];
-            if vec2_distance(world, pointy_hex_to_point(hex, HEX_RADIUS)) > DISTANCE {
+            if Vector2Distance(world, pointy_hex_to_point(hex, HEX_RADIUS)) > DISTANCE {
                 found = false;
                 break;
             }
