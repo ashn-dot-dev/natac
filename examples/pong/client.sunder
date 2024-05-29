@@ -175,7 +175,7 @@ func main() void {
             if ev == NBN_MESSAGE_RECEIVED {
                 std::print_line(std::err(), "info: message received");
                 var info = NBN_GameClient_GetMessageInfo();
-                assert info.type == server_message::TYPE;
+                assert info.type_ == server_message::TYPE;
                 var incoming = (:*::server_message)info.data;
 
                 state.p1_paddle_y = incoming.*.p1_paddle_y;

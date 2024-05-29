@@ -183,7 +183,7 @@ func main() void {
                 std::print_line(std::err(), "info: message received");
 
                 var info = NBN_GameServer_GetMessageInfo();
-                assert info.type == client_message::TYPE;
+                assert info.type_ == client_message::TYPE;
                 var incoming = (:*client_message)info.data;
                 if info.sender == client_1 {
                     client_1_message = *incoming;

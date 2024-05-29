@@ -3,13 +3,20 @@
 [Sunder](https://github.com/ashn-dot-dev/sunder) bindings for [nbnet](https://github.com/nathhB/nbnet).
 
 ## Build and Install
-Build the `nbnet.sunder` bindings as well as the native library (`libnbnet.a`):
+### Native UDP Driver
 
 ```sh
 $ make
 ```
 
-Install the `nbnet.sunder` bindings and `libnbnet.a` to `$(SUNDER_HOME)/lib/nbnet`:
+### Native WebRTC Driver
+
+```sh
+$ make CFLAGS="-DNBN_WEBRTC_NATIVE -I /path/to/libdatachannel/include"
+```
+
+### Install
+Install to `$(SUNDER_HOME)/lib/nbnet`:
 
 ```sh
 $ make install
