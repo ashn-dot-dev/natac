@@ -62,12 +62,12 @@ $(TARGET): \
 
 .sunder/lib/nbnet: .sunder
 	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
-	NBNET_REPODIR=$$(realpath vendor/nbnet) \
+	NBNET_DIR=$$(realpath vendor/nbnet) \
 	$(MAKE) -e -C vendor/nbnet-sunder install
 
 .sunder/lib/raylib: .sunder
 	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
-	RAYLIB_REPODIR=$$(realpath vendor/raylib) \
+	RAYLIB_DIR=$$(realpath vendor/raylib) \
 	$(MAKE) -e -C vendor/raylib-sunder install
 
 .sunder/lib/smolui: .sunder
