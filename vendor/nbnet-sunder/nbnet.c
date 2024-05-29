@@ -20,7 +20,14 @@ void NBN_Log(NBN_LogType type, const char *fmt, ...);
 
 #define NBNET_IMPL
 #include <nbnet.h>
+
+#if defined(__EMSCRIPTEN__)
+#include <net_drivers/webrtc.h>
+#elif defined(NBN_WEBRTC_NATIVE)
+#include <net_drivers/webrtc_c.h>
+#else
 #include <net_drivers/udp.h>
+#endif
 
 void NBN_Log_SetIsEnabled(NBN_LogType type, bool enabled);
 bool NBN_Log_GetIsEnabled(NBN_LogType type);
@@ -77,5 +84,45 @@ void NBN_Log(NBN_LogType type, const char *fmt, ...)
 
 void NBN_Driver_Init(void)
 {
+#if defined(__EMSCRIPTEN__)
+#ifdef NBN_TLS
+    bool enable_tls = true;
+#else
+    bool enable_tls = false;
+#endif
+    NBN_WebRTC_Config cfg = {
+        .enable_tls = enable_tls,
+        .cert_path = NULL,
+        .key_path = NULL,
+    };
+    NBN_WebRTC_Register(cfg);
+
+#elif defined(NBN_WEBRTC_NATIVE)
+#ifdef NBN_TLS
+    bool enable_tls = true;
+#else
+    bool enable_tls = false;
+#endif
+    /* publicly avaliable servers */
+    const char *ice_servers[] = {
+        "stun.l.google.com:19302",
+        "stun1.l.google.com:19302",
+        "stun2.l.google.com:19302",
+        "stun3.l.google.com:19302",
+        "stun4.l.google.com:19302",
+    };
+    NBN_WebRTC_C_Config cfg = {
+        .ice_servers = ice_servers,
+        .ice_servers_count = sizeof(ice_servers) / sizeof(*ice_servers),
+        .enable_tls = enable_tls,
+        .cert_path = NULL,
+        .key_path = NULL,
+        .passphrase = NULL,
+        .log_level = RTC_LOG_VERBOSE
+    };
+    NBN_WebRTC_C_Register(cfg);
+
+#else
     NBN_UDP_Register();
+#endif
 }
