@@ -149,6 +149,10 @@ cstr_new_cstr(char const* cstr);
 // Returns an xalloc-allocated cstring from the provided formatted text.
 char*
 cstr_new_fmt(char const* fmt, ...);
+// Returns an xalloc-allocated cstring from the provided formatted text with
+// format arguments provided by a `va_list`.
+char*
+cstr_new_vfmt(char const* fmt, va_list args);
 // Returns true if cstr starts with target.
 bool
 cstr_starts_with(char const* cstr, char const* target);
@@ -2663,6 +2667,7 @@ eval_lvalue(struct expr const* expr);
 void
 codegen(
     bool opt_c,
+    bool opt_d,
     bool opt_g,
     bool opt_k,
     char const* const* opt_L,
