@@ -501,6 +501,14 @@ func main() void {
             usage();
             std::exit(std::EXIT_SUCCESS);
         }
+
+        var arg = argparser.argument_value();
+        std::print_format_line(
+            std::err(),
+            "error: unexpected argument `{}`",
+            (:[]std::formatter)[
+                std::formatter::init[[typeof(arg)]](&arg)]);
+        std::exit(std::EXIT_FAILURE);
     }
 
     # Start the Application Main Loop.
