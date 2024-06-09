@@ -53,7 +53,7 @@ $(TARGET): \
 		main.sunder
 
 .sunder:
-	SUNDER_HOME=$(SUNDER_HOME); \
+	SUNDER_HOME=$(SUNDER_HOME); CC=clang CFLAGS='$$(GNU_REL)' \
 	$(MAKE) -e -C vendor/sunder install
 
 .sunder/lib/bubby: .sunder
