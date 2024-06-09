@@ -494,22 +494,28 @@ cstr_replace(char const* cstr, char const* target, char const* replacement)
 }
 
 // Variation of djb2 that hashes a start-count pair.
-static unsigned long
+static uintmax_t
 hash_djb2(char const* start, size_t count)
 {
-    unsigned long hash = 5381;
+    uintmax_t hash = 5381;
 
     for (size_t i = 0; i < count; ++i) {
-        hash = ((hash << 5) + hash) + (unsigned long)start[i];
+        hash = ((hash << 5) + hash) + (uintmax_t)start[i];
     }
 
     return hash;
 }
 
+uintmax_t
+hash(void const* start, size_t count)
+{
+    return hash_djb2(start, count);
+}
+
 struct interned_element {
     char* string; // Optional (NULL indicates the element is not in use).
     size_t count; // Number of bytes in the string before the final NUL.
-    unsigned long hash; // Hash of the string contents.
+    uintmax_t hash; // Hash of the string contents.
 };
 
 // Hash set of interned cstrings.
@@ -543,7 +549,7 @@ char const*
 intern(char const* start, size_t count)
 {
     assert(start != NULL || count == 0);
-    unsigned long const hash = hash_djb2(start, count);
+    uintmax_t const hash = hash_djb2(start, count);
 
     // Check to see if the string has already been interned.
     for (size_t index = hash % sbuf_count(interned);
@@ -2085,11 +2091,11 @@ string_append_vfmt(struct string* self, char const* fmt, va_list args)
         fatal(NO_LOCATION, "[%s] Formatting failure", __func__);
     }
 
-    size_t size = (size_t)len + STR_LITERAL_COUNT("\0");
-    char* const buf = xalloc(NULL, size);
-    vsnprintf(buf, size, fmt, args);
-    string_append(self, buf, (size_t)len);
-    xalloc(buf, XALLOC_FREE);
+    size_t const index = self->count;
+    string_resize(self, self->count + (size_t)len);
+
+    size_t const size = (size_t)len + STR_LITERAL_COUNT("\0");
+    vsnprintf(self->start + index, size, fmt, args);
 }
 
 struct string**
