@@ -40,16 +40,19 @@ $(TARGET): \
 	.sunder/lib/nbnet \
 	.sunder/lib/raylib \
 	.sunder/lib/smolui \
-	util.c shared.sunder server.sunder client.sunder main.sunder
+	assets/assets.o \
+	assets/assets.sunder \
+	util.o shared.sunder server.sunder client.sunder main.sunder
 	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
-	SUNDER_CC=clang \
+	SUNDER_CC=$(CC) \
 	SUNDER_CFLAGS="$(CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop)" \
 	sunder-compile \
 		$(SUNDER_FLAGS) \
 		-o $(TARGET) \
 		-L$(SUNDER_HOME)/lib/nbnet -lnbnet \
 		-L$(SUNDER_HOME)/lib/smolui -lsmolui \
-		util.c \
+		util.o \
+		assets/assets.o \
 		main.sunder
 
 .sunder:
@@ -73,6 +76,10 @@ $(TARGET): \
 .sunder/lib/smolui: .sunder
 	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
 	$(MAKE) -e -C vendor/smolui install
+
+assets/assets.c assets/assets.sunder: .sunder misc/bundle-assets.sunder
+	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
+	$(SUNDER_HOME)/bin/sunder-run misc/bundle-assets.sunder assets
 
 $(TARGET).app: $(TARGET) macos/Natac.icns
 	mkdir -p $(TARGET).app/Contents
@@ -101,7 +108,7 @@ macos/Natac.icns: macos/Natac.png
 
 macos/Natac.png: macos/icon.sunder .sunder/lib/raylib
 	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
-	SUNDER_CC=clang \
+	SUNDER_CC=$(CC) \
 	SUNDER_CFLAGS="$(CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop)" \
 	sunder-compile \
 		-o macos/icon.out \
@@ -115,8 +122,13 @@ clean:
 		$(TARGET).app.zip \
 		macos/Natac.* \
 		$(SUNDER_HOME) \
+		$$(find . -name '*.o') \
 		$$(find . -name '*.out') \
 		$$(find . -name '*.tmp.*')
 
 fresh:
 	git clean -dfx
+
+.SUFFIXES: .c .o
+.c.o:
+	$(CC) -o $@ -c $(CFLAGS) $<

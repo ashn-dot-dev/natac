@@ -4,6 +4,7 @@ import "std";
 import "raylib";
 import "smolui";
 
+import "assets/assets.sunder";
 import "shared.sunder";
 
 # The radius of the outer circle touching the corners of the hexagon.
@@ -579,32 +580,28 @@ struct client_state {
     var world_node: std::optional[[node]];
 
     func init() client_state {
-        let WAV = embed("assets/BellDing1.wav");
         var wav_ding = LoadWaveFromMemory(
             startof(".wav"),
-            (:*u8)startof(WAV),
-            (:sint)countof(WAV));
+            (:*u8)assets_BellDing1_wav_start,
+            (:sint)assets_BellDing1_wav_count);
         var sound_ding = LoadSoundFromWave(wav_ding);
 
-        let WAV = embed("assets/Dice25.wav");
         var wav_dice = LoadWaveFromMemory(
             startof(".wav"),
-            (:*u8)startof(WAV),
-            (:sint)countof(WAV));
+            (:*u8)assets_Dice25_wav_start,
+            (:sint)assets_Dice25_wav_count);
         var sound_dice = LoadSoundFromWave(wav_dice);
 
-        let WAV = embed("assets/WoodPlasticHitImpact.wav");
         var wav_impact = LoadWaveFromMemory(
             startof(".wav"),
-            (:*u8)startof(WAV),
-            (:sint)countof(WAV));
+            (:*u8)assets_WoodPlasticHitImpact_wav_start,
+            (:sint)assets_WoodPlasticHitImpact_wav_count);
         var sound_impact = LoadSoundFromWave(wav_impact);
 
-        let WAV = embed("assets/SuccessFanfareTrumpets.wav");
         var wav_winner = LoadWaveFromMemory(
             startof(".wav"),
-            (:*u8)startof(WAV),
-            (:sint)countof(WAV));
+            (:*u8)assets_SuccessFanfareTrumpets_wav_start,
+            (:sint)assets_SuccessFanfareTrumpets_wav_count);
         var sound_winner = LoadSoundFromWave(wav_winner);
 
         # Raylib internally renders fonts to a texture, which may look
@@ -613,24 +610,22 @@ struct client_state {
         # filtering on the resulting texture, which together will make the font
         # legible for a wider range of font sizes.
         let FONT_NUMCHARS: sint = '~' - ' ' + 1; # Printable ASCII
-        let BOARD_FONT_DATA = embed("assets/MinSans-Bold.otf");
         var board_font_size = 128.0f32;
         var board_font = LoadFontFromMemory(
             startof(".ttf"),
-            (:*u8)startof(BOARD_FONT_DATA),
-            (:sint)countof(BOARD_FONT_DATA),
+            (:*u8)assets_MinSans_Bold_otf_start,
+            (:sint)assets_MinSans_Bold_otf_count,
             (:sint)board_font_size,
             std::ptr[[sint]]::NULL,
             FONT_NUMCHARS);
         SetTextureFilter(board_font.texture, TEXTURE_FILTER_BILINEAR);
 
-        let UI_FONT_DATA = embed("assets/RuneScapeUF.ttf");
         var ui_font_size = 16.0f32;
         var ui_font = std::new[[Font]]();
         *ui_font = LoadFontFromMemory(
             startof(".ttf"),
-            (:*u8)startof(UI_FONT_DATA),
-            (:sint)countof(UI_FONT_DATA),
+            (:*u8)assets_RuneScapeUF_ttf_start,
+            (:sint)assets_RuneScapeUF_ttf_count,
             (:sint)ui_font_size,
             std::ptr[[sint]]::NULL,
             FONT_NUMCHARS);
