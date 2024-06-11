@@ -9,10 +9,6 @@ macos/Natac.icns
 vendor/raylib/parser/raylib_api.json
 vendor/raylib/parser/raymath_api.json
 
-assets/assets.c
-assets/assets.sunder
-
-*.o
 *.out
 *.tmp.o
 *.tmp.c
