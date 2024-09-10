@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L /* nanosleep */
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
