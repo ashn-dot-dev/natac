@@ -68,6 +68,8 @@ def generate_type(s):
     match = RE_TYPE_UXX.match(s)
     if match:
         return f"u{match[1]}"
+    if s == "_Bool":
+        return "bool"
     if s == "int":
         return "sint"
     if s == "short":
