@@ -128,7 +128,9 @@ int main(int argc, char *argv[])
     NBN_WebRTC_Register((NBN_WebRTC_Config){.enable_tls = false});
 #endif // NBN_TLS
 
-#elif defined(NBN_WEBRTC_NATIVE)
+#endif // __EMSCRIPTEN__
+
+#ifdef NBN_WEBRTC_NATIVE
 
 #ifdef NBN_TLS
     bool enable_tls = true;
@@ -148,20 +150,17 @@ int main(int argc, char *argv[])
 
     NBN_WebRTC_C_Register(cfg);
 
-#else
+#endif // NBN_WEBRTC_NATIVE
+
+#if !defined(__EMSCRIPTEN__) && !defined(NBN_WEBRTC_NATIVE)
     NBN_UDP_Register(); // Register the UDP driver
 #endif // __EMSCRIPTEN__
 
     // Initialize the client 
-#ifdef NBN_ENCRYPTION
-    bool enable_encryption = true;
-#else
-    bool enable_encryption = false;
-#endif
 
     // Start the client with a protocol name (must be the same than the one used by the server)
     // the server host and port and with packet encryption on or off
-    if (NBN_GameClient_StartEx(ECHO_PROTOCOL_NAME, "127.0.0.1", ECHO_EXAMPLE_PORT, enable_encryption, NULL, 0) < 0)
+    if (NBN_GameClient_StartEx(ECHO_PROTOCOL_NAME, "127.0.0.1", ECHO_EXAMPLE_PORT, NULL, 0) < 0)
     {
         Log(LOG_ERROR, "Failed to start client");
 

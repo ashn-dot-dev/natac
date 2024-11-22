@@ -320,20 +320,10 @@ int main(int argc, char *argv[])
 #else
     NBN_UDP_Register(); // Register the UDP driver
 
-#ifdef SOAK_WEBRTC_C_DRIVER
-    NBN_WebRTC_C_Register(); // Register the native WebRTC driver
-#endif
-
 #endif // __EMSCRIPTEN__
 
-#ifdef EXAMPLE_ENCRYPTION
-    bool enable_encryption = true;
-#else
-    bool enable_encryption = false;
-#endif
-
-    // Start the server with a protocol name, a port, and with packet encryption on or off
-    if (NBN_GameServer_StartEx(RAYLIB_EXAMPLE_PROTOCOL_NAME, RAYLIB_EXAMPLE_PORT, enable_encryption) < 0)
+    // Start the server with a protocol name and a port
+    if (NBN_GameServer_StartEx(RAYLIB_EXAMPLE_PROTOCOL_NAME, RAYLIB_EXAMPLE_PORT) < 0)
     {
         TraceLog(LOG_ERROR, "Game server failed to start. Exit");
 
