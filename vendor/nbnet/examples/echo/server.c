@@ -83,7 +83,9 @@ int main(int argc, const char **argv)
     NBN_WebRTC_Register((NBN_WebRTC_Config){.enable_tls = false});
 #endif // NBN_TLS
 
-#elif defined(NBN_WEBRTC_NATIVE)
+#endif // __EMSCRIPTEN__
+
+#ifdef NBN_WEBRTC_NATIVE
 
     // Register native WebRTC driver
 
@@ -104,17 +106,14 @@ int main(int argc, const char **argv)
         .log_level = RTC_LOG_VERBOSE};
 
     NBN_WebRTC_C_Register(cfg);
-    NBN_UDP_Register(); // Register the UDP driver
-#endif // __EMSCRIPTEN__ 
+#endif // NBN_WEBRTC_NATIVE
 
-#ifdef NBN_ENCRYPTION
-    bool enable_encryption = true;
-#else
-    bool enable_encryption = false;
+#if !defined(__EMSCRIPTEN__) && !defined(NBN_WEBRTC_NATIVE)
+    NBN_UDP_Register(); // Register the UDP driver
 #endif
 
     // Start the server with a protocol name, a port, and with packet encryption on or off
-    if (NBN_GameServer_StartEx(ECHO_PROTOCOL_NAME, ECHO_EXAMPLE_PORT, enable_encryption) < 0)
+    if (NBN_GameServer_StartEx(ECHO_PROTOCOL_NAME, ECHO_EXAMPLE_PORT) < 0)
     {
         Log(LOG_ERROR, "Failed to start the server");
 
@@ -126,6 +125,8 @@ int main(int argc, const char **argv)
 #endif
     }
 
+    (void) argc;
+    (void) argv;
     // Registering messages, have to be done after NBN_GameServer_StartEx
     NBN_GameServer_RegisterMessage(ECHO_MESSAGE_TYPE,
             (NBN_MessageBuilder)EchoMessage_Create,

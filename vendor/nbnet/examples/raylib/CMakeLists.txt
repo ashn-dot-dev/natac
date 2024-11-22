@@ -7,7 +7,11 @@ set(raylib_DIR cmake)
 set(CLIENT_SOURCES client.c shared.c)
 set(SERVER_SOURCES server.c shared.c)
 
-add_compile_options(-Wall -Wextra -Wpedantic -Wno-unknown-pragmas -Wno-type-limits -std=c99)
+add_compile_options(-Wall -Wno-unknown-pragmas -Wno-type-limits -std=c99)
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+    add_compile_options(-Wextra -Wpedantic)
+endif (CMAKE_COMPILER_IS_GNUCXX)
 
 add_executable(raylib_client ${CLIENT_SOURCES})
 add_executable(raylib_server ${SERVER_SOURCES})
@@ -30,15 +34,6 @@ endif()
 target_compile_definitions(raylib_client PUBLIC NBN_DEBUG)
 target_compile_definitions(raylib_server PUBLIC NBN_DEBUG)
 target_compile_definitions(raylib_server PUBLIC NBN_RAYLIB_SERVER)
-
-if (ENCRYPTION_ENABLED)
-  message("Encryption enabled")
-
-  target_compile_definitions(raylib_client PUBLIC EXAMPLE_ENCRYPTION)
-  target_compile_definitions(raylib_server PUBLIC EXAMPLE_ENCRYPTION)
-endif(ENCRYPTION_ENABLED)
-
-unset(ENCRYPTION_ENABLED)
 
 # compile with C WebRTC driver
 if (WEBRTC_C_DRIVER)

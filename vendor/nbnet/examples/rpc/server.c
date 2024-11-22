@@ -29,12 +29,11 @@
 
 #include "shared.h"
 
-static NBN_Connection *client = NULL;
-
 static bool error = false;
 
 static void TestRPC(unsigned int param_count, NBN_RPC_Param params[NBN_RPC_MAX_PARAM_COUNT], NBN_ConnectionHandle sender)
 {
+    TEST_VERIFY(param_count == 3);
     Log(LOG_INFO, "TestRPC called ! (Sender: %d)", sender);
     Log(LOG_INFO, "Parameter 1 (int): %d", NBN_RPC_GetInt(params, 0));
     Log(LOG_INFO, "Parameter 2 (float): %f", NBN_RPC_GetFloat(params, 1));
@@ -55,13 +54,7 @@ int main(void)
     NBN_UDP_Register(); // Register the UDP driver
 #endif // __EMSCRIPTEN__
 
-#ifdef NBN_ENCRYPTION
-    bool enable_encryption = true;
-#else
-    bool enable_encryption = false;
-#endif
-
-    if (NBN_GameServer_StartEx(RPC_PROTOCOL_NAME, RPC_EXAMPLE_PORT, enable_encryption) < 0)
+    if (NBN_GameServer_StartEx(RPC_PROTOCOL_NAME, RPC_EXAMPLE_PORT) < 0)
     {
         Log(LOG_ERROR, "Failed to start the server");
 
