@@ -216,7 +216,7 @@ func run_client(debug: bool, address: std::optional[[*byte]]) void {
     NBN_Driver_Init();
     var address = address.value();
     var port = 31415u16;
-    if NBN_GameClient_StartEx(startof("natac"), address, port, false, std::ptr[[uint8_t]]::NULL, 0) < 0 {
+    if NBN_GameClient_StartEx(startof("natac"), address, port, std::ptr[[uint8_t]]::NULL, 0) < 0 {
         std::print_line(std::err(), "error: failed to start the nbnet client");
         std::exit(std::EXIT_FAILURE);
     }
@@ -312,7 +312,7 @@ func run_server() void {
     var port = 31415u16;
     NBN_Log_SetIsEnabled(NBN_LogType::NBN_LOG_TRACE, false);
     NBN_Log_SetIsEnabled(NBN_LogType::NBN_LOG_DEBUG, false);
-    if NBN_GameServer_StartEx(startof("natac"), port, false) < 0 {
+    if NBN_GameServer_StartEx(startof("natac"), port) < 0 {
         std::print_line(std::err(), "error: failed to start the nbnet server");
         std::exit(std::EXIT_FAILURE);
     }
