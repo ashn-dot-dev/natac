@@ -71,5 +71,5 @@ clean:
 		raymath.sunder \
 		libraylib.a \
 		libraylib-web.a
-	(cd $(RAYLIB_DIR)/src && make clean)
-	(cd $(RAYLIB_DIR)/parser && make clean)
+	([ -e $(RAYLIB_DIR) ] && (cd $(RAYLIB_DIR)/src && make clean)) || true
+	([ -e $(RAYLIB_DIR) ] && (cd $(RAYLIB_DIR)/parser && make clean)) || true

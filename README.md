@@ -2,22 +2,6 @@
 
 [Sunder](https://github.com/ashn-dot-dev/sunder) bindings for [raylib](https://github.com/raysan5/raylib).
 
-## Dependencies
-### Debian/Ubuntu
-
-[Wiki entry](https://github.com/raysan5/raylib/wiki/Working-on-GNU-Linux#ubuntu).
-
-```sh
-$ sudo apt install libasound2-dev mesa-common-dev libx11-dev libxrandr-dev libxi-dev xorg-dev libgl1-mesa-dev libglu1-mesa-dev
-```
-
-### Arch/Manjaro
-[Wiki entry](https://github.com/raysan5/raylib/wiki/Working-on-GNU-Linux#arch-linux).
-
-```sh
-$ sudo pacman -S alsa-lib mesa libx11 libxrandr libxi libxcursor libxinerama
-```
-
 ## Build and Install
 Build the `raylib.sunder` and `raymath.sunder` bindings as well as the
 `PLATFORM=PLATFORM_DESKTOP` library (`libraylib.a`) and the
@@ -25,6 +9,13 @@ Build the `raylib.sunder` and `raymath.sunder` bindings as well as the
 
 ```sh
 $ make build build-web
+```
+
+Set `RAYLIB_DIR=/your/path/to/raylib` to use a local copy of the raylib Git
+repository instead of automatically cloning the repository `master` branch.
+
+```sh
+$ make build build-web RAYLIB_DIR=~/sources/raylib
 ```
 
 Install the raylib sunder bindings, raylib libraries, and the `raylib-config`
