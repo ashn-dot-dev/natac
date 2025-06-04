@@ -8,7 +8,7 @@
 
 TARGET=game
 
-all: build-desktop build-web
+all: build build-web
 
 build:
 	SUNDER_CFLAGS="$(SUNDER_CFLAGS) $$($(SUNDER_HOME)/lib/raylib/raylib-config desktop)" \

@@ -88,7 +88,7 @@ def generate_enum(j):
     name = j["name"]
     desc = j["description"]
 
-    # Although Sunder supports enums, raylib funtions taking enum arguments use
+    # Although Sunder supports enums, raylib functions taking enum arguments use
     # int or unsigned int for the corresponding function parameter type and/or
     # struct member type. Enums are generated as either sint or uint values in
     # order to avoid a requiring cast on an enum value every use.
