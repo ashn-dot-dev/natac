@@ -119,17 +119,17 @@ struct optional[[T]] {
     }
 }
 
-struct reader_itable {
-    var read: func(*any, []byte) std::result[[usize, std::error]];
-}
-
 # Interface representing the read end of a byte stream.
 struct reader {
-    var itable: *std::reader_itable;
+    type interface = struct {
+        var read: func(*any, []byte) std::result[[usize, std::error]];
+    };
+
+    var itable: *interface;
     var object: *any;
 
     func init[[T]](object: *T) reader {
-        let itable = (:std::reader_itable){
+        let itable = (:interface){
             .read = T::read,
         };
         return (:reader){
@@ -152,17 +152,17 @@ struct reader {
     }
 }
 
-struct writer_itable {
-    var write: func(*any, []byte) std::result[[usize, std::error]];
-}
-
 # Interface representing the write end of a byte stream.
 struct writer {
-    var itable: *std::writer_itable;
+    type interface = struct {
+        var write: func(*any, []byte) std::result[[usize, std::error]];
+    };
+
+    var itable: *interface;
     var object: *any;
 
     func init[[T]](object: *T) writer {
-        let itable = (:std::writer_itable){
+        let itable = (:interface){
             .write = T::write,
         };
         return (:writer){
@@ -181,19 +181,19 @@ struct writer {
     }
 }
 
-struct formatter_itable {
-    var format: func(*any, std::writer, []byte) std::result[[void, std::error]];
-}
-
 # Interface wrapping the format member function. Types that implement the
 # format member function may be written to byte streams using type-specific
 # formatting semantics.
 struct formatter {
-    var itable: *std::formatter_itable;
+    type interface = struct {
+        var format: func(*any, std::writer, []byte) std::result[[void, std::error]];
+    };
+
+    var itable: *interface;
     var object: *any;
 
     func init[[T]](object: *T) formatter {
-        let itable = (:std::formatter_itable){
+        let itable = (:interface){
             .format = T::format,
         };
         return (:formatter){
@@ -212,11 +212,6 @@ struct formatter {
     }
 }
 
-struct iterator_itable[[T]] {
-    var advance: func(*any) bool;
-    var current: func(*any) *T;
-}
-
 # Interface used to traverse a collection of elements independently of the
 # collection's underlying data representation.
 #
@@ -231,11 +226,16 @@ struct iterator_itable[[T]] {
 #       # Do something with the current element...
 #   }
 struct iterator[[T]] {
-    var itable: *std::iterator_itable[[T]];
+    type interface = struct {
+        var advance: func(*any) bool;
+        var current: func(*any) *T;
+    };
+
+    var itable: *interface;
     var object: *any;
 
     func init[[I]](object: *I) iterator[[T]] {
-        let itable = (:std::iterator_itable[[T]]){
+        let itable = (:interface){
             .advance = I::advance,
             .current = I::current,
         };
@@ -261,20 +261,20 @@ struct iterator[[T]] {
     }
 }
 
-struct allocator_itable {
-    var allocate: func(*any, usize, usize) std::result[[*any, std::error]];
-    var reallocate: func(*any, *any, usize, usize, usize) std::result[[*any, std::error]];
-    var deallocate: func(*any, *any, usize, usize) void;
-}
-
 # Interface for types managing the dynamic allocation, reallocation, and
 # deallocation of memory.
 struct allocator {
-    var itable: *std::allocator_itable;
+    type interface = struct {
+        var allocate: func(*any, usize, usize) std::result[[*any, std::error]];
+        var reallocate: func(*any, *any, usize, usize, usize) std::result[[*any, std::error]];
+        var deallocate: func(*any, *any, usize, usize) void;
+    };
+
+    var itable: *interface;
     var object: *any;
 
     func init[[T]](object: *T) allocator {
-        let itable = (:std::allocator_itable){
+        let itable = (:interface){
             .allocate = T::allocate,
             .reallocate = T::reallocate,
             .deallocate = T::deallocate,
@@ -313,7 +313,7 @@ struct allocator {
     }
 }
 
-let _DEFAULT_GLOBAL_ALLOCATOR_ITABLE = (:std::allocator_itable){
+let _DEFAULT_GLOBAL_ALLOCATOR_ITABLE = (:std::allocator::interface){
     .allocate = std::general_allocator::allocate,
     .reallocate = std::general_allocator::reallocate,
     .deallocate = std::general_allocator::deallocate,
@@ -338,7 +338,7 @@ func global_allocator() std::allocator {
 # Allocator that will never successfully allocate, reallocate, or deallocate
 # memory. The purpose of this type is to provide an allocator that may be used
 # for creating constants of managed types such as `std::big_integer`. The
-# members constants `ITABLE`, `OBJECT`, and `ALLOCATOR` are provided to
+# member constants `ITABLE`, `OBJECT`, and `ALLOCATOR` are provided to
 # explicitly support using the null allocator for constant definitions.
 struct null_allocator {
     func allocate(self_: *null_allocator, align_: usize, size_: usize) std::result[[*any, std::error]] {
@@ -354,7 +354,7 @@ struct null_allocator {
         std::panic("attempted null_allocator deallocation");
     }
 
-    let ITABLE = (:std::allocator_itable){
+    let ITABLE = (:std::allocator::interface){
         .allocate = null_allocator::allocate,
         .reallocate = null_allocator::reallocate,
         .deallocate = null_allocator::deallocate,
@@ -2141,7 +2141,9 @@ struct big_integer {
     }
 
     # Accepted format language:
-    #   [#][radix]
+    #   [+][#][radix]
+    #
+    # Use of "+" indicates that a "+" or "-" sign should always be shown.
     #
     # Use of "#" indicates that the alternate form of the integer should be
     # formatted. Integers formatted in decimal are unchanged. Integers
@@ -2177,6 +2179,12 @@ struct big_integer {
         ];
 
         var fmt_idx = 0u;
+
+        var is_show_sign = false;
+        if fmt_idx < countof(fmt) and fmt[fmt_idx] == '+' {
+            is_show_sign = true;
+            fmt_idx += 1;
+        }
 
         var is_digits_prefix = false;
         if fmt_idx < countof(fmt) and fmt[fmt_idx] == '#' {
@@ -2270,6 +2278,9 @@ struct big_integer {
         }
         if self.*._sign == -1 {
             output.insert(0u, '-');
+        }
+        elif is_show_sign {
+            output.insert(0u, '+');
         }
         return std::write_all(writer, output.data());
     }
@@ -3083,22 +3094,22 @@ struct key_value_view[[K, V]] {
 }
 
 # Managed type mapping keys of type `K` to values of type `V` with O(1) average
-# time complexity for lookup, insert, and remove operations.
+# time complexity for lookup, insert, and remove operations. Iteration over the
+# map traverses key-value pairs in insertion order.
 #
-# A type `K` may be used as the key template type if `K` impements a `hash`
-# function with the signature `func hash(self: *K) usize`.
+# A type `K` may be used as the key template type if `K` implements:
+# 1. The `hash` member function, `func hash(self: *K) usize`.
+# 2. Either the `eq` member function, `func eq(lhs: *K, rhs: *K) bool`, or the
+#    `compare` member function, `func compare(lhs: *K, rhs: *K) ssize`.
 struct hash_map[[K, V]] {
-    let _STATE_NIL: usize = 0;
-    let _STATE_USE: usize = 1;
-    let _STATE_DEL: usize = 2;
-    let _INDEX_DEL: usize = usize::MAX;
+    let _INDEX_MAX = usize::MAX - 2; # Largest valid index for an element.
+    let _INDEX_NIL = usize::MAX - 1; # Index indicating element not in-use.
+    let _INDEX_DEL = usize::MAX - 0; # Index indicating element was removed.
 
-    let _ELEMENT: struct {
-        # NIL state indicates that this slot does not map to an element.
-        # USE state indicates that this slot maps to an active element.
-        # DEL state indicates that this slot maps to a removed element.
-        var state: usize;
+    type _element = struct {
         # Index within the inserted elements vector.
+        # NIL state indicates this slot does not contain to an in-use element.
+        # DEL state indicates this slot maps to a removed (tombstone) element.
         var index: usize;
         # The key associated with this element.
         #
@@ -3111,10 +3122,20 @@ struct hash_map[[K, V]] {
         #
         # Mutation of this member is permitted in well-formed programs.
         var value: V;
-    } = uninit;
+    };
 
+    # Initial state of newly created-and-initialized element slots.
+    let _ELEMENT_INIT = (:_element){
+        .index = _INDEX_NIL,
+        .key = uninit,
+        .value = uninit,
+    };
+
+    # Insertion order mapping into the elements slice, where DEL indicates an
+    # inserted entry that has since been removed.
     var _inserted: std::vector[[usize]];
-    var _elements: []typeof(_ELEMENT);
+    # Key-value element slots mapping elements by key-hash with linear probing.
+    var _elements: []_element;
     var _n: usize; # Number of USE entries in the map.
     var _q: usize; # Number of non-NIL entries in the map.
 
@@ -3128,7 +3149,7 @@ struct hash_map[[K, V]] {
     func init_with_allocator(allocator: std::allocator) hash_map[[K, V]] {
         return (:hash_map[[K, V]]){
             ._inserted = std::vector[[usize]]::init_with_allocator(allocator),
-            ._elements = (:[]typeof(_ELEMENT))[],
+            ._elements = (:[]_element)[],
             ._n = 0,
             ._q = 0,
         };
@@ -3161,7 +3182,7 @@ struct hash_map[[K, V]] {
             }
         }
         if countof(self.*._elements) != 0 {
-            std::slice[[typeof(_ELEMENT)]]::delete_with_allocator(self.*.allocator(), self.*._elements);
+            std::slice[[_element]]::delete_with_allocator(self.*.allocator(), self.*._elements);
         }
         self.*._inserted.fini();
     }
@@ -3192,19 +3213,15 @@ struct hash_map[[K, V]] {
     }
 
     # Returns true if the map contains a key-value pair with the provided key.
-    #
-    # Ownership of `key` is *not* transferred with this function call.
-    func contains(self: *hash_map[[K, V]], key: K) bool {
-        return self.*._lookup_element(key) != std::ptr[[typeof(_ELEMENT)]]::NULL;
+    func contains(self: *hash_map[[K, V]], key: *K) bool {
+        return self.*._lookup_element(key) != std::ptr[[_element]]::NULL;
     }
 
     # Returns a non-empty optional containing a pointer to the value associated
     # with the provided key if such a key-value pair exists in the map.
-    #
-    # Ownership of `key` is *not* transferred with this function call.
-    func lookup(self: *hash_map[[K, V]], key: K) std::optional[[*V]] {
+    func lookup(self: *hash_map[[K, V]], key: *K) std::optional[[*V]] {
         var element = self.*._lookup_element(key);
-        if element == std::ptr[[typeof(_ELEMENT)]]::NULL {
+        if element == std::ptr[[_element]]::NULL {
             return std::optional[[*V]]::EMPTY;
         }
         return std::optional[[*V]]::init_value(&element.*.value);
@@ -3212,11 +3229,9 @@ struct hash_map[[K, V]] {
 
     # Returns a non-empty optional containing the key-value view associated
     # with the provided key if such a key-value pair exists in the map.
-    #
-    # Ownership of `key` is *not* transferred with this function call.
-    func lookup_view(self: *hash_map[[K, V]], key: K) std::optional[[key_value_view[[K, V]]]] {
+    func lookup_view(self: *hash_map[[K, V]], key: *K) std::optional[[key_value_view[[K, V]]]] {
         var element = self.*._lookup_element(key);
-        if element == std::ptr[[typeof(_ELEMENT)]]::NULL {
+        if element == std::ptr[[_element]]::NULL {
             return std::optional[[key_value_view[[K, V]]]]::EMPTY;
         }
         return std::optional[[key_value_view[[K, V]]]]::init_value((:std::key_value_view[[K, V]]){
@@ -3227,21 +3242,19 @@ struct hash_map[[K, V]] {
 
     # Returns a non-NULL pointer to the hash map element associated with the
     # provided key if such a key-value pair exists in the map.
-    #
-    # Ownership of `key` is *not* transferred with this function call.
-    func _lookup_element(self: *hash_map[[K, V]], key: K) *typeof(_ELEMENT) {
+    func _lookup_element(self: *hash_map[[K, V]], key: *K) *_element {
         if countof(self.*._elements) == 0 {
-            return std::ptr[[typeof(_ELEMENT)]]::NULL;
+            return std::ptr[[_element]]::NULL;
         }
 
-        var index = key.hash() % countof(self.*._elements);
-        for self.*._elements[index].state != hash_map[[K, V]]::_STATE_NIL {
-            if self.*._elements[index].state == hash_map[[K, V]]::_STATE_USE and std::eq[[K]](&key, &self.*._elements[index].key) {
+        var index = key.*.hash() % countof(self.*._elements);
+        for self.*._elements[index].index != hash_map[[K, V]]::_INDEX_NIL {
+            if self.*._elements[index].index <= hash_map[[K, V]]::_INDEX_MAX and std::eq[[K]](key, &self.*._elements[index].key) {
                 return &self.*._elements[index];
             }
             index = (index + 1) % countof(self.*._elements);
         }
-        return std::ptr[[typeof(_ELEMENT)]]::NULL;
+        return std::ptr[[_element]]::NULL;
     }
 
     # Insert the provided key and value into the map. If a key-value pair
@@ -3273,9 +3286,8 @@ struct hash_map[[K, V]] {
             # Initial insert. An initial slice count of 16 was chosen
             # semi-arbitrarily. The initial slice count must be two or greater
             # in order to prevent the lookup loop from spinning forever.
-            let ZEROED: typeof(_ELEMENT) = uninit;
-            self.*._elements = std::slice[[typeof(_ELEMENT)]]::new_with_allocator(self.*.allocator(), 16);
-            std::slice[[typeof(_ELEMENT)]]::fill(self.*._elements, ZEROED);
+            self.*._elements = std::slice[[_element]]::new_with_allocator(self.*.allocator(), 16);
+            std::slice[[_element]]::fill(self.*._elements, _ELEMENT_INIT);
         }
         elif 2 * (self.*._q + 1) > countof(self.*._elements) {
             # Insert at 50% occupancy. Create a new hash map with double the
@@ -3283,20 +3295,20 @@ struct hash_map[[K, V]] {
             # key-value pairs, and then replace this map with the new map.
             var new = (:hash_map[[K, V]]){
                 ._inserted = std::vector[[usize]]::init_with_allocator(self.*.allocator()),
-                ._elements = std::slice[[typeof(_ELEMENT)]]::new_with_allocator(self.*.allocator(), countof(self.*._elements) * 2),
+                ._elements = std::slice[[_element]]::new_with_allocator(self.*.allocator(), countof(self.*._elements) * 2),
                 ._n = 0,
                 ._q = 0,
             };
+            std::slice[[_element]]::fill(new._elements, _ELEMENT_INIT);
             for i in self.*._inserted.count() {
                 if self.*._inserted.data()[i] == hash_map[[K, V]]::_INDEX_DEL {
                     continue;
                 }
                 var index = self.*._inserted.data()[i];
-                assert self.*._elements[index].state == hash_map[[K, V]]::_STATE_USE;
                 var existing = new.update(self.*._elements[index].key, self.*._elements[index].value);
                 assert existing.is_empty();
             }
-            std::slice[[typeof(_ELEMENT)]]::delete_with_allocator(self.*.allocator(), self.*._elements);
+            std::slice[[_element]]::delete_with_allocator(self.*.allocator(), self.*._elements);
             self.*._inserted.fini();
             *self = new;
         }
@@ -3319,9 +3331,8 @@ struct hash_map[[K, V]] {
 
         var index = key.hash() % countof(self.*._elements);
         for true {
-            if self.*._elements[index].state == hash_map[[K, V]]::_STATE_NIL {
-                self.*._elements[index] = (:typeof(_ELEMENT)){
-                    .state = hash_map[[K, V]]::_STATE_USE,
+            if self.*._elements[index].index == hash_map[[K, V]]::_INDEX_NIL {
+                self.*._elements[index] = (:_element){
                     .index = self.*._inserted.count(),
                     .key = key,
                     .value = value,
@@ -3332,9 +3343,8 @@ struct hash_map[[K, V]] {
                 return std::optional[[std::key_value_pair[[K, V]]]]::EMPTY;
             }
 
-            if self.*._elements[index].state == hash_map[[K, V]]::_STATE_DEL {
-                self.*._elements[index] = (:typeof(_ELEMENT)){
-                    .state = hash_map[[K, V]]::_STATE_USE,
+            if self.*._elements[index].index == hash_map[[K, V]]::_INDEX_DEL {
+                self.*._elements[index] = (:_element){
                     .index = self.*._inserted.count(),
                     .key = key,
                     .value = value,
@@ -3344,7 +3354,7 @@ struct hash_map[[K, V]] {
                 return std::optional[[std::key_value_pair[[K, V]]]]::EMPTY;
             }
 
-            # _STATE_USE
+            # Slot in-use.
             if std::eq[[K]](&key, &self.*._elements[index].key) {
                 var existing = self.*._elements[index];
                 var kv = (:std::key_value_pair[[K, V]]){
@@ -3352,8 +3362,7 @@ struct hash_map[[K, V]] {
                     .value = existing.value,
                 };
                 self.*._inserted.data()[self.*._elements[index].index] = std::hash_map[[K, V]]::_INDEX_DEL;
-                self.*._elements[index] = (:typeof(_ELEMENT)){
-                    .state = hash_map[[K, V]]::_STATE_USE,
+                self.*._elements[index] = (:_element){
                     .index = self.*._inserted.count(),
                     .key = key,
                     .value = value,
@@ -3372,28 +3381,48 @@ struct hash_map[[K, V]] {
     # Remove the key-value pair associated with the provided key if such a
     # key-value pair exists in the map. Returns a non-empty optional containing
     # the key-value pair if the pair was removed.
-    #
-    # Ownership of `key` is *not* transferred with this function call.
-    func remove(self: *hash_map[[K, V]], key: K) std::optional[[std::key_value_pair[[K, V]]]] {
+    func remove(self: *hash_map[[K, V]], key: *K) std::optional[[std::key_value_pair[[K, V]]]] {
         if countof(self.*._elements) == 0 {
             return std::optional[[std::key_value_pair[[K, V]]]]::EMPTY;
         }
 
-        var index = key.hash() % countof(self.*._elements);
-        for self.*._elements[index].state != hash_map[[K, V]]::_STATE_NIL {
-            if self.*._elements[index].state == hash_map[[K, V]]::_STATE_USE and std::eq[[K]](&key, &self.*._elements[index].key) {
+        var index = key.*.hash() % countof(self.*._elements);
+        for self.*._elements[index].index != hash_map[[K, V]]::_INDEX_NIL {
+            if self.*._elements[index].index <= hash_map[[K, V]]::_INDEX_MAX and std::eq[[K]](key, &self.*._elements[index].key) {
                 var kv = (:std::key_value_pair[[K, V]]){
                     .key = self.*._elements[index].key,
                     .value = self.*._elements[index].value,
                 };
-                self.*._elements[index].state = hash_map[[K, V]]::_STATE_DEL;
                 self.*._inserted.data()[self.*._elements[index].index] = std::hash_map[[K, V]]::_INDEX_DEL;
+                self.*._elements[index].index = hash_map[[K, V]]::_INDEX_DEL;
                 self.*._n -= 1;
                 return std::optional[[std::key_value_pair[[K, V]]]]::init_value(kv);
             }
             index = (index + 1) % countof(self.*._elements);
         }
         return std::optional[[std::key_value_pair[[K, V]]]]::EMPTY;
+    }
+
+    # Remove the key-value pair associated with the provided key if such a
+    # key-value pair exists in the map. Finalize resources associated with the
+    # key-value pair if found.
+    func erase(self: *hash_map[[K, V]], key: *K) void {
+        var removed = self.*.remove(key);
+        when defined(K::fini) or defined(V::fini) {
+            if removed.is_empty() {
+                return;
+            }
+            var pair = removed.value();
+            when defined(K::fini) {
+                pair.key.fini();
+            }
+            when defined(V::fini) {
+                pair.value.fini();
+            }
+        }
+        else {
+            removed; # prevent unused variable warning
+        }
     }
 
     # Returns an iterator over the key-value pairs of the hash map.
@@ -3424,7 +3453,6 @@ struct hash_map_iterator[[K, V]] {
                 continue;
             }
 
-            assert self.*._hash_map.*._elements[index].state == std::hash_map[[K, V]]::_STATE_USE;
             var current = (:std::key_value_view[[K, V]]){
                 .key = &self.*._hash_map.*._elements[index].key,
                 .value = &self.*._hash_map.*._elements[index].value,
@@ -3447,10 +3475,13 @@ struct hash_map_iterator[[K, V]] {
 }
 
 # Managed type containing a collection of unique elements with O(1) average
-# time complexity for insert and remove operations.
+# time complexity for lookup, insert, and remove operations. Iteration over the
+# set traverses elements in insertion order.
 #
-# A type `T` may be used as the set template type if `T` impements a `hash`
-# function with the signature `func hash(self: *T) usize`.
+# A type `T` may be used as the set template type if `T` implements:
+# 1. The `hash` member function, `func hash(self: *T) usize`.
+# 2. Either the `eq` member function, `func eq(lhs: *T, rhs: *T) bool`, or the
+#    `compare` member function, `func compare(lhs: *T, rhs: *T) ssize`.
 struct hash_set[[T]] {
     var _hash_map: std::hash_map[[T, void]];
 
@@ -3511,13 +3542,13 @@ struct hash_set[[T]] {
         var self = init_with_allocator(allocator);
         var iter = std::hash_set_iterator[[T]]::init(x);
         for iter.advance() {
-            if y.*.contains(*iter.current()) {
+            if y.*.contains(iter.current()) {
                 self.insert(*iter.current());
             }
         }
         var iter = std::hash_set_iterator[[T]]::init(y);
         for iter.advance() {
-            if x.*.contains(*iter.current()) {
+            if x.*.contains(iter.current()) {
                 self.insert(*iter.current());
             }
         }
@@ -3535,7 +3566,7 @@ struct hash_set[[T]] {
         var self = init_with_allocator(allocator);
         var iter = std::hash_set_iterator[[T]]::init(x);
         for iter.advance() {
-            if not y.*.contains(*iter.current()) {
+            if not y.*.contains(iter.current()) {
                 self.insert(*iter.current());
             }
         }
@@ -3553,13 +3584,13 @@ struct hash_set[[T]] {
         var self = init_with_allocator(allocator);
         var iter = std::hash_set_iterator[[T]]::init(x);
         for iter.advance() {
-            if not y.*.contains(*iter.current()) {
+            if not y.*.contains(iter.current()) {
                 self.insert(*iter.current());
             }
         }
         var iter = std::hash_set_iterator[[T]]::init(y);
         for iter.advance() {
-            if not x.*.contains(*iter.current()) {
+            if not x.*.contains(iter.current()) {
                 self.insert(*iter.current());
             }
         }
@@ -3597,18 +3628,14 @@ struct hash_set[[T]] {
     }
 
     # Returns true if the set contains provided element.
-    #
-    # Ownership of `element` is *not* transferred with this function call.
-    func contains(self: *hash_set[[T]], element: T) bool {
+    func contains(self: *hash_set[[T]], element: *T) bool {
         return self.*._hash_map.contains(element);
     }
 
     # Returns a non-empty optional containing a pointer to the in-set element
     # associated with the provided element if such an element exists in the
     # set.
-    #
-    # Ownership of `element` is *not* transferred with this function call.
-    func lookup(self: *hash_set[[T]], element: T) std::optional[[*T]] {
+    func lookup(self: *hash_set[[T]], element: *T) std::optional[[*T]] {
         var existing = self.*._hash_map.lookup_view(element);
         if existing.is_empty() {
             return std::optional[[*T]]::EMPTY;
@@ -3635,14 +3662,18 @@ struct hash_set[[T]] {
 
     # Remove the provided element if such an element exists in the set. Returns
     # a non-empty optional containing the existing element if it was removed.
-    #
-    # Ownership of `element` is *not* transferred with this function call.
-    func remove(self: *hash_set[[T]], element: T) std::optional[[T]] {
+    func remove(self: *hash_set[[T]], element: *T) std::optional[[T]] {
         var existing = self.*._hash_map.remove(element);
         if existing.is_empty() {
             return std::optional[[T]]::EMPTY;
         }
         return std::optional[[T]]::init_value(existing.value().key);
+    }
+
+    # Remove the provided element if such an element exists in the set.
+    # Finalize resources associated with the element if found.
+    func erase(self: *hash_set[[T]], element: *T) void {
+        self.*._hash_map.erase(element);
     }
 
     # Returns an iterator over the elements of the hash set.
@@ -4490,7 +4521,9 @@ extend integer func _eq[[T]](lhs: T, rhs: T) bool {
 }
 
 # Accepted format language:
-#   [#][radix]
+#   [+][#][radix]
+#
+# Use of "+" indicates that a "+" sign should always be shown.
 #
 # Use of "#" indicates that the alternate form of the integer should be
 # formatted. Integers formatted in decimal are unchanged. Integers formatted in
@@ -4515,6 +4548,12 @@ extend integer func _format_umax(int: std::umax, writer: std::writer, fmt: []byt
     ];
 
     var fmt_idx = 0u;
+
+    var is_show_sign = false;
+    if fmt_idx < countof(fmt) and fmt[fmt_idx] == '+' {
+        is_show_sign = true;
+        fmt_idx += 1;
+    }
 
     var is_digits_prefix = false;
     if fmt_idx < countof(fmt) and fmt[fmt_idx] == '#' {
@@ -4559,14 +4598,14 @@ extend integer func _format_umax(int: std::umax, writer: std::writer, fmt: []byt
         return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
     }
 
-    let OUTPUT_COUNT = countof("0b") + sizeof(usize) * 8;
+    let OUTPUT_COUNT = countof("+") + countof("0b") + sizeof(usize) * 8;
     var output = (:[OUTPUT_COUNT]byte)[0...];
     var output_index = countof(output) - 1;
 
     if int == 0 {
         # Write a single zero digit.
         output[output_index] = '0';
-        output_index -= 1;
+        output_index -%= 1;
     }
     for int != 0 {
         var div = int / (:std::umax)radix;
@@ -4574,7 +4613,7 @@ extend integer func _format_umax(int: std::umax, writer: std::writer, fmt: []byt
 
         var digit = digits_table[(:usize)rem];
         output[output_index] = digit;
-        output_index -= 1;
+        output_index -%= 1;
 
         int = div;
     }
@@ -4582,15 +4621,22 @@ extend integer func _format_umax(int: std::umax, writer: std::writer, fmt: []byt
     if is_digits_prefix and countof(digits_prefix) != 0 {
         for i in countof(digits_prefix) {
             output[output_index] = digits_prefix[countof(digits_prefix) - i - 1];
-            output_index -= 1;
+            output_index -%= 1;
         }
     }
 
-    return std::write_all(writer, output[output_index+1:countof(output)]);
+    if is_show_sign {
+        output[output_index] = '+';
+        output_index -%= 1;
+    }
+
+    return std::write_all(writer, output[(output_index +% 1):countof(output)]);
 }
 
 # Accepted format language:
-#   [#][radix]
+#   [+][#][radix]
+#
+# Use of "+" indicates that a "+" or "-" sign should always be shown.
 #
 # Use of "#" indicates that the alternate form of the integer should be
 # formatted. Integers formatted in decimal are unchanged. Integers formatted in
@@ -4605,10 +4651,23 @@ extend integer func _format_umax(int: std::umax, writer: std::writer, fmt: []byt
 #   "x" => hexadecimal (lower)
 #   "X" => hexadecimal (upper)
 extend integer func _format_smax(int: std::smax, writer: std::writer, fmt: []byte) std::result[[void, std::error]] {
+    var fmt_idx = 0u;
+
+    var sign = "";
     if int < 0 {
-        var result = std::write_all(writer, "-");
-        if result.is_error() {
-            return result;
+        sign = "-";
+        if fmt_idx < countof(fmt) and fmt[fmt_idx] == '+' {
+            fmt_idx += 1;
+        }
+    }
+    elif fmt_idx < countof(fmt) and fmt[fmt_idx] == '+' {
+        sign = "+";
+        fmt_idx += 1;
+        if fmt_idx < countof(fmt) and fmt[fmt_idx] == '+' {
+            # Check to make sure that removing the "+" from the format string
+            # does not leave another "+" (i.e. the case of "++") to be consumed
+            # by `integer::_format_umax`.
+            return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
         }
     }
 
@@ -4621,7 +4680,13 @@ extend integer func _format_smax(int: std::smax, writer: std::writer, fmt: []byt
         magnitude = (:std::umax)((:std::smax)-1s *% int);
     }
 
-    return integer::_format_umax(magnitude, writer, fmt);
+    if countof(sign) != 0 {
+        var result = std::write_all(writer, sign);
+        if result.is_error() {
+            return result;
+        }
+    }
+    return integer::_format_umax(magnitude, writer, fmt[fmt_idx:countof(fmt)]);
 }
 
 extend byte let MIN: byte = 0x00;
