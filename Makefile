@@ -67,7 +67,7 @@ $(TARGET): \
 
 .sunder/lib/raylib: .sunder
 	SUNDER_HOME=$(SUNDER_HOME); . $(SUNDER_HOME)/env; \
-	RAYLIB_DIR=$$(realpath vendor/raylib) \
+	RAYLIB_DIRECTORY=$$(realpath vendor/raylib) \
 	$(MAKE) -e -C vendor/raylib-sunder install
 
 .sunder/lib/smolui: .sunder

@@ -1404,7 +1404,7 @@ func n_to_1(board: *board, player: player, resource: resource) sint {
     for iter.advance() {
         var port = *iter.current();
         for i in countof(port.nodes) {
-            var town = board.*.towns.lookup(port.nodes[i]);
+            var town = board.*.towns.lookup(&port.nodes[i]);
             if town.is_empty() {
                 continue;
             }
