@@ -15,14 +15,12 @@ demo.c.out: libsmolui.a
 	$(CC) $(CFLAGS) -o $@ demo.c \
 		-I. -L. \
 		-I${SUNDER_HOME}/lib/raylib \
-		$$(${SUNDER_HOME}/lib/raylib/raylib-config desktop --cflags) \
-		$$(${SUNDER_HOME}/lib/raylib/raylib-config desktop --libs) \
+		$$(${SUNDER_HOME}/lib/raylib/raylib-config desktop) \
 		-lsmolui
 
 demo.sunder.out: demo.sunder smolui.sunder microui.sunder libsmolui.a
-	SUNDER_CFLAGS="$(CFLAGS) $$(${SUNDER_HOME}/lib/raylib/raylib-config desktop --cflags)" \
+	SUNDER_CFLAGS="$(CFLAGS) $$(${SUNDER_HOME}/lib/raylib/raylib-config desktop)" \
 	sunder-compile -o $@ \
-		$$(${SUNDER_HOME}/lib/raylib/raylib-config desktop --libs) \
 		-L. -lsmolui \
 		demo.sunder
 
@@ -34,9 +32,8 @@ demo.sunder.html: demo.sunder smolui.sunder microui.sunder libsmolui-web.a
 	SUNDER_ARCH=wasm32 \
 	SUNDER_HOST=emscripten \
 	SUNDER_CC=emcc \
-	SUNDER_CFLAGS="$(CFLAGS) $$(${SUNDER_HOME}/lib/raylib/raylib-config web --cflags) -sSTACK_SIZE=$$(echo '2^22' | bc) -sSINGLE_FILE=1 --shell-file $(SUNDER_HOME)/lib/raylib/emscripten-shell.html" \
+	SUNDER_CFLAGS="$(CFLAGS) $$(${SUNDER_HOME}/lib/raylib/raylib-config web) -sSTACK_SIZE=$$(echo '2^22' | bc) -sSINGLE_FILE=1 --shell-file $(SUNDER_HOME)/lib/raylib/emscripten-shell.html" \
 	sunder-compile -o $@ \
-		$$(${SUNDER_HOME}/lib/raylib/raylib-config web --libs) \
 		-L. -lsmolui-web \
 		demo.sunder
 
