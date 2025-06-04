@@ -221,7 +221,7 @@ struct hex {
         if std::str::eq(fmt, "") {
             return std::write_format(
                 writer,
-                "(q={}, r={}, s={})",
+                "(q={+}, r={+}, s={+})",
                 (:[]std::formatter)[
                     std::formatter::init[[sint]](&self.*.q),
                     std::formatter::init[[sint]](&self.*.r),
