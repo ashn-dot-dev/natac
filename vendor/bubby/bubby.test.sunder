@@ -129,7 +129,7 @@ func main() void {
     x.set().*.insert(bubby::value::init_set());
     var tmp = bubby::value::init_set();
     defer tmp.fini();
-    var view = x.set().*.lookup(tmp);
+    var view = x.set().*.lookup(&tmp);
     var view = view.value();
     view.*.set().*.insert(bubby::value::init_str("foo"));
     view.*.set().*.insert(bubby::value::init_str("bar"));
@@ -153,7 +153,7 @@ func main() void {
     std::print_format_line(std::out(), "{escaped}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&x)]);
 
     var result = bubby::parse_str("nope");
-    std::print_line(std::out(), result.error().*.data);
+    std::print_line(std::out(), result.error().error.*.data);
 
     std::print(std::out(), "\n");
     std::print_line(std::out(), "PARSE VEC");
@@ -169,19 +169,19 @@ func main() void {
     std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&x)]);
 
     var result = bubby::parse_vec("[\"foo\"\"bar\"]");
-    std::print_line(std::out(), result.error().*.data);
+    std::print_line(std::out(), result.error().error.*.data);
 
     # Empty string.
     var result = bubby::parse_vec("");
-    std::print_line(std::out(), result.error().*.data);
+    std::print_line(std::out(), result.error().error.*.data);
 
     # Missing opening '['.
     var result = bubby::parse_vec("]");
-    std::print_line(std::out(), result.error().*.data);
+    std::print_line(std::out(), result.error().error.*.data);
 
     # Missing closing ']'.
     var result = bubby::parse_vec("[");
-    std::print_line(std::out(), result.error().*.data);
+    std::print_line(std::out(), result.error().error.*.data);
 
     std::print(std::out(), "\n");
     std::print_line(std::out(), "PARSE MAP");
@@ -197,25 +197,25 @@ func main() void {
     std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&x)]);
 
     var result = bubby::parse_map("{\"foo\" \"a\" \"foo\" \"b\"}");
-    std::print_line(std::out(), result.error().*.data);
+    std::print_line(std::out(), result.error().error.*.data);
 
     var result = bubby::parse_map("{\"foo\"\"a\"}");
-    std::print_line(std::out(), result.error().*.data);
+    std::print_line(std::out(), result.error().error.*.data);
 
     var result = bubby::parse_map("{\"foo\" \"a\"\"bar\" \"b\"}");
-    std::print_line(std::out(), result.error().*.data);
+    std::print_line(std::out(), result.error().error.*.data);
 
     # Empty string.
     var result = bubby::parse_map("");
-    std::print_line(std::out(), result.error().*.data);
+    std::print_line(std::out(), result.error().error.*.data);
 
     # Missing opening '{'.
     var result = bubby::parse_map("}");
-    std::print_line(std::out(), result.error().*.data);
+    std::print_line(std::out(), result.error().error.*.data);
 
     # Missing closing '}'.
     var result = bubby::parse_map("{");
-    std::print_line(std::out(), result.error().*.data);
+    std::print_line(std::out(), result.error().error.*.data);
 
     std::print(std::out(), "\n");
     std::print_line(std::out(), "PARSE SET");
@@ -231,22 +231,22 @@ func main() void {
     std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&x)]);
 
     var result = bubby::parse_set("(\"foo\" \"foo\")");
-    std::print_line(std::out(), result.error().*.data);
+    std::print_line(std::out(), result.error().error.*.data);
 
     var result = bubby::parse_set("(\"foo\"\"bar\")");
-    std::print_line(std::out(), result.error().*.data);
+    std::print_line(std::out(), result.error().error.*.data);
 
     # Empty string.
     var result = bubby::parse_set("");
-    std::print_line(std::out(), result.error().*.data);
+    std::print_line(std::out(), result.error().error.*.data);
 
     # Missing opening '('.
     var result = bubby::parse_set(")");
-    std::print_line(std::out(), result.error().*.data);
+    std::print_line(std::out(), result.error().error.*.data);
 
     # Missing closing ')'.
     var result = bubby::parse_set("(");
-    std::print_line(std::out(), result.error().*.data);
+    std::print_line(std::out(), result.error().error.*.data);
 }
 ################################################################################
 # STR
