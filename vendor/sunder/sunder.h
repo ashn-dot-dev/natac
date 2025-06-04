@@ -1586,6 +1586,7 @@ struct cst_member {
         CST_MEMBER_VARIABLE,
         CST_MEMBER_CONSTANT,
         CST_MEMBER_FUNCTION,
+        CST_MEMBER_ALIAS,
     } kind;
     struct {
         struct {
@@ -1600,6 +1601,10 @@ struct cst_member {
             // CST_DECL_FUNCTION
             struct cst_decl const* decl;
         } function;
+        struct {
+            // CST_DECL_ALIAS
+            struct cst_decl const* decl;
+        } alias;
     } data;
 };
 struct cst_member*
@@ -1611,6 +1616,8 @@ struct cst_member*
 cst_member_new_constant(struct cst_decl const* decl);
 struct cst_member*
 cst_member_new_function(struct cst_decl const* decl);
+struct cst_member*
+cst_member_new_alias(struct cst_decl const* decl);
 
 struct cst_member_initializer {
     struct source_location location;
@@ -1892,6 +1899,7 @@ type_new_extern(char const* name, struct symbol_table* symbols);
 // Create a new enum with no members.
 struct type*
 type_new_enum(char const* name, struct symbol_table* symbols);
+
 // Returns the index of the member variable `name` of the provided struct type.
 // Returns a non-negative integer index on success.
 // Returns a -1 on failure.
@@ -1922,6 +1930,15 @@ type_member_variable_index(struct type const* self, char const* name);
 // Returns NULL on failure.
 struct member_variable const*
 type_member_variable(struct type const* self, char const* name);
+
+// Returns the mutable version of this type. In the vast majority of cases,
+// types should be considered immutable after creation, and most functions and
+// data structures handling types do so using a `struct type const*` handle.
+// However, in select scenarios after initilization the type may require
+// modification. This function serves as an explicit const cast for such
+// scenarios.
+struct type*
+type_get_mutable(struct type const* self);
 
 struct type const*
 type_unique_function(
@@ -2075,6 +2092,14 @@ symbol_new_namespace(
     struct source_location location,
     char const* name,
     struct symbol_table* symbols);
+
+// Returns the mutable version of this symbol. In the vast majority of cases,
+// symbols should be considered immutable after creation, and most functions
+// and data structures handling symbols do so using a `struct symbol const*`
+// handle. However, in select scenarios the symbol may require modification.
+// This function serves as an explicit const cast for such scenarios.
+struct symbol*
+symbol_get_mutable(struct symbol const* self);
 
 // Returns NULL if this symbol does not have an address.
 struct address const*
@@ -2370,13 +2395,17 @@ struct expr {
                 UOP_NEG_WRAPPING,
                 UOP_BITNOT,
                 UOP_DEREFERENCE,
-                UOP_ADDRESSOF,
+                UOP_ADDRESSOF_LVALUE,
+                UOP_ADDRESSOF_RVALUE,
                 UOP_STARTOF,
                 UOP_COUNTOF,
             } op;
             // Called the "right hand side" even though the expression is
             // actually on the left hand side of the .* operator.
             struct expr const* rhs;
+            // Storage location used for UOP_ADDRESSOF_RVALUE expressions.
+            // Non-NULL for UOP_ADDRESSOF_RVALUE expressions. NULL otherwise.
+            struct address const* address;
         } unary;
         struct {
             enum bop_kind {
@@ -2477,6 +2506,17 @@ expr_new_unary(
     enum uop_kind op,
     struct expr const* rhs);
 struct expr*
+expr_new_unary_addressof_lvalue(
+    struct source_location location,
+    struct type const* type,
+    struct expr const* rhs);
+struct expr*
+expr_new_unary_addressof_rvalue(
+    struct source_location location,
+    struct type const* type,
+    struct expr const* rhs,
+    struct address const* address);
+struct expr*
 expr_new_binary(
     struct source_location location,
     struct type const* type,
@@ -2541,7 +2581,7 @@ function_new(struct type const* type, struct address const* address);
 
 struct value {
     struct type const* type;
-    struct {
+    union {
         bool boolean;
         uint8_t byte;
         struct bigint* integer; /* integer and enum types */

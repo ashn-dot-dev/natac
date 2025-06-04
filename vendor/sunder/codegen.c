@@ -153,7 +153,9 @@ strgen_rvalue_unary_bitnot(struct expr const* expr);
 static char const*
 strgen_rvalue_unary_dereference(struct expr const* expr);
 static char const*
-strgen_rvalue_unary_addressof(struct expr const* expr);
+strgen_rvalue_unary_addressof_lvalue(struct expr const* expr);
+static char const*
+strgen_rvalue_unary_addressof_rvalue(struct expr const* expr);
 static char const*
 strgen_rvalue_unary_startof(struct expr const* expr);
 static char const*
@@ -966,9 +968,6 @@ codegen_static_function(struct symbol const* symbol, bool prototype)
 
     struct string* params = string_new(NULL, 0);
     size_t params_written = 0;
-    // XXX: function->symbol_parameters is never set for extern functions, and
-    // the `if (prototype)` branching behavior here is used as a workaround
-    // since extern functions will only ever have their prototypes generated.
     if (prototype) {
         sbuf(struct type const* const) const parameter_types =
             function->type->data.function.parameter_types;
@@ -1769,10 +1768,12 @@ codegen_stmt_assert(struct stmt const* stmt)
     assert(stmt->kind == STMT_ASSERT);
 
     appendli("if (!(%s)) {", strgen_rvalue(stmt->data.assert_.expr));
+    indent_incr();
     appendli(
         "%s(%s.start);",
         MANGLE_PREFIX "fatal",
         mangle_symbol(stmt->data.assert_.slice_symbol));
+    indent_decr();
     appendli("}");
 }
 
@@ -2819,8 +2820,11 @@ strgen_rvalue_unary(struct expr const* expr)
     case UOP_DEREFERENCE: {
         return strgen_rvalue_unary_dereference(expr);
     }
-    case UOP_ADDRESSOF: {
-        return strgen_rvalue_unary_addressof(expr);
+    case UOP_ADDRESSOF_LVALUE: {
+        return strgen_rvalue_unary_addressof_lvalue(expr);
+    }
+    case UOP_ADDRESSOF_RVALUE: {
+        return strgen_rvalue_unary_addressof_rvalue(expr);
     }
     case UOP_STARTOF: {
         return strgen_rvalue_unary_startof(expr);
@@ -2947,13 +2951,28 @@ strgen_rvalue_unary_dereference(struct expr const* expr)
 }
 
 static char const*
-strgen_rvalue_unary_addressof(struct expr const* expr)
+strgen_rvalue_unary_addressof_lvalue(struct expr const* expr)
 {
     assert(expr != NULL);
     assert(expr->kind == EXPR_UNARY);
-    assert(expr->data.unary.op == UOP_ADDRESSOF);
+    assert(expr->data.unary.op == UOP_ADDRESSOF_LVALUE);
 
     return strgen_lvalue(expr->data.unary.rhs);
+}
+
+static char const*
+strgen_rvalue_unary_addressof_rvalue(struct expr const* expr)
+{
+    assert(expr != NULL);
+    assert(expr->kind == EXPR_UNARY);
+    assert(expr->data.unary.op == UOP_ADDRESSOF_RVALUE);
+    assert(expr->data.unary.address->kind == ADDRESS_LOCAL);
+
+    return strgen_fmt(
+        "({%s = %s; &%s;})",
+        mangle_address(expr->data.unary.address),
+        strgen_rvalue(expr->data.unary.rhs),
+        mangle_address(expr->data.unary.address));
 }
 
 static char const*
@@ -3673,7 +3692,8 @@ strgen_lvalue_unary(struct expr const* expr)
     case UOP_NEG: /* fallthrough */
     case UOP_NEG_WRAPPING: /* fallthrough */
     case UOP_BITNOT: /* fallthrough */
-    case UOP_ADDRESSOF: /* fallthrough */
+    case UOP_ADDRESSOF_LVALUE: /* fallthrough */
+    case UOP_ADDRESSOF_RVALUE: /* fallthrough */
     case UOP_STARTOF: /* fallthrough */
     case UOP_COUNTOF: {
         UNREACHABLE();

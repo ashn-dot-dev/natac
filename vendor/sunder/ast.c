@@ -631,6 +631,12 @@ type_member_variable(struct type const* self, char const* name)
     return NULL;
 }
 
+struct type*
+type_get_mutable(struct type const* self)
+{
+    return (struct type*)self;
+}
+
 struct type const*
 type_unique_function(
     struct type const* const* parameter_types, struct type const* return_type)
@@ -1005,6 +1011,12 @@ symbol_new_namespace(
     return self;
 }
 
+struct symbol*
+symbol_get_mutable(struct symbol const* self)
+{
+    return (struct symbol*)self;
+}
+
 struct address const*
 symbol_get_address(struct symbol const* self)
 {
@@ -1177,8 +1189,7 @@ symbol_table_lookup_local(struct symbol_table const* self, char const* name)
 
     for (size_t i = sbuf_count(self->elements); i--;) {
         if (self->elements[i].name == name) {
-            // XXX: Evil const cast.
-            ((struct symbol*)self->elements[i].symbol)->uses += 1;
+            symbol_get_mutable(self->elements[i].symbol)->uses += 1;
             return self->elements[i].symbol;
         }
     }
@@ -1662,10 +1673,50 @@ expr_new_unary(
 {
     assert(type != NULL);
     assert(rhs != NULL);
+    assert(op != UOP_ADDRESSOF_LVALUE && "use expr_new_unary_addressof_lvalue");
+    assert(op != UOP_ADDRESSOF_RVALUE && "use expr_new_unary_addressof_rvalue");
 
     struct expr* const self = expr_new(location, type, EXPR_UNARY);
     self->data.unary.op = op;
     self->data.unary.rhs = rhs;
+    return self;
+}
+
+struct expr*
+expr_new_unary_addressof_lvalue(
+    struct source_location location,
+    struct type const* type,
+    struct expr const* rhs)
+{
+    assert(type != NULL);
+    assert(type->kind == TYPE_POINTER);
+    assert(rhs != NULL);
+    assert(rhs->type->kind == type->data.pointer.base->kind);
+    assert(rhs->type->size != SIZEOF_UNSIZED);
+
+    struct expr* const self = expr_new(location, type, EXPR_UNARY);
+    self->data.unary.op = UOP_ADDRESSOF_LVALUE;
+    self->data.unary.rhs = rhs;
+    return self;
+}
+
+struct expr*
+expr_new_unary_addressof_rvalue(
+    struct source_location location,
+    struct type const* type,
+    struct expr const* rhs,
+    struct address const* address)
+{
+    assert(type != NULL);
+    assert(type->kind == TYPE_POINTER);
+    assert(rhs != NULL);
+    assert(rhs->type->kind == type->data.pointer.base->kind);
+    assert(rhs->type->size != SIZEOF_UNSIZED);
+
+    struct expr* const self = expr_new(location, type, EXPR_UNARY);
+    self->data.unary.op = UOP_ADDRESSOF_RVALUE;
+    self->data.unary.rhs = rhs;
+    self->data.unary.address = address;
     return self;
 }
 
