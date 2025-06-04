@@ -66,7 +66,7 @@ struct value {
     func init_from_str(str: []byte) std::result[[value, std::error]] {
         var result = bubby::parse(str);
         if result.is_error() {
-            return std::result[[value, std::error]]::init_error(result.error());
+            return std::result[[value, std::error]]::init_error(result.error().error);
         }
         if result.value().index != countof(str) {
             return std::result[[value, std::error]]::init_error(std::error::PARSE_FAILURE);
@@ -167,7 +167,7 @@ struct value {
             var lhs_iter = std::hash_map_iterator[[value, value]]::init(lhs_map);
             for lhs_iter.advance() {
                 var lhs_current = lhs_iter.current();
-                var rhs_current = rhs_map.*.lookup_view(*lhs_current.*.key);
+                var rhs_current = rhs_map.*.lookup_view(lhs_current.*.key);
                 if rhs_current.is_empty() {
                     return false;
                 }
@@ -187,7 +187,7 @@ struct value {
             var lhs_iter = std::hash_set_iterator[[value]]::init(lhs_set);
             for lhs_iter.advance() {
                 var lhs_current = lhs_iter.current();
-                var rhs_current = rhs_set.*.lookup(*lhs_current);
+                var rhs_current = rhs_set.*.lookup(lhs_current);
                 if rhs_current.is_empty() {
                     return false;
                 }
@@ -369,7 +369,7 @@ struct value {
             ._kind = bubby::kind::STR,
             ._data = (:typeof(value::_SELF._data)){.str = str},
         };
-        return self.*.map().*.lookup_view(key);
+        return self.*.map().*.lookup_view(&key);
     }
 
     func map_xlookup_view_str(self: *value, str: []byte) std::key_value_view[[value, value]] {
@@ -396,16 +396,29 @@ struct parse_success {
     var index: usize;
 }
 
-func parse_str(str: []byte) std::result[[bubby::parse_success, std::error]] {
+struct parse_failure {
+    var error: std::error;
+    var index: usize;
+}
+
+type parse_result = std::result[[parse_success, parse_failure]];
+
+func parse_str(str: []byte) bubby::parse_result {
     if countof(str) == 0 {
-        return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+        return bubby::parse_result::init_error((:bubby::parse_failure){
+            .error = std::error::PARSE_FAILURE,
+            .index = 0,
+        });
     }
 
     var cur = 0u;
     var buf = std::slice[[byte]]::new(0);
     if cur == countof(str) or str[cur] != '\"' {
         std::slice[[byte]]::delete(buf);
-        return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+        return bubby::parse_result::init_error((:bubby::parse_failure){
+            .error = std::error::PARSE_FAILURE,
+            .index = cur,
+        });
     }
     cur += 1;
     for cur != countof(str) and str[cur] != '\"' {
@@ -418,19 +431,28 @@ func parse_str(str: []byte) std::result[[bubby::parse_success, std::error]] {
         }
         if countof(str) - cur < countof("\\xXX") {
             std::slice[[byte]]::delete(buf);
-            return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+            return bubby::parse_result::init_error((:bubby::parse_failure){
+                .error = std::error::PARSE_FAILURE,
+                .index = cur,
+            });
         }
         var hex = str[cur:cur+countof("\\xXX")];
         if hex[0] != '\\' or hex[1] != 'x' {
             std::slice[[byte]]::delete(buf);
-            return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+            return bubby::parse_result::init_error((:bubby::parse_failure){
+                .error = std::error::PARSE_FAILURE,
+                .index = cur,
+            });
         }
         let DIGITS = "0123456789ABCDEF";
         var hi = std::str::find(DIGITS, (:[]byte){&hex[2], 1});
         var lo = std::str::find(DIGITS, (:[]byte){&hex[3], 1});
         if hi.is_empty() or lo.is_empty() {
             std::slice[[byte]]::delete(buf);
-            return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+            return bubby::parse_result::init_error((:bubby::parse_failure){
+                .error = std::error::PARSE_FAILURE,
+                .index = cur,
+            });
         }
         var c = (:byte)(hi.value() << 4) | (:byte)lo.value();
         buf = std::slice[[byte]]::resize(buf, countof(buf)+1);
@@ -439,10 +461,13 @@ func parse_str(str: []byte) std::result[[bubby::parse_success, std::error]] {
     }
     if cur == countof(str) or str[cur] != '\"' {
         std::slice[[byte]]::delete(buf);
-        return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+        return bubby::parse_result::init_error((:bubby::parse_failure){
+            .error = std::error::PARSE_FAILURE,
+            .index = cur,
+        });
     }
     cur += 1;
-    return std::result[[bubby::parse_success, std::error]]::init_value((:bubby::parse_success){
+    return bubby::parse_result::init_value((:parse_success){
         .value = (:value){
             ._kind = bubby::kind::STR,
             ._data = (:typeof(value::_SELF._data)){.str = buf},
@@ -451,23 +476,32 @@ func parse_str(str: []byte) std::result[[bubby::parse_success, std::error]] {
     });
 }
 
-func parse_vec(str: []byte) std::result[[bubby::parse_success, std::error]] {
+func parse_vec(str: []byte) bubby::parse_result {
     if countof(str) == 0 {
-        return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+        return bubby::parse_result::init_error((:bubby::parse_failure){
+            .error = std::error::PARSE_FAILURE,
+            .index = 0,
+        });
     }
 
     var cur = 0u;
     var out = value::init_vec();
     if cur == countof(str) or str[cur] != '[' {
         out.fini();
-        return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+        return bubby::parse_result::init_error((:bubby::parse_failure){
+            .error = std::error::PARSE_FAILURE,
+            .index = cur,
+        });
     }
     cur += 1;
     for cur != countof(str) {
         # Require space separation between elements or optional space separation before the terminating ']'.
         if out.vec().*.count() != 0 and cur != countof(str) and str[cur] != ']' and not bubby::_is_whitespace(str[cur]) {
             out.fini();
-            return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+            return bubby::parse_result::init_error((:bubby::parse_failure){
+                .error = std::error::PARSE_FAILURE,
+                .index = cur,
+            });
         }
         for cur != countof(str) and bubby::_is_whitespace(str[cur]) {
             cur += 1;
@@ -479,39 +513,54 @@ func parse_vec(str: []byte) std::result[[bubby::parse_success, std::error]] {
         var result = bubby::parse(str[cur:countof(str)]);
         if result.is_error() {
             out.fini();
-            return result;
+            return bubby::parse_result::init_error((:bubby::parse_failure){
+                .error = result.error().error,
+                .index = cur + result.error().index,
+            });
         }
         cur += result.value().index;
         out.vec().*.push(result.value().value);
     }
     if cur == countof(str) or str[cur] != ']' {
         out.fini();
-        return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+        return bubby::parse_result::init_error((:bubby::parse_failure){
+            .error = std::error::PARSE_FAILURE,
+            .index = cur,
+        });
     }
     cur += 1;
-    return std::result[[bubby::parse_success, std::error]]::init_value((:bubby::parse_success){
+    return bubby::parse_result::init_value((:bubby::parse_success){
         .value = out,
         .index = cur,
     });
 }
 
-func parse_map(str: []byte) std::result[[bubby::parse_success, std::error]] {
+func parse_map(str: []byte) bubby::parse_result {
     if countof(str) == 0 {
-        return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+        return bubby::parse_result::init_error((:bubby::parse_failure){
+            .error = std::error::PARSE_FAILURE,
+            .index = 0,
+        });
     }
 
     var cur = 0u;
     var out = value::init_map();
     if cur == countof(str) or str[cur] != '{' {
         out.fini();
-        return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+        return bubby::parse_result::init_error((:bubby::parse_failure){
+            .error = std::error::PARSE_FAILURE,
+            .index = cur,
+        });
     }
     cur += 1;
     for cur != countof(str) {
         # Require space separation between key-value pairs or optional space separation before the terminating '}'.
         if out.map().*.count() != 0 and cur != countof(str) and str[cur] != '}' and not bubby::_is_whitespace(str[cur]) {
             out.fini();
-            return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+            return bubby::parse_result::init_error((:bubby::parse_failure){
+                .error = std::error::PARSE_FAILURE,
+                .index = cur,
+            });
         }
         for cur != countof(str) and bubby::_is_whitespace(str[cur]) {
             cur += 1;
@@ -523,22 +572,31 @@ func parse_map(str: []byte) std::result[[bubby::parse_success, std::error]] {
         var result = bubby::parse(str[cur:countof(str)]);
         if result.is_error() {
             out.fini();
-            return result;
+            return bubby::parse_result::init_error((:bubby::parse_failure){
+                .error = result.error().error,
+                .index = cur + result.error().index,
+            });
         }
         cur += result.value().index;
         var key = result.value().value;
 
-        if out.map().*.contains(key) {
+        if out.map().*.contains(&key) {
             out.fini();
             key.fini();
-            return std::result[[bubby::parse_success, std::error]]::init_error((:std::error)&"duplicate map key");
+            return bubby::parse_result::init_error((:bubby::parse_failure){
+                .error = (:std::error)&"duplicate map key",
+                .index = cur,
+            });
         }
 
         # Require space separation between the key and value.
         if cur == countof(str) or not bubby::_is_whitespace(str[cur]) {
             out.fini();
             key.fini();
-            return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+            return bubby::parse_result::init_error((:bubby::parse_failure){
+                .error = std::error::PARSE_FAILURE,
+                .index = cur,
+            });
         }
         for cur != countof(str) and bubby::_is_whitespace(str[cur]) {
             cur += 1;
@@ -547,7 +605,10 @@ func parse_map(str: []byte) std::result[[bubby::parse_success, std::error]] {
         if result.is_error() {
             out.fini();
             key.fini();
-            return result;
+            return bubby::parse_result::init_error((:bubby::parse_failure){
+                .error = result.error().error,
+                .index = cur + result.error().index,
+            });
         }
         cur += result.value().index;
         var val = result.value().value;
@@ -556,32 +617,44 @@ func parse_map(str: []byte) std::result[[bubby::parse_success, std::error]] {
     }
     if cur == countof(str) or str[cur] != '}' {
         out.fini();
-        return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+        return bubby::parse_result::init_error((:bubby::parse_failure){
+            .error = std::error::PARSE_FAILURE,
+            .index = cur,
+        });
     }
     cur += 1;
-    return std::result[[bubby::parse_success, std::error]]::init_value((:bubby::parse_success){
+    return bubby::parse_result::init_value((:bubby::parse_success){
         .value = out,
         .index = cur,
     });
 }
 
-func parse_set(str: []byte) std::result[[bubby::parse_success, std::error]] {
+func parse_set(str: []byte) bubby::parse_result {
     if countof(str) == 0 {
-        return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+        return bubby::parse_result::init_error((:bubby::parse_failure){
+            .error = std::error::PARSE_FAILURE,
+            .index = 0,
+        });
     }
 
     var cur = 0u;
     var out = value::init_set();
     if cur == countof(str) or str[cur] != '(' {
         out.fini();
-        return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+        return bubby::parse_result::init_error((:bubby::parse_failure){
+            .error = std::error::PARSE_FAILURE,
+            .index = cur,
+        });
     }
     cur += 1;
     for cur != countof(str) {
         # Require space separation between elements or optional space separation before the terminating ')'.
         if out.set().*.count() != 0 and cur != countof(str) and str[cur] != ')' and not bubby::_is_whitespace(str[cur]) {
             out.fini();
-            return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+            return bubby::parse_result::init_error((:bubby::parse_failure){
+                .error = std::error::PARSE_FAILURE,
+                .index = cur,
+            });
         }
         for cur != countof(str) and bubby::_is_whitespace(str[cur]) {
             cur += 1;
@@ -593,33 +666,45 @@ func parse_set(str: []byte) std::result[[bubby::parse_success, std::error]] {
         var result = bubby::parse(str[cur:countof(str)]);
         if result.is_error() {
             out.fini();
-            return result;
+            return bubby::parse_result::init_error((:bubby::parse_failure){
+                .error = result.error().error,
+                .index = cur + result.error().index,
+            });
         }
         cur += result.value().index;
         var val = result.value().value;
 
-        if out.set().*.contains(val) {
+        if out.set().*.contains(&val) {
             val.fini();
             out.fini();
-            return std::result[[bubby::parse_success, std::error]]::init_error((:std::error)&"duplicate set element");
+            return bubby::parse_result::init_error((:bubby::parse_failure){
+                .error = (:std::error)&"duplicate set element",
+                .index = cur,
+            });
         }
 
         out.set().*.insert(val);
     }
     if cur == countof(str) or str[cur] != ')' {
         out.fini();
-        return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+        return bubby::parse_result::init_error((:bubby::parse_failure){
+            .error = std::error::PARSE_FAILURE,
+            .index = cur,
+        });
     }
     cur += 1;
-    return std::result[[bubby::parse_success, std::error]]::init_value((:bubby::parse_success){
+    return bubby::parse_result::init_value((:bubby::parse_success){
         .value = out,
         .index = cur,
     });
 }
 
-func parse(str: []byte) std::result[[bubby::parse_success, std::error]] {
+func parse(str: []byte) bubby::parse_result {
     if countof(str) == 0 {
-        return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+        return bubby::parse_result::init_error((:bubby::parse_failure){
+            .error = std::error::PARSE_FAILURE,
+            .index = 0,
+        });
     }
 
     if str[0] == '\"' {
@@ -638,5 +723,8 @@ func parse(str: []byte) std::result[[bubby::parse_success, std::error]] {
         return bubby::parse_set(str);
     }
 
-    return std::result[[bubby::parse_success, std::error]]::init_error(std::error::PARSE_FAILURE);
+    return bubby::parse_result::init_error((:bubby::parse_failure){
+        .error = std::error::PARSE_FAILURE,
+        .index = 0,
+    });
 }
