@@ -1715,8 +1715,8 @@ struct server_state {
         self.*.sendc_all(server_message::init_log_format(
             "{} traded {} {} for 1 {}.",
             (:[]std::formatter)[
-                std::formatter::init[[typeof(name)]](&name),
                 std::formatter::init[[typeof(give)]](&give),
+                std::formatter::init[[typeof(name)]](&name),
                 std::formatter::init[[typeof(n_to_1)]](&n_to_1),
                 std::formatter::init[[typeof(recv)]](&recv)]));
     }
