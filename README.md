@@ -2,10 +2,13 @@
 
 [Sunder](https://github.com/ashn-dot-dev/sunder) bindings for [raylib](https://www.raylib.com).
 
+Currently supports raylib version [5.5](https://github.com/raysan5/raylib/releases/tag/5.5).
+
 ## Build and Install
+
 Clone the [raylib repository](https://github.com/raysan5/raylib) into the
 directory of your choice (in this case `~/sources/raylib`), and checkout the
-release version that you would like to build and install bindings for:
+supported raylib release version:
 
 ```sh
 git clone https://github.com/raysan5/raylib.git ~/sources/raylib
@@ -39,23 +42,6 @@ Compiling for the web (HTML 5) requires the Emscripten toolchain
 
 ```sh
 SUNDER_ARCH=wasm32 SUNDER_HOST=emscripten SUNDER_CC=emcc SUNDER_CFLAGS="$(${SUNDER_HOME}/lib/raylib/raylib-config web) -sSINGLE_FILE=1 --shell-file emscripten-shell.html" sunder-compile -o example.html examples/example.sunder
-```
-
-## Additional Notes
-When developing on the Pinebook Pro (or similar platforms), raylib may fail to
-initialize the OpenGL context with a `GLXBadFBConfig` error due to OpenGL 3.3+
-not being supported. If this occurs, set `LIBGL_ALWAYS_SOFTWARE=true` to force
-software rendering.
-
-```sh
-LIBGL_ALWAYS_SOFTWARE=true ./raylib-application
-```
-
-Alternatively, build with `RAYLIB_MAKEFLAGS='GRAPHICS=GRAPHICS_API_OPENGL_ES2'`
-to use OpenGL ES2 for both desktop and web builds.
-
-```sh
-make RAYLIB_DIRECTORY=/your/path/to/raylib RAYLIB_MAKEFLAGS='GRAPHICS=GRAPHICS_API_OPENGL_ES2' all
 ```
 
 ## License
