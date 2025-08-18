@@ -34,7 +34,9 @@ Bubby data consists of four value-types: str, vec, map, and set.
     (["foo" "bar"] {"key" "value"})
 
 The bubby data format is named after and dedicated to my dog Mya, who I
-affectionately called my bubby girl. May she rest in peace.
+affectionately called my bubby girl.
+
+May she rest in peace.
 
 ## License
 All content in this repository, unless otherwise noted, is licensed under the
