@@ -3,7 +3,7 @@
 Bubby is a minimalist data format designed to express simple structured data in
 human-readable plaintext.
 
-Bubby data consists of four value-types: str, vec, map, and set.
+Bubby data consists of four value types: str, vec, map, and set.
 
 **str**: byte string
 
@@ -15,6 +15,11 @@ Bubby data consists of four value-types: str, vec, map, and set.
     []
     ["foo" "bar" "baz"]
     ["foo" [["bar" "baz"]] {"abc" "123"} "foo"]
+    [
+        "foo"
+        "bar"
+        "baz"
+    ]
 
 **map**: mapping of unique keys to values
 
@@ -32,6 +37,11 @@ Bubby data consists of four value-types: str, vec, map, and set.
     ()
     ("foo" "bar" "baz")
     (["foo" "bar"] {"key" "value"})
+    (
+        "foo"
+        "bar"
+        "baz"
+    )
 
 The bubby data format is named after and dedicated to my dog Mya, who I
 affectionately called my bubby girl.
@@ -44,9 +54,9 @@ May she rest in peace.
 value = str | vec | map | set ;
 
 str = '"' { byte } '"' ;
-vec = '[' value_list ']' ;
-map = '{' pairs_list '}' ;
-set = '(' value_list ')' ;
+vec = '[' [ whitespace ] value_list [ whitespace ] ']' ;
+map = '{' [ whitespace ] pairs_list [ whitespace ] '}' ;
+set = '(' [ whitespace ] value_list [ whitespace ] ')' ;
 
 byte = byte_raw | byte_hex ;
 byte_raw = ? any byte except '"' and '\' ? ;
