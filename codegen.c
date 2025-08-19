@@ -260,7 +260,10 @@ mangle(char const* cstr)
         }
 
         // some::symbol
+        //     ^^
+        //
         // some_symbol
+        //     ^
         if (cstr_starts_with(cur, "::")) {
             string_append_cstr(s, "_");
             cur += 2;
@@ -268,7 +271,10 @@ mangle(char const* cstr)
         }
 
         // type[[foo, bar]]
+        //     ^^
+        //
         // type_TEMPLATE_BGN_foo_COMMA_bar_TEMPLATE_END
+        //     ^^^^^^^^^^^^^^
         if (cstr_starts_with(cur, "[[")) {
             string_append_cstr(s, "_TEMPLATE_BGN_");
             cur += 2;
@@ -276,7 +282,10 @@ mangle(char const* cstr)
         }
 
         // type[[foo, bar]]
+        //               ^^
+        //
         // type_TEMPLATE_BGN_foo_COMMA_bar_TEMPLATE_END
+        //                                ^^^^^^^^^^^^^
         if (cstr_starts_with(cur, "]]")) {
             string_append_cstr(s, "_TEMPLATE_END");
             cur += 2;
@@ -284,7 +293,10 @@ mangle(char const* cstr)
         }
 
         // type[[foo, bar]]
+        //          ^
+        //
         // type_TEMPLATE_BGN_foo_COMMA_bar_TEMPLATE_END
+        //                      ^^^^^^^
         if (cstr_starts_with(cur, ",")) {
             string_append_cstr(s, "_COMMA_");
             cur += 1;
@@ -292,7 +304,10 @@ mangle(char const* cstr)
         }
 
         // []type
-        // ...slice_of_type...
+        // ^^
+        //
+        // slice_of_type
+        // ^^^^^^^^^
         if (cstr_starts_with(cur, "[]")) {
             string_append_cstr(s, "slice_of_");
             cur += 2;
@@ -300,7 +315,10 @@ mangle(char const* cstr)
         }
 
         // [N]type
-        // ...array_N_of_type...
+        // ^
+        //
+        // array_N_of_type
+        // ^^^^^^
         if (cstr_starts_with(cur, "[")) {
             string_append_cstr(s, "array_");
             cur += 1;
@@ -308,7 +326,10 @@ mangle(char const* cstr)
         }
 
         // [N]type
-        // ...array_N_of_type...
+        //   ^
+        //
+        // array_N_of_type
+        //        ^^^^
         if (cstr_starts_with(cur, "]")) {
             string_append_cstr(s, "_of_");
             cur += 1;
@@ -316,7 +337,10 @@ mangle(char const* cstr)
         }
 
         // *type
-        // ...pointer_to_type...
+        // ^
+        //
+        // pointer_to_type
+        // ^^^^^^^^^^^
         if (cstr_starts_with(cur, "*")) {
             string_append_cstr(s, "pointer_to_");
             cur += 1;
@@ -324,7 +348,10 @@ mangle(char const* cstr)
         }
 
         // struct { var <member>; }
+        //        ^
+        //
         // struct_LBRACE_VAR_<member>_RBRACE
+        //       ^^^^^^^
         if (cstr_starts_with(cur, "{")) {
             string_append_cstr(s, "_LBRACE");
             cur += 1;
@@ -332,7 +359,10 @@ mangle(char const* cstr)
         }
 
         // struct { var <member>; }
+        //                        ^
+        //
         // struct_LBRACE_VAR_<member>_RBRACE
+        //                           ^^^^^^^
         if (cstr_starts_with(cur, "}")) {
             string_append_cstr(s, "_RBRACE");
             cur += 1;
@@ -340,7 +370,10 @@ mangle(char const* cstr)
         }
 
         // struct { var <member-name>: <member-type>; }
+        //          ^^^
+        //
         // struct_LBRACE_VAR_<member-name>_TYPE_<member-type>_RBRACE
+        //              ^^^^^
         if (cstr_starts_with(cur, "var ")) {
             string_append_cstr(s, "_VAR_");
             cur += 4;
@@ -348,7 +381,10 @@ mangle(char const* cstr)
         }
 
         // struct { var <member-name>: <member-type>; }
+        //                           ^
+        //
         // struct_LBRACE_VAR_<member-name>_TYPE_<member-type>_RBRACE
+        //                                ^^^^^^
         if (cstr_starts_with(cur, ":")) {
             string_append_cstr(s, "_TYPE_");
             cur += 1;
@@ -356,6 +392,8 @@ mangle(char const* cstr)
         }
 
         // struct { var <member-name>: <member-type>; }
+        //                                          ^
+        //
         // struct_LBRACE_VAR_<member-name>_TYPE_<member-type>_RBRACE
         if (cstr_starts_with(cur, ";")) {
             cur += 1;
@@ -385,6 +423,7 @@ mangle_name(char const* name)
 
     char const* const reserved[] = {
         // Preprocessor Keywords
+        /* if */ /* Sunder keyword */
         /* elif */ /* Sunder keyword */
         /* else */ /* Sunder keyword */
         "endif",
@@ -475,6 +514,39 @@ mangle_name(char const* name)
 
         // C Runtime
         "main",
+
+        // GNU C Extension Keywords
+        "__FUNCTION__",
+        "__PRETTY_FUNCTION__",
+        "__alignof",
+        "__alignof__",
+        "__asm",
+        "__asm__",
+        "__attribute",
+        "__attribute__",
+        "__builtin_offsetof",
+        "__builtin_va_arg",
+        "__complex",
+        "__complex__",
+        "__const",
+        "__extension__",
+        "__func__",
+        "__imag",
+        "__imag__",
+        "__inline",
+        "__inline__",
+        "__label__",
+        "__null",
+        "__real",
+        "__real__",
+        "__restrict",
+        "__restrict__",
+        "__signed",
+        "__signed__",
+        "__thread",
+        "__typeof",
+        "__volatile",
+        "__volatile__",
     };
 
     for (size_t i = 0; i < ARRAY_COUNT(reserved); ++i) {
@@ -591,6 +663,7 @@ mangle_address(struct address const* address)
     }
 
     UNREACHABLE();
+    return NULL;
 }
 
 static char const*
@@ -1086,15 +1159,15 @@ strgen_value(struct value const* value)
     case TYPE_F32: {
         double const ieee754 = (double)value->data.f32;
         if (isnan(ieee754)) {
-            string_append_cstr(s, "(float)NAN");
+            string_append_cstr(s, "/* NAN */(0.0f / 0.0f)");
             break;
         }
         if (isinf(ieee754) && ieee754 < 0) {
-            string_append_cstr(s, "(float)-INFINITY");
+            string_append_cstr(s, "/* -INFINITY */(-1.0f / 0.0f)");
             break;
         }
         if (isinf(ieee754) && ieee754 > 0) {
-            string_append_cstr(s, "(float)+INFINITY");
+            string_append_cstr(s, "/* +INFINITY */(+1.0f / 0.0f)");
             break;
         }
         string_append_fmt(s, "%.*ff", IEEE754_FLT_DECIMAL_DIG, ieee754);
@@ -1103,15 +1176,15 @@ strgen_value(struct value const* value)
     case TYPE_F64: {
         double const ieee754 = value->data.f64;
         if (isnan(ieee754)) {
-            string_append_cstr(s, "(double)NAN");
+            string_append_cstr(s, "/* NAN */(0.0 / 0.0)");
             break;
         }
         if (isinf(ieee754) && ieee754 < 0) {
-            string_append_cstr(s, "(double)-INFINITY");
+            string_append_cstr(s, "/* -INFINITY */(-1.0 / 0.0)");
             break;
         }
         if (isinf(ieee754) && ieee754 > 0) {
-            string_append_cstr(s, "(double)+INFINITY");
+            string_append_cstr(s, "/* +INFINITY */(+1.0f / 0.0f)");
             break;
         }
         string_append_fmt(s, "%.*f", IEEE754_DBL_DECIMAL_DIG, ieee754);
@@ -2608,6 +2681,7 @@ strgen_rvalue_access_index(struct expr const* expr)
     }
 
     UNREACHABLE();
+    return NULL;
 }
 
 static char const*
@@ -2625,6 +2699,7 @@ strgen_rvalue_access_slice(struct expr const* expr)
     }
 
     UNREACHABLE();
+    return NULL;
 }
 
 static char const*
@@ -2835,6 +2910,7 @@ strgen_rvalue_unary(struct expr const* expr)
     }
 
     UNREACHABLE();
+    return NULL;
 }
 
 static char const*
@@ -3015,6 +3091,7 @@ strgen_rvalue_unary_countof(struct expr const* expr)
     }
 
     UNREACHABLE();
+    return NULL;
 }
 
 static char const*
@@ -3090,6 +3167,7 @@ strgen_rvalue_binary(struct expr const* expr)
     }
 
     UNREACHABLE();
+    return NULL;
 }
 
 static char const*
@@ -3655,6 +3733,7 @@ strgen_lvalue_access_index(struct expr const* expr)
     }
 
     UNREACHABLE();
+    return NULL;
 }
 
 static char const*
@@ -3701,6 +3780,7 @@ strgen_lvalue_unary(struct expr const* expr)
     }
 
     UNREACHABLE();
+    return NULL;
 }
 
 static void
@@ -3836,6 +3916,70 @@ codegen(
             "unable to open temporary file `%s` with error '%s'",
             string_start(src_path),
             strerror(errno));
+        goto cleanup;
+    }
+
+    // Check for duplicate static addresses amongst separate symbols.
+    struct static_symbol_mapping {
+        struct symbol const* symbol;
+        char const* mangled_address;
+    };
+    sbuf(struct static_symbol_mapping) static_symbol_mappings = NULL;
+    for (size_t i = 0; i < sbuf_count(context()->static_symbols); ++i) {
+        struct symbol const* const symbol = context()->static_symbols[i];
+        assert(symbol_xget_address(symbol)->kind == ADDRESS_STATIC);
+        struct static_symbol_mapping const mapping = {
+            .symbol = symbol,
+            .mangled_address = mangle_address(symbol_xget_address(symbol)),
+        };
+        sbuf_push(static_symbol_mappings, mapping);
+    }
+    sbuf_freeze(static_symbol_mappings);
+    for (size_t i = 0; i < sbuf_count(static_symbol_mappings); ++i) {
+        struct static_symbol_mapping const m_i = static_symbol_mappings[i];
+        char const* const mangled_address_i = m_i.mangled_address;
+        for (size_t j = i + 1; j < sbuf_count(static_symbol_mappings); ++j) {
+            struct static_symbol_mapping m_j = static_symbol_mappings[j];
+            char const* const mangled_address_j = m_j.mangled_address;
+            assert(mangled_address_i != NULL);
+            assert(mangled_address_j != NULL);
+            if (0 != strcmp(mangled_address_i, mangled_address_j)) {
+                continue; // No mangled static address conflict.
+            }
+
+            struct symbol const* const symbol_i = m_i.symbol;
+            struct symbol const* const symbol_j = m_j.symbol;
+            struct source_location const location_i = symbol_i->location;
+            struct source_location const location_j = symbol_j->location;
+            char const* defined_at_i = "defined internally";
+            char const* defined_at_j = "defined internally";
+            if (location_i.path != NO_PATH && location_i.line != NO_LINE) {
+                defined_at_i = intern_fmt(
+                    "defined at %s:%zu",
+                    symbol_i->location.path,
+                    symbol_i->location.line);
+            }
+            if (location_j.path != NO_PATH && location_j.line != NO_LINE) {
+                defined_at_j = intern_fmt(
+                    "defined at %s:%zu",
+                    symbol_j->location.path,
+                    symbol_j->location.line);
+            }
+            error(
+                NO_LOCATION,
+                "symbols `%s` (%s) and `%s` (%s) resolve to the same static address `%s`",
+                symbol_xget_address(m_i.symbol)->data.static_.name,
+                defined_at_i,
+                symbol_xget_address(m_j.symbol)->data.static_.name,
+                defined_at_j,
+                m_i.mangled_address);
+            err = true;
+        }
+    }
+    if (err) {
+        info(
+            NO_LOCATION,
+            "compilation of generated C code will fail due to conflicting Sunder addresses used as C identifiers");
         goto cleanup;
     }
 

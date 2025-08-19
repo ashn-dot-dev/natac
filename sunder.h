@@ -725,31 +725,32 @@ struct context {
     // Interned strings.
     struct {
         // clang-format off
-        char const* empty;   // ""
-        char const* builtin; // "builtin"
-        char const* return_; // "return"
-        char const* main;    // "main"
-        char const* any;     // "any"
-        char const* void_;   // "void"
-        char const* bool_;   // "bool"
-        char const* u8;      // "u8"
-        char const* s8;      // "s8"
-        char const* u16;     // "u16"
-        char const* s16;     // "s16"
-        char const* u32;     // "u32"
-        char const* s32;     // "s32"
-        char const* u64;     // "u64"
-        char const* s64;     // "s64"
-        char const* byte;    // "byte"
-        char const* usize;   // "usize"
-        char const* ssize;   // "ssize"
-        char const* integer; // "integer"
-        char const* y;       // "y"
-        char const* u;       // "u"
-        char const* s;       // "s"
-        char const* f32;     // "f32"
-        char const* f64;     // "f64"
-        char const* real;    // "real"
+        char const* empty;           // ""
+        char const* builtin;         // "builtin"
+        char const* return_;         // "return"
+        char const* main;            // "main"
+        char const* any;             // "any"
+        char const* void_;           // "void"
+        char const* bool_;           // "bool"
+        char const* u8;              // "u8"
+        char const* s8;              // "s8"
+        char const* u16;             // "u16"
+        char const* s16;             // "s16"
+        char const* u32;             // "u32"
+        char const* s32;             // "s32"
+        char const* u64;             // "u64"
+        char const* s64;             // "s64"
+        char const* byte;            // "byte"
+        char const* usize;           // "usize"
+        char const* ssize;           // "ssize"
+        char const* integer;         // "integer"
+        char const* y;               // "y"
+        char const* u;               // "u"
+        char const* s;               // "s"
+        char const* f32;             // "f32"
+        char const* f64;             // "f64"
+        char const* real;            // "real"
+        char const* underlying_type; // "underlying_type"
         // clang-format on
     } interned;
 
@@ -1147,6 +1148,7 @@ struct cst_decl {
         } union_;
         struct {
             struct cst_identifier identifier;
+            struct cst_type const* type; // optional
             sbuf(struct cst_enum_value const* const) values;
             sbuf(struct cst_member const* const)
                 member_functions; // CST_MEMBER_FUNCTION
@@ -1210,6 +1212,7 @@ struct cst_decl*
 cst_decl_new_enum(
     struct source_location location,
     struct cst_identifier identifier,
+    struct cst_type const* type,
     struct cst_enum_value const* const* values,
     struct cst_member const* const* member_functions);
 struct cst_decl*
@@ -1677,6 +1680,7 @@ struct cst_type {
             sbuf(struct cst_member const* const) members;
         } union_;
         struct {
+            struct cst_type const* type; // optional
             sbuf(struct cst_enum_value const* const) values;
         } enum_;
         struct {
@@ -1711,6 +1715,7 @@ cst_type_new_union(
 struct cst_type*
 cst_type_new_enum(
     struct source_location location,
+    struct cst_type const* type,
     struct cst_enum_value const* const* values);
 struct cst_type*
 cst_type_new_typeof(
@@ -1896,9 +1901,14 @@ type_new_union(char const* name, struct symbol_table* symbols);
 // Create an external type (unsized).
 struct type*
 type_new_extern(char const* name, struct symbol_table* symbols);
-// Create a new enum with no members.
+// Create a new enum with no members. The parameter `underlying_type` may be
+// NULL, in which case an integer type sharing a size and alignment of a C enum
+// with no enum type specifier is used as the underlying type.
 struct type*
-type_new_enum(char const* name, struct symbol_table* symbols);
+type_new_enum(
+    char const* name,
+    struct symbol_table* symbols,
+    struct type const* underlying_type);
 
 // Returns the index of the member variable `name` of the provided struct type.
 // Returns a non-negative integer index on success.
