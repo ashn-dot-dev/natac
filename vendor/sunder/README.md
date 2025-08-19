@@ -7,7 +7,7 @@ following dependencies:
 
 + POSIX-compatible `make`
 + [GNU Core Utilities](https://www.gnu.org/software/coreutils/)
-+ [Clang](https://clang.llvm.org/) or [GCC](https://gcc.gnu.org/)
++ GNU C compiler ([Clang](https://clang.llvm.org/), [GCC](https://gcc.gnu.org/), and [TCC](https://bellard.org/tcc/) are currently supported)
 + [Emscripten](https://emscripten.org/) (WebAssembly code-generation only)
 + [Clang Format](https://clang.llvm.org/docs/ClangFormat.html) (development only)
 
@@ -143,8 +143,9 @@ Process 133770 stopped
 The following environment variables affect compiler behavior:
 
 **`SUNDER_CC`** selects the C compiler to be used when compiling generated C.
-Currently, `SUNDER_CC=clang`, `SUNDER_CC=gcc`, and `SUNDER_CC=emcc` are
-supported. If `SUNDER_CC` is not set, then the default C compiler is used.
+Currently, `SUNDER_CC=clang`, `SUNDER_CC=gcc`, `SUNDER_CC=tcc`, and
+`SUNDER_CC=emcc` are supported. If `SUNDER_CC` is not set, then the default C
+compiler is used.
 
 **`SUNDER_CFLAGS`** is a space-separated list of additional flags passed to the
 C compiler.
