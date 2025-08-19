@@ -168,7 +168,12 @@ func main() void {
     defer x.fini();
     std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&x)]);
 
+    # No whitespace between values.
     var result = bubby::parse_vec("[\"foo\"\"bar\"]");
+    std::print_line(std::out(), result.error().error.*.data);
+
+    # Invalid whitespace between values.
+    var result = bubby::parse_vec("[\"foo\"\x0D\"bar\"]"); # CR separator
     std::print_line(std::out(), result.error().error.*.data);
 
     # Empty string.
@@ -196,13 +201,20 @@ func main() void {
     defer x.fini();
     std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&x)]);
 
+    # Duplicate key.
     var result = bubby::parse_map("{\"foo\" \"a\" \"foo\" \"b\"}");
     std::print_line(std::out(), result.error().error.*.data);
 
+    # No whitespace between values.
     var result = bubby::parse_map("{\"foo\"\"a\"}");
     std::print_line(std::out(), result.error().error.*.data);
 
+    # No whitespace between pairs.
     var result = bubby::parse_map("{\"foo\" \"a\"\"bar\" \"b\"}");
+    std::print_line(std::out(), result.error().error.*.data);
+
+    # Invalid whitespace between values.
+    var result = bubby::parse_map("{\"foo\"\x0D\"bar\"}"); # CR separator
     std::print_line(std::out(), result.error().error.*.data);
 
     # Empty string.
@@ -233,7 +245,12 @@ func main() void {
     var result = bubby::parse_set("(\"foo\" \"foo\")");
     std::print_line(std::out(), result.error().error.*.data);
 
+    # No whitespace between values.
     var result = bubby::parse_set("(\"foo\"\"bar\")");
+    std::print_line(std::out(), result.error().error.*.data);
+
+    # Invalid whitespace between values.
+    var result = bubby::parse_map("{\"foo\"\x0D\"bar\"}"); # CR separator
     std::print_line(std::out(), result.error().error.*.data);
 
     # Empty string.
@@ -280,6 +297,7 @@ func main() void {
 # parse failure
 # parse failure
 # parse failure
+# parse failure
 #
 # PARSE MAP
 # {"foo" "a" "bar" [({})]}
@@ -290,11 +308,13 @@ func main() void {
 # parse failure
 # parse failure
 # parse failure
+# parse failure
 #
 # PARSE SET
 # ("foo" [({})])
 # ("foo" "bar")
 # duplicate set element
+# parse failure
 # parse failure
 # parse failure
 # parse failure
