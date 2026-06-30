@@ -1032,6 +1032,33 @@ symbol_get_mutable(struct symbol const* self)
     return (struct symbol*)self;
 }
 
+struct type const*
+symbol_get_type(struct symbol const* self)
+{
+    assert(self != NULL);
+
+    switch (self->kind) {
+    case SYMBOL_TYPE: {
+        return self->data.type;
+    }
+    case SYMBOL_VARIABLE: {
+        return self->data.variable->type;
+    }
+    case SYMBOL_CONSTANT: {
+        return self->data.constant->type;
+    }
+    case SYMBOL_FUNCTION: {
+        return self->data.function->type;
+    }
+    case SYMBOL_TEMPLATE: /* fallthrough */
+    case SYMBOL_NAMESPACE: {
+        return NULL;
+    }
+    }
+
+    return NULL;
+}
+
 struct address const*
 symbol_get_address(struct symbol const* self)
 {
@@ -1062,26 +1089,12 @@ symbol_xget_type(struct symbol const* self)
 {
     assert(self != NULL);
 
-    switch (self->kind) {
-    case SYMBOL_TYPE: {
-        return self->data.type;
-    }
-    case SYMBOL_VARIABLE: {
-        return self->data.variable->type;
-    }
-    case SYMBOL_CONSTANT: {
-        return self->data.constant->type;
-    }
-    case SYMBOL_FUNCTION: {
-        return self->data.function->type;
-    }
-    case SYMBOL_TEMPLATE: /* fallthrough */
-    case SYMBOL_NAMESPACE: {
+    struct type const* const type = symbol_get_type(self);
+    if (type == NULL) {
         UNREACHABLE();
     }
-    }
 
-    return NULL;
+    return type;
 }
 
 struct address const*
@@ -2230,7 +2243,9 @@ value_clone(struct value const* self)
         for (size_t i = 0; i < sbuf_count(elements); ++i) {
             sbuf_push(cloned_elements, value_clone(elements[i]));
         }
-        return value_new_array(self->type, cloned_elements, ellipsis);
+        struct value* const cloned_ellipsis =
+            ellipsis != NULL ? value_clone(ellipsis) : NULL;
+        return value_new_array(self->type, cloned_elements, cloned_ellipsis);
     }
     case TYPE_SLICE: {
         return value_new_slice(

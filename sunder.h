@@ -159,9 +159,6 @@ cstr_starts_with(char const* cstr, char const* target);
 // Returns true if cstr ends with target.
 bool
 cstr_ends_with(char const* cstr, char const* target);
-// Returns true if lhs and rhs are equal, ignoring case.
-bool
-cstr_eq_ignore_case(char const* lhs, char const* rhs);
 char const* // interned
 cstr_replace(char const* cstr, char const* target, char const* replacement);
 
@@ -2111,6 +2108,12 @@ symbol_new_namespace(
 struct symbol*
 symbol_get_mutable(struct symbol const* self);
 
+// Get the type of the symbol `self`.
+// Returns NULL if this symbol does not have an address.
+struct type const*
+symbol_get_type(struct symbol const* self);
+
+// Get the address of the symbol `self`.
 // Returns NULL if this symbol does not have an address.
 struct address const*
 symbol_get_address(struct symbol const* self);
