@@ -1923,7 +1923,7 @@ func client_update(cstate: *client_state, sender: *message_sender[[client_messag
             ui_window_main_build_road(cstate);
         }
         ui_dynamic_state::BUILD_TOWN {
-            ui_window_main_build_road(cstate);
+            ui_window_main_build_town(cstate);
         }
         ui_dynamic_state::PLAY_DEV_CARD {
             ui_window_play_dev_card(cstate, sender);
