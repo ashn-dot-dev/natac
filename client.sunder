@@ -1217,7 +1217,7 @@ func ui_window_main_trade_with_bank(cstate: *client_state, sender: *message_send
     var ui_x = (:sint)screen_w * 2 / 3 - ui_w - 2 * UI_BORDER;
     var ui_y = (:sint)screen_h - ui_h - UI_BORDER;
 
-    if cstate.*.ui.begin_window_ex("Trade with Bank", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
+    if cstate.*.ui.begin_window_ex("Trade with the Bank", smol::rect::init(ui_x, ui_y, ui_w, ui_h), smol::OPT_NOCLOSE) {
         ui_reset_cached_container_size(cstate.*.ui.get_current_container(), ui_x, ui_y, ui_w, ui_h);
 
         cstate.*.ui.layout_row((:[]sint)[-1], 0);
@@ -1225,7 +1225,7 @@ func ui_window_main_trade_with_bank(cstate: *client_state, sender: *message_send
             for i in countof(RESOURCES) {
                 var name = RESOURCES[i].data();
                 var s = std::string::init_from_format(
-                    ".. for {}",
+                    "...for {}",
                     (:[]std::formatter)[
                         std::formatter::init[[typeof(name)]](&name)]);
                 defer s.fini();
