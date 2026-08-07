@@ -285,8 +285,8 @@ skip_comment(struct lexer* self)
     }
     if (*self->current == '\n') {
         self->current += STR_LITERAL_COUNT("\n");
+        self->current_line += 1;
     }
-    self->current_line += 1;
 }
 
 static void
@@ -593,7 +593,7 @@ lexer_next_token(struct lexer* self)
     if (safe_isdigit(ch)) {
         return lex_number(self, location);
     }
-    if (ch == '\'') {
+    if (ch == '\'' && *(self->current + 1) != '\'') {
         return lex_character(self, location);
     }
     if (ch == '\"') {

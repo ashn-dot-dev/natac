@@ -447,7 +447,7 @@ cstr_ends_with(char const* cstr, char const* target)
     size_t const target_count = strlen(target);
 
     if (cstr_count < target_count) {
-        return 0;
+        return false;
     }
     char const* const start = cstr + (cstr_count - target_count);
     return safe_memcmp(start, target, target_count) == 0;
@@ -456,6 +456,11 @@ cstr_ends_with(char const* cstr, char const* target)
 char const*
 cstr_replace(char const* cstr, char const* target, char const* replacement)
 {
+    if (0 == strcmp(target, "")) {
+        fatal(
+            NO_LOCATION, "invalid use of cstr_replace() with an empty target");
+    }
+
     struct string* const s = string_new("", 0);
     for (char const* cur = cstr; *cur != '\0';) {
         if (cstr_starts_with(cur, target)) {
@@ -669,7 +674,7 @@ struct bitarr {
 static inline size_t
 bitarr__word_count_(size_t count)
 {
-    return (count / BITARR__WORD_SIZE_) + (count % BITARR__WORD_SIZE_ != 0);
+    return (count / BITARR__WORD_BITS_) + (count % BITARR__WORD_BITS_ != 0);
 }
 
 static inline size_t
@@ -727,9 +732,9 @@ bitarr_set(struct bitarr* self, size_t n, int value)
         fatal(NO_LOCATION, "[%s] Index out of bounds (%zu)", __func__, n);
     }
 
-    BITARR__WORD_TYPE_* const pword = &self->words[n / BITARR__WORD_SIZE_];
+    BITARR__WORD_TYPE_* const pword = &self->words[n / BITARR__WORD_BITS_];
     BITARR__WORD_TYPE_ const mask = (BITARR__WORD_TYPE_)1u
-        << (n % BITARR__WORD_SIZE_);
+        << (n % BITARR__WORD_BITS_);
     *pword = (BITARR__WORD_TYPE_)(value ? *pword | mask : *pword & ~mask);
 }
 
@@ -742,9 +747,9 @@ bitarr_get(struct bitarr const* self, size_t n)
         fatal(NO_LOCATION, "[%s] Index out of bounds (%zu)", __func__, n);
     }
 
-    BITARR__WORD_TYPE_ const word = self->words[n / BITARR__WORD_SIZE_];
+    BITARR__WORD_TYPE_ const word = self->words[n / BITARR__WORD_BITS_];
     BITARR__WORD_TYPE_ const mask = (BITARR__WORD_TYPE_)1u
-        << (n % BITARR__WORD_SIZE_);
+        << (n % BITARR__WORD_BITS_);
 
     return (word & mask) != 0;
 }
@@ -831,6 +836,9 @@ bitarr_shiftl(struct bitarr* res, struct bitarr const* lhs, size_t nbits)
             res->count,
             lhs->count);
     }
+    if (res->count == 0) {
+        return;
+    }
 
     size_t const count = bitarr_count(res);
     bitarr_assign(res, lhs);
@@ -856,6 +864,9 @@ bitarr_shiftr(
             __func__,
             res->count,
             lhs->count);
+    }
+    if (res->count == 0) {
+        return;
     }
 
     size_t const count = bitarr_count(res);
@@ -945,6 +956,9 @@ bitarr_to_bigint(
     assert(bitarr != NULL);
 
     bigint_assign(res, BIGINT_ZERO);
+    if (bitarr->count == 0) {
+        return;
+    }
 
     size_t const bit_count = bitarr_count(bitarr);
     struct bitarr* const mag_bits = bitarr_new(bit_count);
@@ -2302,15 +2316,6 @@ unreachable(char const* file, int line)
     exit(EXIT_FAILURE);
 }
 
-uintmax_t
-ceil8umax(uintmax_t x)
-{
-    while (x % 8u != 0u) {
-        x += 1u;
-    }
-    return x;
-}
-
 int
 spawnvpw(char const* const* argv)
 {
@@ -2324,9 +2329,9 @@ spawnvpw(char const* const* argv)
 
     if (pid == 0) {
         // The POSIX 2017 rational section for the exec family of functions
-        // notes that the neither the argv vector's elements nor the characters
+        // notes that neither the argv vector's elements nor the characters
         // within those elements are modified. The parameter declaration `char
-        // *const argv[]` was chosen to allow for for historical compatibility.
+        // *const argv[]` was chosen to allow for historical compatibility.
         char* const* argv_ = (char* const*)argv;
         if (execvp(argv[0], argv_) == -1) {
             fatal(
@@ -2338,6 +2343,12 @@ spawnvpw(char const* const* argv)
     }
 
     int status = 0;
-    waitpid(pid, &status, 0);
+    if (waitpid(pid, &status, 0) == -1) {
+        fatal(
+            NO_LOCATION, "failed to waitpid with error '%s'", strerror(errno));
+    }
+    if (!WIFEXITED(status)) {
+        return -1;
+    }
     return WEXITSTATUS(status);
 }
