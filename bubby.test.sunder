@@ -93,6 +93,11 @@ func main() void {
     std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&x)]);
     test_value_to_string_to_value(&x);
 
+    var x = bubby::parse("[\"\xF0\x9F\x8D\x94\"]").value().value; # ["🍔"]
+    defer x.fini();
+    std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&x)]);
+    std::print_format_line(std::out(), "{escaped}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&x)]);
+
     std::print(std::out(), "\n");
     std::print_line(std::out(), "MAP");
 
@@ -113,6 +118,11 @@ func main() void {
     std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&x)]);
     test_value_to_string_to_value(&x);
 
+    var x = bubby::parse("{\"\xF0\x9F\x8D\x94\" \"\xF0\x9F\x8C\xAD\"}").value().value; # {"🍔" "🌭"}
+    defer x.fini();
+    std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&x)]);
+    std::print_format_line(std::out(), "{escaped}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&x)]);
+
     std::print(std::out(), "\n");
     std::print_line(std::out(), "SET");
 
@@ -126,16 +136,18 @@ func main() void {
 
     var x = bubby::value::init_set();
     defer x.fini();
-    x.set().*.insert(bubby::value::init_set());
-    var tmp = bubby::value::init_set();
-    defer tmp.fini();
-    var view = x.set().*.lookup(&tmp);
-    var view = view.value();
-    view.*.set().*.insert(bubby::value::init_str("foo"));
-    view.*.set().*.insert(bubby::value::init_str("bar"));
-    view.*.set().*.insert(bubby::value::init_set());
+    var y = bubby::value::init_set();
+    y.set().*.insert(bubby::value::init_str("foo"));
+    y.set().*.insert(bubby::value::init_str("bar"));
+    y.set().*.insert(bubby::value::init_set());
+    x.set().*.insert(y);
     std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&x)]);
     test_value_to_string_to_value(&x);
+
+    var x = bubby::parse("(\"\xF0\x9F\x8D\x94\")").value().value; # ("🍔")
+    defer x.fini();
+    std::print_format_line(std::out(), "{}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&x)]);
+    std::print_format_line(std::out(), "{escaped}", (:[]std::formatter)[std::formatter::init[[bubby::value]](&x)]);
 
     std::print(std::out(), "\n");
     std::print_line(std::out(), "PARSE STR");
@@ -250,7 +262,7 @@ func main() void {
     std::print_line(std::out(), result.error().error.*.data);
 
     # Invalid whitespace between values.
-    var result = bubby::parse_map("{\"foo\"\x0D\"bar\"}"); # CR separator
+    var result = bubby::parse_set("(\"foo\"\x0D\"bar\")"); # CR separator
     std::print_line(std::out(), result.error().error.*.data);
 
     # Empty string.
@@ -276,14 +288,20 @@ func main() void {
 # VEC
 # ["foo" "bar" "baz"]
 # [["foo" "bar" "baz"] [[["qux"]]]]
+# ["🍔"]
+# ["\xF0\x9F\x8D\x94"]
 #
 # MAP
 # {"foo" "a" "bar" "b" "baz" "c"}
 # {"foo" {"bar" {}}}
+# {"🍔" "🌭"}
+# {"\xF0\x9F\x8D\x94" "\xF0\x9F\x8C\xAD"}
 #
 # SET
 # ("foo" "bar" "baz")
 # (("foo" "bar" ()))
+# ("🍔")
+# ("\xF0\x9F\x8D\x94")
 #
 # PARSE STR
 # "foo"

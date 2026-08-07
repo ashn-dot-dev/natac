@@ -69,6 +69,7 @@ struct value {
             return std::result[[value, std::error]]::init_error(result.error().error);
         }
         if result.value().index != countof(str) {
+            result.value().value.fini();
             return std::result[[value, std::error]]::init_error(std::error::PARSE_FAILURE);
         }
         return std::result[[value, std::error]]::init_value(result.value().value);
@@ -223,8 +224,6 @@ struct value {
             if result.is_error() {
                 return result;
             }
-            # All non-printable bytes, plus the double quote used to denote the
-            # start and end of the string, are printed using escaped hex bytes.
             for i in countof(self.*._data.str) {
                 var c = self.*._data.str[i];
                 if c == '\"' or c == '\\' or escaped and (c < ' ' or c > '~') {
@@ -261,16 +260,20 @@ struct value {
             var sep = "";
             var iter = self.*.vec().*.iterator();
             for iter.advance() {
+                defer { sep = " "; }
+
                 var result = std::write_format(
                     writer,
-                    "{}{}",
-                    (:[]std::formatter)[
-                        std::formatter::init[[[]byte]](&sep),
-                        std::formatter::init[[value]](iter.current())]);
+                    "{}",
+                    (:[]std::formatter)[std::formatter::init[[[]byte]](&sep)]);
                 if result.is_error() {
                     return result;
                 }
-                sep = " ";
+
+                var result = iter.current().*.format(writer, fmt);
+                if result.is_error() {
+                    return result;
+                }
             }
             return std::write_all(writer, "]");
 
@@ -283,17 +286,30 @@ struct value {
             var sep = "";
             var iter = self.*.map().*.iterator();
             for iter.advance() {
+                defer { sep = " "; }
+
                 var result = std::write_format(
                     writer,
-                    "{}{} {}",
-                    (:[]std::formatter)[
-                        std::formatter::init[[[]byte]](&sep),
-                        std::formatter::init[[value]](iter.current().*.key),
-                        std::formatter::init[[value]](iter.current().*.value)]);
+                    "{}",
+                    (:[]std::formatter)[std::formatter::init[[[]byte]](&sep)]);
                 if result.is_error() {
                     return result;
                 }
-                sep = " ";
+
+                var result = iter.current().*.key.*.format(writer, fmt);
+                if result.is_error() {
+                    return result;
+                }
+
+                var result = std::write_all(writer, " ");
+                if result.is_error() {
+                    return result;
+                }
+
+                var result = iter.current().*.value.*.format(writer, fmt);
+                if result.is_error() {
+                    return result;
+                }
             }
             return std::write_all(writer, "}");
         }
@@ -305,16 +321,20 @@ struct value {
             var sep = "";
             var iter = self.*.set().*.iterator();
             for iter.advance() {
+                defer { sep = " "; }
+
                 var result = std::write_format(
                     writer,
-                    "{}{}",
-                    (:[]std::formatter)[
-                        std::formatter::init[[[]byte]](&sep),
-                        std::formatter::init[[value]](iter.current())]);
+                    "{}",
+                    (:[]std::formatter)[std::formatter::init[[[]byte]](&sep)]);
                 if result.is_error() {
                     return result;
                 }
-                sep = " ";
+
+                var result = iter.current().*.format(writer, fmt);
+                if result.is_error() {
+                    return result;
+                }
             }
             return std::write_all(writer, ")");
         }
@@ -408,9 +428,9 @@ func parse_str(str: []byte) bubby::parse_result {
     }
 
     var cur = 0u;
-    var buf = std::slice[[byte]]::new(0);
+    var vec = std::vector[[byte]]::init();
+    defer vec.fini();
     if cur == countof(str) or str[cur] != '\"' {
-        std::slice[[byte]]::delete(buf);
         return bubby::parse_result::init_error((:bubby::parse_failure){
             .error = std::error::PARSE_FAILURE,
             .index = cur,
@@ -420,13 +440,11 @@ func parse_str(str: []byte) bubby::parse_result {
     for cur != countof(str) and str[cur] != '\"' {
         var c = str[cur];
         if c != '\\' {
-            buf = std::slice[[byte]]::resize(buf, countof(buf)+1);
-            buf[countof(buf)-1] = c;
+            vec.push(c);
             cur += 1;
             continue;
         }
         if countof(str) - cur < countof("\\xXX") {
-            std::slice[[byte]]::delete(buf);
             return bubby::parse_result::init_error((:bubby::parse_failure){
                 .error = std::error::PARSE_FAILURE,
                 .index = cur,
@@ -434,7 +452,6 @@ func parse_str(str: []byte) bubby::parse_result {
         }
         var hex = str[cur:cur+countof("\\xXX")];
         if hex[0] != '\\' or hex[1] != 'x' {
-            std::slice[[byte]]::delete(buf);
             return bubby::parse_result::init_error((:bubby::parse_failure){
                 .error = std::error::PARSE_FAILURE,
                 .index = cur,
@@ -444,29 +461,28 @@ func parse_str(str: []byte) bubby::parse_result {
         var hi = std::str::find(DIGITS, (:[]byte){&hex[2], 1});
         var lo = std::str::find(DIGITS, (:[]byte){&hex[3], 1});
         if hi.is_empty() or lo.is_empty() {
-            std::slice[[byte]]::delete(buf);
             return bubby::parse_result::init_error((:bubby::parse_failure){
                 .error = std::error::PARSE_FAILURE,
                 .index = cur,
             });
         }
         var c = (:byte)(hi.value() << 4) | (:byte)lo.value();
-        buf = std::slice[[byte]]::resize(buf, countof(buf)+1);
-        buf[countof(buf)-1] = c;
+        vec.push(c);
         cur += 4;
     }
     if cur == countof(str) or str[cur] != '\"' {
-        std::slice[[byte]]::delete(buf);
         return bubby::parse_result::init_error((:bubby::parse_failure){
             .error = std::error::PARSE_FAILURE,
             .index = cur,
         });
     }
     cur += 1;
+    var bytes = std::slice[[byte]]::new(vec.count());
+    std::slice[[byte]]::copy(bytes, vec.data());
     return bubby::parse_result::init_value((:parse_success){
         .value = (:value){
             ._kind = bubby::kind::STR,
-            ._data = (:typeof(value::_SELF._data)){.str = buf},
+            ._data = (:typeof(value::_SELF._data)){.str = bytes},
         },
         .index = cur,
     });
@@ -565,6 +581,7 @@ func parse_map(str: []byte) bubby::parse_result {
             break;
         }
 
+        var key_index = cur;
         var result = bubby::parse(str[cur:countof(str)]);
         if result.is_error() {
             out.fini();
@@ -581,7 +598,7 @@ func parse_map(str: []byte) bubby::parse_result {
             key.fini();
             return bubby::parse_result::init_error((:bubby::parse_failure){
                 .error = (:std::error)&"duplicate map key",
-                .index = cur,
+                .index = key_index,
             });
         }
 
@@ -659,6 +676,7 @@ func parse_set(str: []byte) bubby::parse_result {
             break;
         }
 
+        var val_index = cur;
         var result = bubby::parse(str[cur:countof(str)]);
         if result.is_error() {
             out.fini();
@@ -675,7 +693,7 @@ func parse_set(str: []byte) bubby::parse_result {
             out.fini();
             return bubby::parse_result::init_error((:bubby::parse_failure){
                 .error = (:std::error)&"duplicate set element",
-                .index = cur,
+                .index = val_index,
             });
         }
 
