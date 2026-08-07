@@ -426,7 +426,9 @@ eval_rvalue_cast(struct expr const* expr)
     assert(from->type->kind != TYPE_ARRAY);
     assert(from->type->kind != TYPE_SLICE);
     assert(from->type->kind != TYPE_STRUCT);
-    if (from->type->kind == expr->type->kind) {
+    bool const is_distinct_enum_to_enum = from->type->kind == TYPE_ENUM
+        && expr->type->kind == TYPE_ENUM && from->type != expr->type;
+    if (from->type->kind == expr->type->kind && !is_distinct_enum_to_enum) {
         // Setting the type of `from` to the type of the `expr` to cover cases
         // such as function-to-function conversions where the type kind is the
         // same, but the actual type is different.
@@ -631,14 +633,23 @@ eval_rvalue_cast(struct expr const* expr)
             }
         }
 
-        intmax_t smax = 0;
-        if (bigint_to_smax(&smax, integer)) {
-            UNREACHABLE();
+        struct value* result = NULL;
+        if (bigint_cmp(integer, BIGINT_ZERO) < 0) {
+            intmax_t smax = 0;
+            if (bigint_to_smax(&smax, integer)) {
+                UNREACHABLE();
+            }
+            result = expr->type->kind == TYPE_F64 ? value_new_f64((double)smax)
+                                                  : value_new_f32((float)smax);
         }
-
-        struct value* const result = expr->type->kind == TYPE_F64
-            ? value_new_f64((double)smax)
-            : value_new_f32((float)smax);
+        else {
+            uintmax_t umax = 0;
+            if (bigint_to_umax(&umax, integer)) {
+                UNREACHABLE();
+            }
+            result = expr->type->kind == TYPE_F64 ? value_new_f64((double)umax)
+                                                  : value_new_f32((float)umax);
+        }
         value_del(from);
         return result;
     }
@@ -664,20 +675,19 @@ eval_rvalue_cast(struct expr const* expr)
 
         assert(expr->type->data.integer.min != NULL);
         assert(expr->type->data.integer.max != NULL);
+        double const truncated = trunc(from_as_double);
         if (type_is_uinteger(expr->type)) {
-            uintmax_t min_as_umax = 0;
             uintmax_t max_as_umax = 0;
-            if (bigint_to_umax(&min_as_umax, expr->type->data.integer.min)) {
-                UNREACHABLE();
-            }
             if (bigint_to_umax(&max_as_umax, expr->type->data.integer.max)) {
                 UNREACHABLE();
             }
-            uintmax_t from_as_umax = (uintmax_t)from_as_double;
-            if (from_as_umax < min_as_umax || max_as_umax < from_as_umax) {
+            // Using max_plus_one to avoid integer overflow.
+            double const max_plus_one = 2.0 * (double)(max_as_umax / 2 + 1);
+            if (truncated < 0.0 || max_plus_one <= truncated) {
                 fatal(expr->location, "operation produces out-of-range result");
             }
 
+            uintmax_t const from_as_umax = (uintmax_t)truncated;
             struct bigint* const integer = bigint_new_umax(from_as_umax);
             struct value* const result = value_new_integer(expr->type, integer);
             value_del(from);
@@ -692,11 +702,14 @@ eval_rvalue_cast(struct expr const* expr)
             if (bigint_to_smax(&max_as_smax, expr->type->data.integer.max)) {
                 UNREACHABLE();
             }
-            intmax_t from_as_smax = (intmax_t)from_as_double;
-            if (from_as_smax < min_as_smax || max_as_smax < from_as_smax) {
+            double const min = (double)min_as_smax;
+            // Using max_plus_one to avoid integer overflow.
+            double const max_plus_one = 2.0 * (double)(max_as_smax / 2 + 1);
+            if (truncated < min || max_plus_one <= truncated) {
                 fatal(expr->location, "operation produces out-of-range result");
             }
 
+            intmax_t const from_as_smax = (intmax_t)truncated;
             struct bigint* const integer = bigint_new_smax(from_as_smax);
             struct value* const result = value_new_integer(expr->type, integer);
             value_del(from);
@@ -915,6 +928,13 @@ eval_rvalue_access_slice(struct expr const* expr)
                 expr->data.access_slice.begin->location,
                 "index out-of-bounds (array count is %ju, received %zu)",
                 lhs->type->data.array.count,
+                end_uz);
+        }
+        if (begin_uz > end_uz) {
+            fatal(
+                expr->data.access_slice.begin->location,
+                "index out-of-bounds (slice begin index %zu is greater than end index %zu)",
+                begin_uz,
                 end_uz);
         }
 
@@ -1151,6 +1171,15 @@ eval_rvalue_binary(struct expr const* expr)
     struct value* const lhs = eval_rvalue(expr->data.binary.lhs);
     struct value* const rhs = eval_rvalue(expr->data.binary.rhs);
     struct value* res = NULL;
+
+    if (lhs->type->kind == TYPE_POINTER && rhs->type->kind == TYPE_POINTER) {
+        fatal(
+            expr->location,
+            "invalid compile-time evaluation of types `%s` and `%s` in binary expression",
+            lhs->type->name,
+            rhs->type->name);
+    }
+
     switch (expr->data.binary.op) {
     case BOP_OR: {
         assert(lhs->type->kind == TYPE_BOOL);
@@ -1179,7 +1208,7 @@ eval_rvalue_binary(struct expr const* expr)
         size_t shift_count = 0u;
         if (bigint_to_uz(&shift_count, rhs->data.integer)) {
             fatal(
-                expr->data.access_index.idx->location,
+                expr->data.binary.rhs->location,
                 "shift count out-of-range (received %s)",
                 bigint_to_new_cstr(rhs->data.integer));
         }
@@ -1208,7 +1237,7 @@ eval_rvalue_binary(struct expr const* expr)
         size_t shift_count = 0u;
         if (bigint_to_uz(&shift_count, rhs->data.integer)) {
             fatal(
-                expr->data.access_index.idx->location,
+                expr->data.binary.rhs->location,
                 "shift count out-of-range (received %s)",
                 bigint_to_new_cstr(rhs->data.integer));
         }
@@ -1424,6 +1453,14 @@ eval_rvalue_binary(struct expr const* expr)
         }
         struct bigint* const r = bigint_new(BIGINT_ZERO);
         bigint_divrem(r, NULL, lhs->data.integer, rhs->data.integer);
+        if (integer_is_out_of_range(expr->type, r)) {
+            fatal(
+                expr->location,
+                "operation produces out-of-range result (%s / %s == %s)",
+                bigint_to_new_cstr(lhs->data.integer),
+                bigint_to_new_cstr(rhs->data.integer),
+                bigint_to_new_cstr(r));
+        }
         res = value_new_integer(expr->type, r);
         break;
     }
@@ -1437,8 +1474,17 @@ eval_rvalue_binary(struct expr const* expr)
                 bigint_to_new_cstr(lhs->data.integer),
                 bigint_to_new_cstr(rhs->data.integer));
         }
+        struct bigint* const q = bigint_new(BIGINT_ZERO);
         struct bigint* const r = bigint_new(BIGINT_ZERO);
-        bigint_divrem(NULL, r, lhs->data.integer, rhs->data.integer);
+        bigint_divrem(q, r, lhs->data.integer, rhs->data.integer);
+        if (integer_is_out_of_range(expr->type, q)) {
+            fatal(
+                expr->location,
+                "operation produces out-of-range result (%s %% %s)",
+                bigint_to_new_cstr(lhs->data.integer),
+                bigint_to_new_cstr(rhs->data.integer));
+        }
+        bigint_del(q);
         res = value_new_integer(expr->type, r);
         break;
     }
@@ -1720,12 +1766,15 @@ eval_lvalue_access_member_variable(struct expr const* expr)
     assert(expr != NULL);
     assert(expr->kind == EXPR_ACCESS_MEMBER_VARIABLE);
 
+    struct member_variable const* const member_variable =
+        expr->data.access_member_variable.member_variable;
+
     struct value* const value =
         eval_lvalue(expr->data.access_member_variable.lhs);
     assert(value->type->kind == TYPE_POINTER);
     assert(value->data.pointer.kind == ADDRESS_STATIC);
-    value->data.pointer.data.static_.offset +=
-        expr->data.access_member_variable.member_variable->offset;
+    value->type = type_unique_pointer(member_variable->type);
+    value->data.pointer.data.static_.offset += member_variable->offset;
     return value;
 }
 

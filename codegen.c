@@ -1170,7 +1170,8 @@ strgen_value(struct value const* value)
             string_append_cstr(s, "/* +INFINITY */(+1.0f / 0.0f)");
             break;
         }
-        string_append_fmt(s, "%.*ff", IEEE754_FLT_DECIMAL_DIG, ieee754);
+        string_append_fmt(
+            s, "/* %.*g */%af", IEEE754_FLT_DECIMAL_DIG, ieee754, ieee754);
         break;
     }
     case TYPE_F64: {
@@ -1187,7 +1188,8 @@ strgen_value(struct value const* value)
             string_append_cstr(s, "/* +INFINITY */(+1.0 / 0.0)");
             break;
         }
-        string_append_fmt(s, "%.*f", IEEE754_DBL_DECIMAL_DIG, ieee754);
+        string_append_fmt(
+            s, "/* %.*g */%a", IEEE754_DBL_DECIMAL_DIG, ieee754, ieee754);
         break;
     }
     case TYPE_REAL: {
@@ -1751,7 +1753,8 @@ codegen_stmt_continue(struct stmt const* stmt)
     assert(stmt != NULL);
     assert(stmt->kind == STMT_CONTINUE);
 
-    codegen_defers(stmt->data.break_.defer_begin, stmt->data.break_.defer_end);
+    codegen_defers(
+        stmt->data.continue_.defer_begin, stmt->data.continue_.defer_end);
     appendli("continue;");
 }
 
@@ -1870,17 +1873,33 @@ codegen_stmt_assign(struct stmt const* stmt)
     switch (stmt->data.assign.op) {
     case AOP_ASSIGN: {
         appendli(
-            "*(%s) = %s;",
+            "{%s* %s = %s; %s %s = %s; *%s = %s;}",
+            mangle_type(stmt->data.assign.lhs->type),
+            MANGLE_PREFIX "lhs",
             strgen_lvalue(stmt->data.assign.lhs),
-            strgen_rvalue(stmt->data.assign.rhs));
+
+            mangle_type(stmt->data.assign.rhs->type),
+            MANGLE_PREFIX "rhs",
+            strgen_rvalue(stmt->data.assign.rhs),
+
+            MANGLE_PREFIX "lhs",
+            MANGLE_PREFIX "rhs");
         return;
     }
     case AOP_ADD_ASSIGN: {
         if (type_is_ieee754(stmt->data.assign.lhs->type)) {
             appendli(
-                "*(%s) += %s;",
+                "{%s* %s = %s; %s %s = %s; *%s += %s;}",
+                mangle_type(stmt->data.assign.lhs->type),
+                MANGLE_PREFIX "lhs",
                 strgen_lvalue(stmt->data.assign.lhs),
-                strgen_rvalue(stmt->data.assign.rhs));
+
+                mangle_type(stmt->data.assign.rhs->type),
+                MANGLE_PREFIX "rhs",
+                strgen_rvalue(stmt->data.assign.rhs),
+
+                MANGLE_PREFIX "lhs",
+                MANGLE_PREFIX "rhs");
             return;
         }
 
@@ -1904,9 +1923,17 @@ codegen_stmt_assign(struct stmt const* stmt)
     case AOP_SUB_ASSIGN: {
         if (type_is_ieee754(stmt->data.assign.lhs->type)) {
             appendli(
-                "*(%s) -= %s;",
+                "{%s* %s = %s; %s %s = %s; *%s -= %s;}",
+                mangle_type(stmt->data.assign.lhs->type),
+                MANGLE_PREFIX "lhs",
                 strgen_lvalue(stmt->data.assign.lhs),
-                strgen_rvalue(stmt->data.assign.rhs));
+
+                mangle_type(stmt->data.assign.rhs->type),
+                MANGLE_PREFIX "rhs",
+                strgen_rvalue(stmt->data.assign.rhs),
+
+                MANGLE_PREFIX "lhs",
+                MANGLE_PREFIX "rhs");
             return;
         }
 
@@ -1930,9 +1957,17 @@ codegen_stmt_assign(struct stmt const* stmt)
     case AOP_MUL_ASSIGN: {
         if (type_is_ieee754(stmt->data.assign.lhs->type)) {
             appendli(
-                "*(%s) *= %s;",
+                "{%s* %s = %s; %s %s = %s; *%s *= %s;}",
+                mangle_type(stmt->data.assign.lhs->type),
+                MANGLE_PREFIX "lhs",
                 strgen_lvalue(stmt->data.assign.lhs),
-                strgen_rvalue(stmt->data.assign.rhs));
+
+                mangle_type(stmt->data.assign.rhs->type),
+                MANGLE_PREFIX "rhs",
+                strgen_rvalue(stmt->data.assign.rhs),
+
+                MANGLE_PREFIX "lhs",
+                MANGLE_PREFIX "rhs");
             return;
         }
 
@@ -1956,9 +1991,17 @@ codegen_stmt_assign(struct stmt const* stmt)
     case AOP_DIV_ASSIGN: {
         if (type_is_ieee754(stmt->data.assign.lhs->type)) {
             appendli(
-                "*(%s) /= %s;",
+                "{%s* %s = %s; %s %s = %s; *%s /= %s;}",
+                mangle_type(stmt->data.assign.lhs->type),
+                MANGLE_PREFIX "lhs",
                 strgen_lvalue(stmt->data.assign.lhs),
-                strgen_rvalue(stmt->data.assign.rhs));
+
+                mangle_type(stmt->data.assign.rhs->type),
+                MANGLE_PREFIX "rhs",
+                strgen_rvalue(stmt->data.assign.rhs),
+
+                MANGLE_PREFIX "lhs",
+                MANGLE_PREFIX "rhs");
             return;
         }
 
@@ -2066,7 +2109,8 @@ codegen_stmt_assign(struct stmt const* stmt)
             MANGLE_PREFIX "rhs",
             mangle_type(stmt->data.assign.lhs->type),
             mangle_type(stmt->data.assign.lhs->type),
-            mangle_type(stmt->data.assign.rhs->type),
+            mangle_type(
+                type_get_same_sized_uinteger(stmt->data.assign.lhs->type)),
             MANGLE_PREFIX "lhs",
             MANGLE_PREFIX "rhs",
 
@@ -3238,7 +3282,7 @@ strgen_rvalue_binary_shl(struct expr const* expr)
         MANGLE_PREFIX "rhs",
         mangle_type(expr->data.binary.lhs->type),
         mangle_type(expr->data.binary.lhs->type),
-        mangle_type(expr->data.binary.rhs->type),
+        mangle_type(type_get_same_sized_uinteger(expr->data.binary.lhs->type)),
         MANGLE_PREFIX "lhs",
         MANGLE_PREFIX "rhs",
         mangle_type(expr->data.binary.lhs->type));
@@ -3776,7 +3820,21 @@ strgen_lvalue_unary(struct expr const* expr)
     switch (expr->data.unary.op) {
     case UOP_DEREFERENCE: {
         assert(expr->data.unary.rhs->type->kind == TYPE_POINTER);
-        return strgen_rvalue(expr->data.unary.rhs);
+
+        if (expr->type->size == 0) {
+            return strgen_rvalue(expr->data.unary.rhs);
+        }
+
+        return strgen_fmt(
+            "({%s %s = %s; if (%s == 0){%s();}; %s;})",
+            mangle_type(expr->data.unary.rhs->type),
+            MANGLE_PREFIX "ptr",
+            strgen_rvalue(expr->data.unary.rhs),
+
+            MANGLE_PREFIX "ptr",
+            MANGLE_PREFIX "fatal_null_pointer_dereference",
+
+            MANGLE_PREFIX "ptr");
     }
     case UOP_NOT: /* fallthrough */
     case UOP_POS: /* fallthrough */
@@ -3823,7 +3881,6 @@ codegen(
 
     debug = opt_g;
     struct string* const src_path = string_new_fmt("%s.tmp.c", opt_o);
-    struct string* const obj_path = string_new_fmt("%s.tmp.o", opt_o);
 
     char const* const SUNDER_HOME = getenv("SUNDER_HOME");
     if (SUNDER_HOME == NULL) {
@@ -4062,12 +4119,8 @@ cleanup:
     if (!opt_k) {
         (void)remove(string_start(src_path));
     }
-    if (!opt_k && !opt_c) {
-        (void)remove(string_start(obj_path));
-    }
     sbuf_fini(backend_argv);
     string_del(src_path);
-    string_del(obj_path);
     if (err) {
         exit(EXIT_FAILURE);
     }

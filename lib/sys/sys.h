@@ -206,10 +206,10 @@ __SUNDER_SINTEGER_ADD_WRAPPING_DEFINITION(ssize, usize)
 #    define __SUNDER_SINTEGER_SUB_DEFINITION(T)                                \
         static T __sunder_sub_##T(T lhs, T rhs)                                \
         {                                                                      \
-            if (lhs < 0 && rhs > __sunder_##T##_MAX + lhs) {                   \
+            if (rhs < 0 && lhs > __sunder_##T##_MAX + rhs) {                   \
                 __sunder_fatal_out_of_range();                                 \
             }                                                                  \
-            if (lhs > 0 && rhs < __sunder_##T##_MIN + lhs) {                   \
+            if (rhs > 0 && lhs < __sunder_##T##_MIN + rhs) {                   \
                 __sunder_fatal_out_of_range();                                 \
             }                                                                  \
             return lhs - rhs;                                                  \
@@ -395,7 +395,7 @@ __SUNDER_SINTEGER_DIV_DEFINITION(ssize)
 __SUNDER_IEEE754_DIV_DEFINITION(f32)
 __SUNDER_IEEE754_DIV_DEFINITION(f64)
 
-#define __SUNDER_INTEGER_REM_DEFINITION(T)                                     \
+#define __SUNDER_UINTEGER_REM_DEFINITION(T)                                    \
     static __SUNDER_INLINE T __sunder_rem_##T(T lhs, T rhs)                    \
     {                                                                          \
         if (rhs == 0) {                                                        \
@@ -404,22 +404,37 @@ __SUNDER_IEEE754_DIV_DEFINITION(f64)
         return lhs % rhs;                                                      \
     }
 
-__SUNDER_INTEGER_REM_DEFINITION(u8)
-__SUNDER_INTEGER_REM_DEFINITION(s8)
-__SUNDER_INTEGER_REM_DEFINITION(u16)
-__SUNDER_INTEGER_REM_DEFINITION(s16)
-__SUNDER_INTEGER_REM_DEFINITION(u32)
-__SUNDER_INTEGER_REM_DEFINITION(s32)
-__SUNDER_INTEGER_REM_DEFINITION(u64)
-__SUNDER_INTEGER_REM_DEFINITION(s64)
-__SUNDER_INTEGER_REM_DEFINITION(usize)
-__SUNDER_INTEGER_REM_DEFINITION(ssize)
+#define __SUNDER_SINTEGER_REM_DEFINITION(T)                                    \
+    static __SUNDER_INLINE T __sunder_rem_##T(T lhs, T rhs)                    \
+    {                                                                          \
+        if (rhs == 0) {                                                        \
+            __sunder_fatal_divide_by_zero();                                   \
+        }                                                                      \
+        if ((lhs == __sunder_##T##_MIN) && (rhs == -1)) {                      \
+            __sunder_fatal_out_of_range();                                     \
+        }                                                                      \
+        return lhs % rhs;                                                      \
+    }
+
+__SUNDER_UINTEGER_REM_DEFINITION(u8)
+__SUNDER_SINTEGER_REM_DEFINITION(s8)
+__SUNDER_UINTEGER_REM_DEFINITION(u16)
+__SUNDER_SINTEGER_REM_DEFINITION(s16)
+__SUNDER_UINTEGER_REM_DEFINITION(u32)
+__SUNDER_SINTEGER_REM_DEFINITION(s32)
+__SUNDER_UINTEGER_REM_DEFINITION(u64)
+__SUNDER_SINTEGER_REM_DEFINITION(s64)
+__SUNDER_UINTEGER_REM_DEFINITION(usize)
+__SUNDER_SINTEGER_REM_DEFINITION(ssize)
 
 #define __SUNDER_CAST_IEEE754_TO_INTEGER_DEFINITION(F, I)                      \
     static I __sunder_cast_##F##_to_##I(F f)                                   \
     {                                                                          \
-        if (!isfinite(f) || f < (F)__sunder_##I##_MIN                          \
-            || (F)__sunder_##I##_MAX < f) {                                    \
+        double truncated = trunc((double)f);                                   \
+        double min = (double)__sunder_##I##_MIN;                               \
+        /* Using max_plus_one to avoid integer overflow. */                    \
+        double max_plus_one = 2.0 * (double)(__sunder_##I##_MAX / 2 + 1);      \
+        if (!isfinite(f) || truncated < min || max_plus_one <= truncated) {    \
             __sunder_fatal_out_of_range();                                     \
         }                                                                      \
         return (I)f;                                                           \
@@ -502,7 +517,7 @@ sys_exit(signed int error_code)
     _exit(error_code);
 }
 
-void*
+static void*
 sys_opendir(char* path)
 {
     return opendir(path);
@@ -680,7 +695,7 @@ sys_dump_bytes(void* addr, usize size)
     free(buf);
 }
 
-bool
+static bool
 sys_str_to_f32(f32* out, byte* start, usize count)
 {
     if (count == strlen("infinity") && 0 == memcmp(start, "infinity", count)) {
@@ -720,8 +735,9 @@ sys_str_to_f32(f32* out, byte* start, usize count)
     buf[count] = '\0';
 
     float f;
-    int scanned = sscanf(buf, "%f", &f);
-    if (scanned == EOF) {
+    int consumed = 0;
+    int scanned = sscanf(buf, "%f%n", &f, &consumed);
+    if (scanned == 0 || scanned == EOF || (usize)consumed != count) {
         return __sunder_false;
     }
 
@@ -729,7 +745,7 @@ sys_str_to_f32(f32* out, byte* start, usize count)
     return __sunder_true;
 }
 
-bool
+static bool
 sys_str_to_f64(f64* out, byte* start, usize count)
 {
     if (count == strlen("infinity") && 0 == memcmp(start, "infinity", count)) {
@@ -769,8 +785,9 @@ sys_str_to_f64(f64* out, byte* start, usize count)
     buf[count] = '\0';
 
     double f;
-    int scanned = sscanf(buf, "%lf", &f);
-    if (scanned == EOF) {
+    int consumed = 0;
+    int scanned = sscanf(buf, "%lf%n", &f, &consumed);
+    if (scanned == 0 || scanned == EOF || (usize)consumed != count) {
         return __sunder_false;
     }
 
@@ -778,23 +795,32 @@ sys_str_to_f64(f64* out, byte* start, usize count)
     return __sunder_true;
 }
 
-bool
+static bool
 sys_f32_to_str(byte* buf, usize buf_size, f32 f, ssize digits)
 {
     if (isnan(f)) {
+        if (buf_size < sizeof("NaN")) {
+            return __sunder_false;
+        }
         return sprintf(buf, "NaN");
     }
     if (isinf(f) && f < 0) {
+        if (buf_size < sizeof("-infinity")) {
+            return __sunder_false;
+        }
         return sprintf(buf, "-infinity");
     }
     if (isinf(f) && f > 0) {
+        if (buf_size < sizeof("infinity")) {
+            return __sunder_false;
+        }
         return sprintf(buf, "infinity");
     }
 
     assert(INT_MIN <= digits && digits <= INT_MAX);
     int d = digits < 0 ? __SUNDER_IEEE754_FLT_DECIMAL_DIG : (int)digits;
     int written = snprintf(buf, buf_size, "%.*f", d, (double)f);
-    if (written < 0 && (usize)written >= buf_size) {
+    if (written < 0 || (usize)written >= buf_size) {
         return __sunder_false;
     }
     if (written > 0 && digits < 0) {
@@ -806,23 +832,32 @@ sys_f32_to_str(byte* buf, usize buf_size, f32 f, ssize digits)
     return __sunder_true;
 }
 
-bool
+static bool
 sys_f64_to_str(byte* buf, usize buf_size, f64 f, ssize digits)
 {
     if (isnan(f)) {
+        if (buf_size < sizeof("NaN")) {
+            return __sunder_false;
+        }
         return sprintf(buf, "NaN");
     }
     if (isinf(f) && f < 0) {
+        if (buf_size < sizeof("-infinity")) {
+            return __sunder_false;
+        }
         return sprintf(buf, "-infinity");
     }
     if (isinf(f) && f > 0) {
+        if (buf_size < sizeof("infinity")) {
+            return __sunder_false;
+        }
         return sprintf(buf, "infinity");
     }
 
     assert(INT_MIN <= digits && digits <= INT_MAX);
     int d = digits < 0 ? __SUNDER_IEEE754_DBL_DECIMAL_DIG : (int)digits;
     int written = snprintf(buf, buf_size, "%.*f", d, f);
-    if (written < 0 && (usize)written >= buf_size) {
+    if (written < 0 || (usize)written >= buf_size) {
         return __sunder_false;
     }
     if (written > 0 && digits < 0) {
@@ -835,68 +870,68 @@ sys_f64_to_str(byte* buf, usize buf_size, f64 f, ssize digits)
 }
 
 #define __SUNDER_IEEE754_MATH_DEFINITIONS(function)                            \
-    f32 sys_f32_##function(f32 f)                                              \
+    static f32 sys_f32_##function(f32 f)                                       \
     {                                                                          \
         return function##f(f);                                                 \
     }                                                                          \
-    f64 sys_f64_##function(f64 f)                                              \
+    static f64 sys_f64_##function(f64 f)                                       \
     {                                                                          \
         return function(f);                                                    \
     }
 
 #define __SUNDER_IEEE754_MATH_DEFINITIONS2(function)                           \
-    f32 sys_f32_##function(f32 f1, f32 f2)                                     \
+    static f32 sys_f32_##function(f32 f1, f32 f2)                              \
     {                                                                          \
         return function##f(f1, f2);                                            \
     }                                                                          \
-    f64 sys_f64_##function(f64 f1, f64 f2)                                     \
+    static f64 sys_f64_##function(f64 f1, f64 f2)                              \
     {                                                                          \
         return function(f1, f2);                                               \
     }
 
-f32
+static f32
 sys_f32_abs(f32 f)
 {
     return fabsf(f);
 }
 
-f64
+static f64
 sys_f64_abs(f64 f)
 {
     return fabs(f);
 }
 
-f32
+static f32
 sys_f32_min(f32 f1, f32 f2)
 {
     return fminf(f1, f2);
 }
 
-f64
+static f64
 sys_f64_min(f64 f1, f64 f2)
 {
     return fmin(f1, f2);
 }
 
-f32
+static f32
 sys_f32_max(f32 f1, f32 f2)
 {
     return fmaxf(f1, f2);
 }
 
-f64
+static f64
 sys_f64_max(f64 f1, f64 f2)
 {
     return fmax(f1, f2);
 }
 
-f32
+static f32
 sys_f32_ln(f32 f)
 {
     return logf(f);
 }
 
-f64
+static f64
 sys_f64_ln(f64 f)
 {
     return log(f);
@@ -930,49 +965,49 @@ __SUNDER_IEEE754_MATH_DEFINITIONS(floor)
 __SUNDER_IEEE754_MATH_DEFINITIONS(trunc)
 __SUNDER_IEEE754_MATH_DEFINITIONS(round)
 
-bool
+static bool
 sys_f32_is_finite(f32 f)
 {
     return isfinite(f);
 }
 
-bool
+static bool
 sys_f64_is_finite(f64 f)
 {
     return isfinite(f);
 }
 
-bool
+static bool
 sys_f32_is_normal(f32 f)
 {
     return isnormal(f);
 }
 
-bool
+static bool
 sys_f64_is_normal(f64 f)
 {
     return isnormal(f);
 }
 
-bool
+static bool
 sys_f32_is_inf(f32 f)
 {
     return isinf(f);
 }
 
-bool
+static bool
 sys_f64_is_inf(f64 f)
 {
     return isinf(f);
 }
 
-bool
+static bool
 sys_f32_is_nan(f32 f)
 {
     return isnan(f);
 }
 
-bool
+static bool
 sys_f64_is_nan(f64 f)
 {
     return isnan(f);

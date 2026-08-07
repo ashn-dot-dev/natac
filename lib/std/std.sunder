@@ -533,7 +533,7 @@ struct general_allocator {
 
     func allocate(self: *general_allocator, align: usize, size: usize) std::result[[*any, std::error]] {
         var offset = std::forward_align(sizeof(general_allocator_element), align);
-        var memory = sys::allocate(alignof(general_allocator_element), offset + size);
+        var memory = sys::allocate(usize::max(alignof(general_allocator_element), align), offset + size);
         var element = (:*general_allocator_element)memory;
         *element = (:general_allocator_element){
             ._prev = std::ptr[[std::general_allocator_element]]::NULL,
@@ -551,7 +551,7 @@ struct general_allocator {
         var offset = std::forward_align(sizeof(general_allocator_element), align);
 
         var old_element = (:*general_allocator_element)std::ptr[[byte]]::sub((:*byte)ptr, offset);
-        var new_element = (:*general_allocator_element)sys::allocate(alignof(general_allocator_element), offset + new_size);
+        var new_element = (:*general_allocator_element)sys::allocate(usize::max(alignof(general_allocator_element), align), offset + new_size);
         *new_element = (:general_allocator_element){
             ._prev = std::ptr[[general_allocator_element]]::NULL,
             ._next = std::ptr[[general_allocator_element]]::NULL,
@@ -565,7 +565,7 @@ struct general_allocator {
             (:[]byte){(:*byte)old_element.*._start, copy_size});
 
         self.*._remove_element(old_element);
-        sys::deallocate(old_element, alignof(general_allocator_element), offset + old_size);
+        sys::deallocate(old_element, usize::max(alignof(general_allocator_element), align), offset + old_size);
         self.*._insert_element(new_element);
         return std::result[[*any, std::error]]::init_value(new_element.*._start);
     }
@@ -575,7 +575,7 @@ struct general_allocator {
         var element = (:*general_allocator_element)std::ptr[[byte]]::sub((:*byte)ptr, offset);
 
         self.*._remove_element(element);
-        sys::deallocate(element, alignof(general_allocator_element), offset + size);
+        sys::deallocate(element, usize::max(alignof(general_allocator_element), align), offset + size);
     }
 
     func _insert_element(self: *general_allocator, element: *general_allocator_element) void {
@@ -1266,12 +1266,12 @@ func read_all(reader: std::reader) std::result[[[]byte, std::error]] {
 # the read data, allocated using the provided allocator.
 func read_all_with_allocator(allocator: std::allocator, reader: std::reader) std::result[[[]byte, std::error]] {
     var vec = std::vector[[byte]]::init_with_allocator(allocator);
+    defer vec.fini();
 
     var buf = (:[4096]byte)[0...];
     for true {
         var result = reader.read(buf[0:countof(buf)]);
         if result.is_error() {
-            vec.fini();
             return std::result[[[]byte, std::error]]::init_error(result.error());
         }
 
@@ -1282,7 +1282,6 @@ func read_all_with_allocator(allocator: std::allocator, reader: std::reader) std
 
         var cur_count = vec.count();
         var new_count = vec.count() + read_size;
-
         if new_count > vec.capacity() {
             vec.reserve(usize::max(new_count, vec.capacity() * 2));
         }
@@ -1291,11 +1290,8 @@ func read_all_with_allocator(allocator: std::allocator, reader: std::reader) std
         std::slice[[byte]]::copy(vec.data()[cur_count:new_count], buf[0:read_size]);
     }
 
-    var bytes = (:[]byte){vec.start(), vec.count()};
-    var slice = (:[]byte){vec.start(), vec.capacity()};
-    if countof(bytes) != countof(slice) {
-        bytes = std::slice[[byte]]::resize_with_allocator(allocator, slice, countof(bytes));
-    }
+    var bytes = std::slice[[byte]]::new_with_allocator(allocator, vec.count());
+    std::slice[[byte]]::copy(bytes, vec.data());
     return std::result[[[]byte, std::error]]::init_value(bytes);
 }
 
@@ -1374,21 +1370,20 @@ func read_line(reader: std::reader) std::result[[std::optional[[[]byte]], std::e
 #       # when reading from standard input.
 #   }
 func read_line_with_allocator(allocator: std::allocator, reader: std::reader) std::result[[std::optional[[[]byte]], std::error]] {
-    var bytes = std::slice[[byte]]::new_with_allocator(allocator, 0);
+    var vec = std::vector[[byte]]::init_with_allocator(allocator);
+    defer vec.fini();
 
     var c: byte = uninit;
     for true {
         var result = reader.read((:[]byte){&c, 1});
         if result.is_error() {
-            std::slice[[byte]]::delete_with_allocator(allocator, bytes);
             return std::result[[std::optional[[[]byte]], std::error]]::init_error(result.error());
         }
 
         var read_size = result.value();
         if read_size == 0 {
-            if countof(bytes) == 0 {
+            if vec.count() == 0 {
                 # End-of-input encountered while reading an empty line.
-                std::slice[[byte]]::delete_with_allocator(allocator, bytes);
                 return std::result[[std::optional[[[]byte]], std::error]]::init_value(std::optional[[[]byte]]::EMPTY);
             }
             # End-of-input encountered while reading a non-empty line.
@@ -1400,12 +1395,11 @@ func read_line_with_allocator(allocator: std::allocator, reader: std::reader) st
             break;
         }
 
-        var cur_count = countof(bytes);
-        var new_count = cur_count + read_size;
-        bytes = std::slice[[byte]]::resize_with_allocator(allocator, bytes, new_count);
-        std::slice[[byte]]::copy(bytes[cur_count:new_count], (:[]byte){&c, 1});
+        vec.push(c);
     }
 
+    var bytes = std::slice[[byte]]::new_with_allocator(allocator, vec.count());
+    std::slice[[byte]]::copy(bytes, vec.data());
     return std::result[[std::optional[[[]byte]], std::error]]::init_value(std::optional[[[]byte]]::init_value(bytes));
 }
 
@@ -1869,7 +1863,7 @@ func sort_with_comparator[[T]](slice: []T, comparator: func(*T, *T) ssize) void 
             slice[i] = slice0[i0];
             i0 += 1;
         }
-        elif comparator(&slice0[i0], &slice1[i1]) < 0 {
+        elif comparator(&slice0[i0], &slice1[i1]) <= 0 {
             slice[i] = slice0[i0];
             i0 += 1;
         }
@@ -1991,7 +1985,7 @@ struct big_integer {
         if (end - cur) > countof("+") and str[cur] == '+' {
             cur += 1;
         }
-        if (end - cur) > countof("-") and str[cur] == '-' {
+        elif (end - cur) > countof("-") and str[cur] == '-' {
             sign = -1;
             cur += 1;
         }
@@ -2201,7 +2195,6 @@ struct big_integer {
         }
 
         var radix: std::big_integer = uninit;
-        defer radix.fini();
         var digits_prefix = "";
         var digits_table = DIGITS_TABLE_LOWER[0:DIGITS_TABLE_COUNT];
 
@@ -2237,13 +2230,13 @@ struct big_integer {
             # Default to decimal formatting.
             radix = std::big_integer::init_from_int[[usize]](10);
         }
+        defer radix.fini();
 
         if fmt_idx != countof(fmt) {
             return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
         }
 
         var magnitude = big_integer::init_assign(self);
-        big_integer::assign(&magnitude, self);
         big_integer::abs(&magnitude, &magnitude);
         defer magnitude.fini();
 
@@ -2783,7 +2776,7 @@ struct string {
     # Finalize resources associated with the string.
     func fini(self: *string) void {
         if self.*._capacity != 0 {
-            std::slice[[byte]]::delete_with_allocator(self.*._allocator, (:[]byte){self.*._start, self.*._capacity});
+            std::slice[[byte]]::delete_with_allocator(self.*._allocator, (:[]byte){self.*._start, self.*._capacity + 1});
         }
     }
 
@@ -3939,7 +3932,7 @@ struct directory {
         var path_cstr = (:[sys::PATH_MAX]byte)[0...];
         std::slice[[byte]]::copy(path_cstr[0:countof(path)], path);
 
-        var sysret = sys::mkdir(&path_cstr[0], 0o666);
+        var sysret = sys::mkdir(&path_cstr[0], 0o777);
         if sysret < 0 {
             return std::result[[void, std::error]]::init_error((:std::error)sys::error(-sysret));
         }
@@ -4608,7 +4601,7 @@ extend integer func _format_umax(int: std::umax, writer: std::writer, fmt: []byt
         return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
     }
 
-    let OUTPUT_COUNT = countof("+") + countof("0b") + sizeof(usize) * 8;
+    let OUTPUT_COUNT = countof("+") + countof("0b") + sizeof(umax) * 8;
     var output = (:[OUTPUT_COUNT]byte)[0...];
     var output_index = countof(output) - 1;
 
@@ -4668,6 +4661,10 @@ extend integer func _format_smax(int: std::smax, writer: std::writer, fmt: []byt
         sign = "-";
         if fmt_idx < countof(fmt) and fmt[fmt_idx] == '+' {
             fmt_idx += 1;
+            if fmt_idx < countof(fmt) and fmt[fmt_idx] == '+' {
+                # Avoid double writing the + character.
+                return std::result[[void, std::error]]::init_error(std::error::INVALID_ARGUMENT);
+            }
         }
     }
     elif fmt_idx < countof(fmt) and fmt[fmt_idx] == '+' {
@@ -5069,7 +5066,7 @@ extend f32 func hash(self: *f32) usize {
         return 0;
     }
 
-    return (:usize)*self;
+    return (:usize)(*(:*u32)self);
 }
 
 extend f32 func eq(lhs: *f32, rhs: *f32) bool {
@@ -5168,7 +5165,7 @@ extend f64 func hash(self: *f64) usize {
         return 0;
     }
 
-    return (:usize)*self;
+    return (:usize)(*(:*u64)self);
 }
 
 extend f64 func eq(lhs: *f64, rhs: *f64) bool {

@@ -660,12 +660,9 @@ NORETURN void
 unreachable(char const* file, int line);
 #define UNREACHABLE() unreachable(__FILE__, __LINE__)
 
-// Round up to the nearest multiple of 8.
-uintmax_t
-ceil8umax(uintmax_t x);
-
 // Spawn a subprocess and wait for it to complete.
 // Returns the exit status of the spawned process.
+// Returns -1 if the subprocess did not properly exit.
 int
 spawnvpw(char const* const* argv);
 
@@ -1947,6 +1944,10 @@ type_member_variable(struct type const* self, char const* name);
 struct type*
 type_get_mutable(struct type const* self);
 
+// Returns the unsigned integer type with the same size as the type `self`.
+struct type const*
+type_get_same_sized_uinteger(struct type const* self);
+
 struct type const*
 type_unique_function(
     struct type const* const* parameter_types, struct type const* return_type);
@@ -2277,8 +2278,6 @@ stmt_new_defer(
     struct block body);
 struct stmt*
 stmt_new_if(struct conditional const* conditionals);
-struct stmt*
-stmt_new_when(struct conditional conditional);
 struct stmt*
 stmt_new_for_range(
     struct source_location location,
